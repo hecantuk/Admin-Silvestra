@@ -52,7 +52,7 @@ silvestra-claudecode/
 │   │   └── reportes.py  ← concentrado y exportación
 │   └── init_db.py       ← carga datos iniciales del Excel
 ├── static/
-│   └── index.html       ← el frontend (copiar tu index.html aquí)
+│   └── index.html       ← el frontend (única fuente, servido por main.py)
 ├── requirements.txt
 └── README.md
 ```

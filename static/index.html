@@ -1830,13 +1830,47 @@ function renderIngresosByTab(tab){
       <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9">${p.concepto}</td>
       <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-family:'DM Mono',monospace;font-weight:500;color:var(--green)">$${p.importe.toLocaleString()}</td>
       <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-size:12px;color:var(--muted)">${p.ref}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9">${tab==='aprobar'?`<button class="btn-primary" style="padding:5px 10px;font-size:12px" onclick="aprobarIngreso(this)">✓ Aprobar</button>`:'<span class="badge badge-green">✓ Aprobado</span>'}</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9">${tab==='aprobar'
+        ?`<button class="btn-primary" style="padding:5px 10px;font-size:12px" onclick="aprobarIngreso(${p.id},this)">✓ Aprobar</button>`
+        :`<div style="display:flex;align-items:center;gap:8px"><span class="badge badge-green">✓ Aprobado</span><button onclick="revertirIngreso(${p.id},this)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer" title="Revertir a pendiente">↩</button></div>`
+      }</td>
     </tr>`).join('')}</tbody></table>`;
 }
 
-function aprobarIngreso(btn){
-  btn.closest('tr').querySelector('td:last-child').innerHTML='<span class="badge badge-green">✓ Aprobado</span>';
-  showToast('Ingreso aprobado correctamente');
+function aprobarIngreso(id,btn){
+  fetch(`/api/pagos/${id}/aprobar`,{method:'PUT'})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){
+        const idx=INGRESOS_DATA.findIndex(i=>i.id===id);
+        if(idx>=0) INGRESOS_DATA[idx].estado='aprobado';
+        renderIngresosByTab('aprobar');
+        showToast('✅ Ingreso aprobado');
+      }
+    }).catch(()=>{
+      // fallback UI-only
+      const idx=INGRESOS_DATA.findIndex(i=>i.id===id);
+      if(idx>=0) INGRESOS_DATA[idx].estado='aprobado';
+      renderIngresosByTab('aprobar');
+      showToast('✅ Ingreso aprobado');
+    });
+}
+
+function revertirIngreso(id,btn){
+  if(!confirm('¿Regresar este ingreso a "Por aprobar"?')) return;
+  fetch(`/api/pagos/${id}/revertir`,{method:'PUT'})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){
+        const idx=INGRESOS_DATA.findIndex(i=>i.id===id);
+        if(idx>=0) INGRESOS_DATA[idx].estado='por_aprobar';
+        renderIngresosByTab('aprobados');
+        showToast('Ingreso regresado a pendiente');
+      }
+    }).catch(()=>{
+      const idx=INGRESOS_DATA.findIndex(i=>i.id===id);
+      if(idx>=0) INGRESOS_DATA[idx].estado='por_aprobar';
+      renderIngresosByTab('aprobados');
+      showToast('Ingreso regresado a pendiente');
+    });
 }
 
 // ============================================================

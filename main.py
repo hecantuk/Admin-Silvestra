@@ -434,6 +434,17 @@ def aprobar_pago(pago_id: int):
         s.commit()
         return {"ok": True, "id": pago_id}
 
+@app.put("/api/pagos/{pago_id}/revertir")
+def revertir_pago(pago_id: int):
+    with Session(engine) as s:
+        pago = s.get(Pago, pago_id)
+        if not pago:
+            raise HTTPException(404, "Pago no encontrado")
+        pago.estado = "por_aprobar"
+        s.add(pago)
+        s.commit()
+        return {"ok": True, "id": pago_id}
+
 
 # ─── GASTOS ──────────────────────────────────────────────────
 @app.get("/api/gastos")

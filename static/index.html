@@ -277,15 +277,15 @@ tr:last-child td{border-bottom:none}
     <div class="form-grid">
       <div class="field">
         <label id="loginUserLabel">Usuario</label>
-        <input type="text" id="loginUser" placeholder="administradora@silvestra.mx" value="administradora@silvestra.mx" autocomplete="username">
+        <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username">
       </div>
       <div class="field">
         <label>Contraseña</label>
-        <input type="password" id="loginPass" placeholder="••••••••" value="silvestra2024" autocomplete="current-password">
+        <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password">
       </div>
       <button class="btn-login" onclick="doLogin()">Iniciar sesión</button>
     </div>
-    <p class="login-hint" id="loginHint">Admin: <span>administradora@silvestra.mx</span> · Residente: usuario <span>M24L1</span></p>
+    <p class="login-hint" id="loginHint"></p>
   </div>
 </div>
 
@@ -1405,14 +1405,14 @@ function setRole(role,btn){
     userInput.value='';
     passInput.placeholder='Contraseña';
     passInput.value='';
-    document.getElementById('loginHint').innerHTML='Tu usuario es tu clave de lote. Contraseña temporal: <span>silv{mza}{lote}</span>';
+    document.getElementById('loginHint').textContent='';
   } else {
     document.getElementById('loginUserLabel').textContent='Usuario';
-    userInput.placeholder='administradora@silvestra.mx';
-    userInput.value='administradora@silvestra.mx';
-    passInput.placeholder='••••••••';
-    passInput.value='silvestra2024';
-    document.getElementById('loginHint').innerHTML='Admin: <span>administradora@silvestra.mx</span> · Residente: usuario <span>M24L1</span>';
+    userInput.placeholder='Usuario';
+    userInput.value='';
+    passInput.placeholder='Contraseña';
+    passInput.value='';
+    document.getElementById('loginHint').textContent='';
   }
 }
 

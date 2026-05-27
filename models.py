@@ -62,6 +62,7 @@ class Usuario(SQLModel, table=True):
     rol: str = "residente"   # admin | residente
     lote_id: Optional[int] = Field(default=None, foreign_key="lote.id")
     activo: bool = True
+    debe_cambiar_password: bool = True
 
 
 class Proveedor(SQLModel, table=True):

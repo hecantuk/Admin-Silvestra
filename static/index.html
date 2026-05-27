@@ -1399,28 +1399,40 @@ function setRole(role,btn){
 function doLogin(){
   const user=document.getElementById('loginUser').value.trim();
   const pass=document.getElementById('loginPass').value;
-  if(currentRole==='admin'){
-    if(user!=='administradora@silvestra.mx'||pass!=='silvestra2024'){
-      showLoginError('Usuario o contraseña incorrectos');return;
-    }
-    currentRole='admin';
-    initAdmin();
+  const btn=document.querySelector('.btn-login');
+  btn.textContent='Verificando…';btn.disabled=true;
+  fetch('/api/auth/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:user,password:pass})
+  }).then(r=>{
+    if(!r.ok) return r.json().then(d=>{throw new Error(d.detail||'Error');});
+    return r.json();
+  }).then(data=>{
+    sessionStorage.setItem('auth_token', data.token);
+    sessionStorage.setItem('auth_rol', data.rol);
+    currentRole=data.rol;
     document.getElementById('loginWrap').style.display='none';
     document.getElementById('appShell').style.display='flex';
-  } else {
-    const loteData=_validateResLogin(user,pass);
-    if(!loteData){showLoginError('Usuario o contraseña incorrectos');return;}
-    currentResidente=loteData;
-    currentRole='residente';
-    document.getElementById('loginWrap').style.display='none';
-    document.getElementById('appShell').style.display='flex';
-    initResidente();
-    // Primer login: forzar cambio de contraseña
-    if(_isFirstLogin(user.toUpperCase())){
-      document.getElementById('modalCambiarPass').classList.add('open');
-      document.getElementById('modalCambiarPass')._user=user.toUpperCase();
+    if(data.rol==='admin'){
+      initAdmin();
+    } else {
+      // Encontrar lote en LOTES_DATA por lote_id o por user_key
+      const m=user.toUpperCase().match(/^M(\d+)L(\d+)$/);
+      if(m){
+        const mza=parseInt(m[1]),lote=parseInt(m[2]);
+        currentResidente=LOTES_DATA.find(l=>l.mza===mza&&l.lote===lote);
+      }
+      initResidente();
+      if(data.debe_cambiar_password){
+        document.getElementById('modalCambiarPass').classList.add('open');
+      }
     }
-  }
+  }).catch(err=>{
+    showLoginError(err.message||'Usuario o contraseña incorrectos');
+  }).finally(()=>{
+    btn.textContent='Iniciar sesión';btn.disabled=false;
+  });
 }
 
 function showLoginError(msg){
@@ -1440,16 +1452,28 @@ function _guardarNuevaPassResidente(){
   const p2=document.getElementById('newPass2').value;
   if(p1.length<6){showToast('Mínimo 6 caracteres');return;}
   if(p1!==p2){showToast('Las contraseñas no coinciden');return;}
-  const user=document.getElementById('modalCambiarPass')._user;
-  _setResPwd(user,p1);
-  document.getElementById('modalCambiarPass').classList.remove('open');
-  document.getElementById('newPass1').value='';
-  document.getElementById('newPass2').value='';
-  showToast('✅ Contraseña actualizada');
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/auth/cambiar-password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({nueva:p1})
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      document.getElementById('modalCambiarPass').classList.remove('open');
+      document.getElementById('newPass1').value='';
+      document.getElementById('newPass2').value='';
+      showToast('✅ Contraseña actualizada');
+    }
+  }).catch(()=>showToast('Error al guardar contraseña'));
 }
 
 function doLogout(){
   closeSidebar();
+  sessionStorage.removeItem('auth_token');
+  sessionStorage.removeItem('auth_rol');
+  currentResidente=null;
+  currentRole='admin';
+  _rendered.clear();
   document.getElementById('loginWrap').style.display='flex';
   document.getElementById('appShell').style.display='none';
 }
@@ -2880,21 +2904,24 @@ function _sendEmail(){
 // CONFIGURACIÓN
 // ============================================================
 function _initConfiguracion(){
-  // Tabla de residentes con sus estados de contraseña
-  const vendidos=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
-  document.getElementById('cfgResidentesList').innerHTML=vendidos.map(l=>{
-    const user=_resKey(l.mza,l.lote);
-    const changed=localStorage.getItem(`res_pwd_changed_${user}`);
-    const estado=changed
-      ?'<span class="badge badge-green">Cambiada</span>'
-      :'<span class="badge badge-gold">Temporal</span>';
-    return `<tr>
-      <td style="font-family:'DM Mono',monospace;font-weight:600">${user}</td>
-      <td class="td-name">${l.propietario}</td>
-      <td>${estado}</td>
-      <td><button onclick="_adminResetPwd('${user}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">Reset</button></td>
-    </tr>`;
-  }).join('');
+  // Tabla de residentes — cargada desde el servidor
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/auth/residentes',{headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(list=>{
+      document.getElementById('cfgResidentesList').innerHTML=list.map(u=>{
+        const estado=u.debe_cambiar_password
+          ?'<span class="badge badge-gold">Temporal</span>'
+          :'<span class="badge badge-green">Personalizada</span>';
+        return `<tr>
+          <td style="font-family:'DM Mono',monospace;font-weight:600">${u.user_key}</td>
+          <td class="td-name">${u.propietario}</td>
+          <td>${estado}</td>
+          <td><button onclick="_adminResetPwd('${u.user_key}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">Reset</button></td>
+        </tr>`;
+      }).join('');
+    }).catch(()=>{
+      document.getElementById('cfgResidentesList').innerHTML='<tr><td colspan="4" style="color:var(--muted);text-align:center">Error al cargar residentes</td></tr>';
+    });
   // Cargar plantilla guardada
   document.getElementById('cfgEmailTemplate').value=_getEmailTemplate();
   document.getElementById('cfgEmailAsunto').value=_getEmailAsunto();
@@ -2912,10 +2939,16 @@ function _initConfiguracion(){
 }
 
 function _adminResetPwd(user){
-  if(!confirm(`¿Restablecer la contraseña de ${user} a la temporal?`)) return;
-  _resetResPwd(user);
-  showToast(`Contraseña de ${user} restablecida a temporal`);
-  _initConfiguracion();
+  if(!confirm(`¿Restablecer la contraseña de ${user} a la temporal?\nNueva contraseña temporal: silv${user.replace(/M(\d+)L(\d+)/,'$1$2')}`)) return;
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/auth/reset-password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({user_key:user})
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){showToast(`✅ Contraseña de ${user} restablecida`);_initConfiguracion();}
+    else showToast('Error al restablecer');
+  }).catch(()=>showToast('Error de conexión'));
 }
 
 function _cfgCambiarPass(){

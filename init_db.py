@@ -12,7 +12,7 @@
 Corre UNA SOLA VEZ para crear la base de datos con los lotes reales.
     python app/init_db.py
 """
-from sqlmodel import Session, create_engine, SQLModel
+from sqlmodel import Session, select, create_engine, SQLModel
 from models import Lote, Gasto, Usuario
 from datetime import date
 import bcrypt, os
@@ -116,38 +116,71 @@ GASTOS_MAYO = [
 def init():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        # Limpiar tablas
-        for model in [Lote, Gasto, Usuario]:
-            session.exec(model.__table__.delete())
-        session.commit()
 
-        # Insertar lotes
-        for row in LOTES:
-            mza, num, paseo, m2, propietario, cuota = row
-            session.add(Lote(
-                manzana=mza, numero=num, paseo=paseo,
-                m2=m2, propietario=propietario, cuota_cof=cuota,
+        # ── Lotes: insertar solo si la tabla está vacía ──────────
+        existing_lotes = session.exec(select(Lote)).all()
+        if not existing_lotes:
+            lote_objs = []
+            for row in LOTES:
+                mza, num, paseo, m2, propietario, cuota = row
+                l = Lote(manzana=mza, numero=num, paseo=paseo,
+                         m2=m2, propietario=propietario, cuota_cof=cuota)
+                session.add(l)
+                lote_objs.append((mza, num, propietario, l))
+
+            # Gastos de mayo
+            for row in GASTOS_MAYO:
+                fecha_s, concepto, proveedor, tipo, importe, factura = row
+                y, m, d = fecha_s.split("-")
+                session.add(Gasto(
+                    fecha=date(int(y), int(m), int(d)),
+                    concepto=concepto, proveedor=proveedor,
+                    tipo=tipo, importe=importe, factura=factura,
+                ))
+            session.commit()
+            print(f"✅ {len(LOTES)} lotes y {len(GASTOS_MAYO)} gastos insertados")
+        else:
+            print(f"ℹ️  Lotes ya existen ({len(existing_lotes)}), se omite seed")
+
+        # ── Admin: upsert (no sobreescribir si ya existe) ────────
+        admin = session.exec(
+            select(Usuario).where(Usuario.email == "administradora@silvestra.mx")
+        ).first()
+        if not admin:
+            session.add(Usuario(
+                email="administradora@silvestra.mx",
+                hashed_password=hash_password("silvestra2024"),
+                rol="admin",
+                debe_cambiar_password=False,
             ))
+            session.commit()
+            print("✅ Usuario admin creado")
 
-        # Insertar gastos mayo
-        for row in GASTOS_MAYO:
-            fecha_s, concepto, proveedor, tipo, importe, factura = row
-            y, m, d = fecha_s.split("-")
-            session.add(Gasto(
-                fecha=date(int(y), int(m), int(d)),
-                concepto=concepto, proveedor=proveedor,
-                tipo=tipo, importe=importe, factura=factura,
-            ))
-
-        # Usuario admin
-        session.add(Usuario(
-            email="administradora@silvestra.mx",
-            hashed_password=hash_password("silvestra2024"),
-            rol="admin",
-        ))
-
-        session.commit()
-        print("✅ Base de datos inicializada con", len(LOTES), "lotes y", len(GASTOS_MAYO), "gastos")
+        # ── Residentes: crear usuario por lote si no existe ──────
+        lotes_con_prop = session.exec(
+            select(Lote).where(Lote.propietario != None, Lote.propietario != "CASA MUESTRA")
+        ).all()
+        creados = 0
+        for lote in lotes_con_prop:
+            user_key = f"M{lote.manzana}L{lote.numero}"
+            existe = session.exec(
+                select(Usuario).where(Usuario.email == user_key)
+            ).first()
+            if not existe:
+                default_pwd = f"silv{lote.manzana}{lote.numero}"
+                session.add(Usuario(
+                    email=user_key,
+                    hashed_password=hash_password(default_pwd),
+                    rol="residente",
+                    lote_id=lote.id,
+                    debe_cambiar_password=True,
+                ))
+                creados += 1
+        if creados:
+            session.commit()
+            print(f"✅ {creados} usuarios de residentes creados")
+        else:
+            print("ℹ️  Usuarios de residentes ya existen")
 
 if __name__ == "__main__":
     init()

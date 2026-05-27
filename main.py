@@ -11,17 +11,67 @@
 #   todas las cosas. A Él sea la honra y la gloria.
 # ============================================================
 
-from fastapi import FastAPI, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlmodel import Session, select, create_engine, SQLModel
 from typing import Optional, List
-from datetime import date
-import os, io
+from datetime import date, datetime, timedelta
+from passlib.context import CryptContext
+from jose import JWTError, jwt
+from pydantic import BaseModel
+import os, io, re
 
 from models import (Lote, Pago, Gasto, Usuario,
                     Proveedor, MovimientoBancario,
                     LecturaAgua, GastoReal, ProrrateoPorLote)
+
+# ── Auth config ─────────────────────────────────────────────
+SECRET_KEY  = os.environ.get("SECRET_KEY", "silvestra_dev_key_cambia_en_produccion")
+ALGORITHM   = "HS256"
+TOKEN_HOURS = 12
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+bearer      = HTTPBearer(auto_error=False)
+
+class LoginReq(BaseModel):
+    username: str
+    password: str
+
+class CambiarPassReq(BaseModel):
+    nueva: str
+
+class ResetPassReq(BaseModel):
+    user_key: str   # ej: M24L1
+
+def _make_token(user_id: int, rol: str, lote_id: Optional[int]) -> str:
+    exp = datetime.utcnow() + timedelta(hours=TOKEN_HOURS)
+    return jwt.encode({"sub": str(user_id), "rol": rol,
+                       "lote_id": lote_id, "exp": exp},
+                      SECRET_KEY, algorithm=ALGORITHM)
+
+def _current_user(creds: HTTPAuthorizationCredentials = Depends(bearer),
+                  session: Session = Depends(lambda: next(get_session()))):
+    exc = HTTPException(status_code=401, detail="No autorizado")
+    if not creds:
+        raise exc
+    try:
+        payload = jwt.decode(creds.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        uid = payload.get("sub")
+        if not uid:
+            raise exc
+    except JWTError:
+        raise exc
+    user = session.get(Usuario, int(uid))
+    if not user or not user.activo:
+        raise exc
+    return user
+
+def _admin_only(user: Usuario = Depends(_current_user)):
+    if user.rol != "admin":
+        raise HTTPException(status_code=403, detail="Solo administrador")
+    return user
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./silvestra.db")
 # Railway usa postgres://, SQLAlchemy necesita postgresql://
@@ -59,6 +109,89 @@ def root():
         return FileResponse(index)
     return HTMLResponse("<h2>Copia tu index.html en la carpeta /static/</h2>")
 
+
+# ─── AUTH ───────────────────────────────────────────────────
+@app.post("/api/auth/login")
+def login(req: LoginReq, session: Session = Depends(get_session)):
+    user = None
+    m = re.match(r'^M(\d+)L(\d+)$', req.username.strip().upper())
+    if m:
+        mza, num = int(m.group(1)), int(m.group(2))
+        lote = session.exec(
+            select(Lote).where(Lote.manzana == mza, Lote.numero == num)
+        ).first()
+        if lote:
+            user = session.exec(
+                select(Usuario).where(Usuario.lote_id == lote.id, Usuario.rol == "residente")
+            ).first()
+    else:
+        user = session.exec(
+            select(Usuario).where(Usuario.email == req.username.strip())
+        ).first()
+
+    if not user or not user.activo or not pwd_context.verify(req.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
+
+    token = _make_token(user.id, user.rol, user.lote_id)
+    return {
+        "token": token,
+        "rol": user.rol,
+        "lote_id": user.lote_id,
+        "debe_cambiar_password": user.debe_cambiar_password,
+    }
+
+@app.post("/api/auth/cambiar-password")
+def cambiar_password(req: CambiarPassReq,
+                     user: Usuario = Depends(_current_user),
+                     session: Session = Depends(get_session)):
+    if len(req.nueva) < 6:
+        raise HTTPException(status_code=400, detail="Mínimo 6 caracteres")
+    db_user = session.get(Usuario, user.id)
+    db_user.hashed_password = pwd_context.hash(req.nueva)
+    db_user.debe_cambiar_password = False
+    session.add(db_user)
+    session.commit()
+    return {"ok": True}
+
+@app.post("/api/auth/reset-password")
+def reset_password(req: ResetPassReq,
+                   admin: Usuario = Depends(_admin_only),
+                   session: Session = Depends(get_session)):
+    m = re.match(r'^M(\d+)L(\d+)$', req.user_key.strip().upper())
+    if not m:
+        raise HTTPException(status_code=400, detail="Formato inválido (ej: M24L1)")
+    mza, num = int(m.group(1)), int(m.group(2))
+    lote = session.exec(
+        select(Lote).where(Lote.manzana == mza, Lote.numero == num)
+    ).first()
+    if not lote:
+        raise HTTPException(status_code=404, detail="Lote no encontrado")
+    res_user = session.exec(
+        select(Usuario).where(Usuario.lote_id == lote.id, Usuario.rol == "residente")
+    ).first()
+    if not res_user:
+        raise HTTPException(status_code=404, detail="Usuario residente no encontrado")
+    res_user.hashed_password = pwd_context.hash(f"silv{mza}{num}")
+    res_user.debe_cambiar_password = True
+    session.add(res_user)
+    session.commit()
+    return {"ok": True}
+
+@app.get("/api/auth/residentes")
+def get_residentes_auth(admin: Usuario = Depends(_admin_only),
+                        session: Session = Depends(get_session)):
+    residentes = session.exec(
+        select(Usuario).where(Usuario.rol == "residente", Usuario.activo == True)
+    ).all()
+    result = []
+    for u in residentes:
+        lote = session.get(Lote, u.lote_id) if u.lote_id else None
+        result.append({
+            "user_key": u.email,
+            "propietario": lote.propietario if lote else "—",
+            "debe_cambiar_password": u.debe_cambiar_password,
+        })
+    return result
 
 # ─── LOTES ──────────────────────────────────────────────────
 @app.get("/api/lotes")

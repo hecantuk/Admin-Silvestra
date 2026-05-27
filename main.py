@@ -1,3 +1,16 @@
+# ============================================================
+#   "Jesús le dijo: Yo soy el camino, la verdad y la vida;
+#    nadie viene al Padre sino por mí."
+#                                         — Juan 14:6
+#
+#   "Todo lo puedo en Cristo que me fortalece."
+#                                         — Filipenses 4:13
+#
+#   Sistema de Administración — Fraccionamiento Silvestra
+#   Desarrollado con gratitud a Dios, que hace posibles
+#   todas las cosas. A Él sea la honra y la gloria.
+# ============================================================
+
 from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
@@ -18,10 +31,14 @@ if DATABASE_URL.startswith("postgres://"):
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 
+# "El principio de la sabiduría es el temor del Señor." — Salmos 111:10
+
 def get_session():
     with Session(engine) as session:
         yield session
 
+# "Y todo lo que hagan, de palabra o de obra,
+#  háganlo en el nombre del Señor Jesús." — Colosenses 3:17
 app = FastAPI(title="Silvestra Admin API", version="1.0.0")
 
 # Servir el frontend
@@ -184,6 +201,9 @@ def get_stats(mes: str = "2026-05"):
         }
 
 
+# "Fíate del Señor de todo tu corazón, y no te apoyes en
+#  tu propio entendimiento. Reconócelo en todos tus caminos,
+#  y Él enderezará tus veredas." — Proverbios 3:5-6
 M2_TOTALES = 299174.17
 CONCEPTOS = [
     "LUZ","REDES DE AGUA","CUOTAS DE SEGUROS","RESIDENTFY","INTERNET",

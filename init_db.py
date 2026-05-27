@@ -1,3 +1,13 @@
+# ============================================================
+#   "Si permanecen en mí y mis palabras permanecen en ustedes,
+#    pidan lo que quieran y se les concederá."
+#                                         — Juan 15:7
+#
+#   "Den gracias al Señor porque Él es bueno;
+#    su gran amor perdura para siempre."
+#                                         — Salmos 107:1
+# ============================================================
+
 """
 Corre UNA SOLA VEZ para crear la base de datos con los lotes reales.
     python app/init_db.py

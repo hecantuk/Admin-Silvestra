@@ -1,3 +1,17 @@
+# ============================================================
+#   "El Señor es mi pastor; nada me faltará."
+#                                         — Salmos 23:1
+#
+#   "Encomienda al Señor tus obras y tus planes
+#    se cumplirán."
+#                                         — Proverbios 16:3
+#
+#   "Porque yo sé los planes que tengo para ustedes,
+#    planes de bienestar y no de calamidad,
+#    para darles un futuro y una esperanza."
+#                                         — Jeremías 29:11
+# ============================================================
+
 from typing import Optional
 from datetime import date, datetime
 from sqlmodel import SQLModel, Field

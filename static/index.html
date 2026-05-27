@@ -2651,43 +2651,46 @@ function exportFinancieroPDF(){
 // ============================================================
 // EMAIL ESTADO DE CUENTA
 // ============================================================
-const DEFAULT_EMAIL_ASUNTO = 'Estado de cuenta {{mes}} — Frac. Silvestra Mza {{mza}} L{{lote}}';
-const DEFAULT_EMAIL_TEMPLATE = `Estimado/a {{nombre}},
-
-Por medio del presente le hacemos llegar su estado de cuenta correspondiente al mes de {{mes}} del Fraccionamiento Silvestra, Frac. Campestre, San Pedro Garza García.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ESTADO DE CUENTA — {{mes}}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Propietario:      {{nombre}}
-  Manzana / Lote:   {{mza}} / {{lote}}
-  Cuota mensual:    ${{cuota}}
-  Estatus actual:   {{estatus}}
-  Saldo pendiente:  ${{saldo}}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-{{mensajeEstatus}}
-
-Se adjunta su estado de cuenta completo en formato PDF para su referencia.
-
-Para realizar su pago, puede hacerlo mediante transferencia bancaria o en las oficinas de la administración en el horario de atención.
-
-Si tiene alguna duda o aclaración, comuníquese con nosotros:
-  📧  administracion@silvestra.mx
-  📞  (81) 0000-0000
-  🕐  Lunes a viernes, 9:00 a 18:00 hrs
-
-Atentamente,
-
-Administración
-Asociación de Colonos Silvestra-Canoas AC
-Fraccionamiento Silvestra — San Pedro Garza García, N.L.`;
+const DEFAULT_EMAIL_ASUNTO = 'Estado de cuenta {{mes}} - Frac. Silvestra Mza {{mza}} L{{lote}}';
+const DEFAULT_EMAIL_TEMPLATE = [
+'Estimado/a {{nombre}},',
+'',
+'Por medio del presente le hacemos llegar su estado de cuenta del mes de {{mes}},',
+'Fraccionamiento Silvestra, Frac. Campestre, San Pedro Garza Garcia.',
+'',
+'--------------------------------------------------',
+'  ESTADO DE CUENTA - {{mes}}',
+'--------------------------------------------------',
+'  Propietario  : {{nombre}}',
+'  Manzana/Lote : {{mza}} / {{lote}}',
+'  Cuota mensual: ${{cuota}}',
+'  Estatus      : {{estatus}}',
+'  Saldo        : ${{saldo}}',
+'--------------------------------------------------',
+'',
+'{{mensajeEstatus}}',
+'',
+'Se adjunta su estado de cuenta en PDF para su referencia.',
+'',
+'Para cualquier duda o aclaracion comuniquese con nosotros:',
+'  Correo : administracion@silvestra.mx',
+'  Tel    : (81) 0000-0000',
+'  Horario: Lunes a viernes 9:00 - 18:00 hrs',
+'',
+'Atentamente,',
+'',
+'Administracion',
+'Asociacion de Colonos Silvestra-Canoas AC',
+'Fraccionamiento Silvestra - San Pedro Garza Garcia, N.L.'
+].join('\n');
 
 function _getEmailTemplate(){
-  return localStorage.getItem('emailTemplate')||DEFAULT_EMAIL_TEMPLATE;
+  const v=localStorage.getItem('emailTemplate');
+  return (v&&v.trim())?v:DEFAULT_EMAIL_TEMPLATE;
 }
 function _getEmailAsunto(){
-  return localStorage.getItem('emailAsunto')||DEFAULT_EMAIL_ASUNTO;
+  const v=localStorage.getItem('emailAsunto');
+  return (v&&v.trim())?v:DEFAULT_EMAIL_ASUNTO;
 }
 
 function _buildEmailBody(l){
@@ -2884,9 +2887,11 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
   m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')});
 });
 
-// Populate login lote select
 window.addEventListener('DOMContentLoaded',()=>{
   setRole('admin',document.querySelectorAll('.tab-l')[0]);
+  // Limpiar valores vacíos en localStorage para que el default siempre cargue
+  if(!localStorage.getItem('emailTemplate')?.trim()) localStorage.removeItem('emailTemplate');
+  if(!localStorage.getItem('emailAsunto')?.trim()) localStorage.removeItem('emailAsunto');
 });
 </script>
 </body>

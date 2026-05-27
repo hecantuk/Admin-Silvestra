@@ -10,8 +10,13 @@ from models import (Lote, Pago, Gasto, Usuario,
                     Proveedor, MovimientoBancario,
                     LecturaAgua, GastoReal, ProrrateoPorLote)
 
-DATABASE_URL = "sqlite:///./silvestra.db"
-engine = create_engine(DATABASE_URL, echo=False)
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./silvestra.db")
+# Railway usa postgres://, SQLAlchemy necesita postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 
 def get_session():
     with Session(engine) as session:

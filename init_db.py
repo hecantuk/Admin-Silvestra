@@ -5,10 +5,14 @@ Corre UNA SOLA VEZ para crear la base de datos con los lotes reales.
 from sqlmodel import Session, create_engine, SQLModel
 from models import Lote, Gasto, Usuario
 from datetime import date
-import bcrypt
+import bcrypt, os
 
-DATABASE_URL = "sqlite:///./silvestra.db"
-engine = create_engine(DATABASE_URL, echo=True)
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./silvestra.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, echo=True, connect_args=connect_args)
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 

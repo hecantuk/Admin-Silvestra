@@ -1040,10 +1040,6 @@ tr:last-child td{border-bottom:none}
           <div class="config-block-body">
             <div class="config-grid">
               <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:13px;color:var(--slate)">
-                <input type="checkbox" id="cfgAutoActivo" style="width:16px;height:16px;accent-color:var(--gold)">
-                <strong>Activar envíos automáticos programados</strong>
-              </label>
-              <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:13px;color:var(--slate)">
                 <input type="checkbox" id="cfgAutoMorosos" style="width:16px;height:16px;accent-color:var(--gold)">
                 Enviar recordatorio mensual a condóminos con saldo vencido
               </label>
@@ -2978,7 +2974,6 @@ function _initConfiguracion(){
   // Cargar config automáticos desde API
   fetch('/api/config/auto',{headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(d=>{
-      document.getElementById('cfgAutoActivo').checked=!!d.activo;
       document.getElementById('cfgAutoMorosos').checked=!!d.morosos;
       document.getElementById('cfgAutoEstado').checked=!!d.estado;
       if(d.dia) document.getElementById('cfgAutoDia').value=d.dia;
@@ -3138,10 +3133,9 @@ function _cfgRestaurarPlantilla(){
 }
 
 function _cfgGuardarAuto(){
-  const activo=document.getElementById('cfgAutoActivo').checked;
   const morosos=document.getElementById('cfgAutoMorosos').checked;
   const estado=document.getElementById('cfgAutoEstado').checked;
-  if(activo&&!morosos&&!estado){showToast('Selecciona al menos un tipo de envío');return;}
+  const activo=morosos||estado;
   const token=sessionStorage.getItem('auth_token');
   fetch('/api/config/auto',{
     method:'POST',
@@ -3153,7 +3147,7 @@ function _cfgGuardarAuto(){
     })
   }).then(r=>r.json()).then(d=>{
     if(d.ok){
-      showToast(activo?'✅ Programación activada en servidor':'Programación desactivada');
+      showToast(activo?'✅ Programación activada en servidor':'Envíos automáticos desactivados');
       _initConfiguracion();
     } else showToast('Error: '+(d.detail||'desconocido'));
   }).catch(()=>showToast('Error de conexión'));

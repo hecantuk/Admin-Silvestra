@@ -275,23 +275,17 @@ tr:last-child td{border-bottom:none}
       <button class="tab-l" onclick="setRole('residente',this)">🏡 Residente</button>
     </div>
     <div class="form-grid">
-      <div class="field" id="fldResidente" style="display:none">
-        <label>Mi Lote</label>
-        <select id="loginLote">
-          <option value="">— Selecciona tu lote —</option>
-        </select>
-      </div>
-      <div class="field" id="fldUser">
-        <label>Usuario</label>
-        <input type="text" id="loginUser" placeholder="administradora@silvestra.mx" value="administradora@silvestra.mx">
+      <div class="field">
+        <label id="loginUserLabel">Usuario</label>
+        <input type="text" id="loginUser" placeholder="administradora@silvestra.mx" value="administradora@silvestra.mx" autocomplete="username">
       </div>
       <div class="field">
         <label>Contraseña</label>
-        <input type="password" id="loginPass" placeholder="••••••••" value="silvestra2024">
+        <input type="password" id="loginPass" placeholder="••••••••" value="silvestra2024" autocomplete="current-password">
       </div>
       <button class="btn-login" onclick="doLogin()">Iniciar sesión</button>
     </div>
-    <p class="login-hint">Demo: admin / <span>silvestra2024</span> · residente / <span>1234</span></p>
+    <p class="login-hint" id="loginHint">Admin: <span>administradora@silvestra.mx</span> · Residente: usuario <span>M24L1</span></p>
   </div>
 </div>
 
@@ -920,6 +914,25 @@ tr:last-child td{border-bottom:none}
           </div>
         </div>
 
+        <!-- Contraseñas de residentes -->
+        <div class="config-block">
+          <div class="config-block-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            <span class="config-block-title">Contraseñas de residentes</span>
+          </div>
+          <div class="config-block-body">
+            <div class="config-note" style="margin-bottom:14px">
+              El usuario de cada residente es su clave de lote: <strong>M{mza}L{lote}</strong> (ej: M24L1). La contraseña temporal es <strong>silv{mza}{lote}</strong> (ej: silv241). Al hacer reset se restaura la contraseña temporal.
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Usuario</th><th>Propietario</th><th>Estado</th><th>Acción</th></tr></thead>
+                <tbody id="cfgResidentesList"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- Lotes y condóminos -->
         <div class="config-block">
           <div class="config-block-head">
@@ -1180,6 +1193,27 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- MODAL CAMBIAR CONTRASEÑA (primer login residente) -->
+<div class="modal-overlay" id="modalCambiarPass" style="z-index:200">
+  <div class="modal" style="width:420px">
+    <div class="modal-head">
+      <h3>🔒 Cambia tu contraseña temporal</h3>
+    </div>
+    <div class="modal-body">
+      <div class="config-note" style="margin-bottom:16px">
+        Por seguridad, debes cambiar tu contraseña temporal antes de continuar.
+      </div>
+      <div class="form-grid">
+        <div class="form-field"><label>Nueva contraseña</label><input type="password" id="newPass1" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+        <div class="form-field"><label>Confirmar contraseña</label><input type="password" id="newPass2" placeholder="Repite tu contraseña" autocomplete="new-password"></div>
+      </div>
+    </div>
+    <div class="modal-foot" style="justify-content:center">
+      <button class="btn-primary" style="width:100%" onclick="_guardarNuevaPassResidente()">Guardar y continuar</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
 
@@ -1311,36 +1345,107 @@ let filteredCargos=[...LOTES_DATA.filter(l=>l.propietario&&l.propietario!='CASA 
 // ============================================================
 // LOGIN
 // ============================================================
+// ============================================================
+// CONTRASEÑAS DE RESIDENTES
+// ============================================================
+function _resKey(mza,lote){return `M${mza}L${lote}`;}
+function _defaultPwd(mza,lote){return `silv${mza}${lote}`;}
+function _getResPwd(user){return localStorage.getItem(`res_pwd_${user}`)||null;}
+function _isFirstLogin(user){return !localStorage.getItem(`res_pwd_changed_${user}`);}
+function _setResPwd(user,pwd){
+  localStorage.setItem(`res_pwd_${user}`,pwd);
+  localStorage.setItem(`res_pwd_changed_${user}`,'1');
+}
+function _resetResPwd(user){
+  // Extrae mza y lote del user key (M24L1 → mza=24, lote=1)
+  const m=user.match(/M(\d+)L(\d+)/);
+  if(!m) return;
+  localStorage.setItem(`res_pwd_${user}`,_defaultPwd(m[1],m[2]));
+  localStorage.removeItem(`res_pwd_changed_${user}`);
+}
+function _validateResLogin(user,pwd){
+  const m=user.match(/^M(\d+)L(\d+)$/i);
+  if(!m) return null;
+  const mza=parseInt(m[1]),lote=parseInt(m[2]);
+  const loteData=LOTES_DATA.find(l=>l.mza===mza&&l.lote===lote&&l.propietario&&l.propietario!=='CASA MUESTRA');
+  if(!loteData) return null;
+  const stored=_getResPwd(user)||_defaultPwd(mza,lote);
+  return stored===pwd ? loteData : null;
+}
+
 function setRole(role,btn){
   currentRole=role;
   document.querySelectorAll('.tab-l').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('fldResidente').style.display=role==='residente'?'block':'none';
-  document.getElementById('fldUser').style.display=role==='admin'?'block':'none';
+  const userInput=document.getElementById('loginUser');
+  const passInput=document.getElementById('loginPass');
   if(role==='residente'){
-    const sel=document.getElementById('loginLote');
-    sel.innerHTML='<option value="">— Selecciona tu lote —</option>';
-    LOTES_DATA.filter(l=>l.propietario&&l.propietario!='CASA MUESTRA').forEach(l=>{
-      sel.innerHTML+=`<option value="${l.mza}-${l.lote}">Mza ${l.mza} L${l.lote} · ${l.propietario}</option>`;
-    });
+    document.getElementById('loginUserLabel').textContent='Usuario (ej: M24L1)';
+    userInput.placeholder='M24L1';
+    userInput.value='';
+    passInput.placeholder='Contraseña';
+    passInput.value='';
+    document.getElementById('loginHint').innerHTML='Tu usuario es tu clave de lote. Contraseña temporal: <span>silv{mza}{lote}</span>';
+  } else {
+    document.getElementById('loginUserLabel').textContent='Usuario';
+    userInput.placeholder='administradora@silvestra.mx';
+    userInput.value='administradora@silvestra.mx';
+    passInput.placeholder='••••••••';
+    passInput.value='silvestra2024';
+    document.getElementById('loginHint').innerHTML='Admin: <span>administradora@silvestra.mx</span> · Residente: usuario <span>M24L1</span>';
   }
 }
 
 function doLogin(){
-  const role=currentRole;
-  if(role==='admin'){
+  const user=document.getElementById('loginUser').value.trim();
+  const pass=document.getElementById('loginPass').value;
+  if(currentRole==='admin'){
+    if(user!=='administradora@silvestra.mx'||pass!=='silvestra2024'){
+      showLoginError('Usuario o contraseña incorrectos');return;
+    }
     currentRole='admin';
     initAdmin();
+    document.getElementById('loginWrap').style.display='none';
+    document.getElementById('appShell').style.display='flex';
   } else {
-    const loteKey=document.getElementById('loginLote').value;
-    if(!loteKey){alert('Selecciona tu lote');return;}
-    const [mza,lote]=loteKey.split('-').map(Number);
-    currentResidente=LOTES_DATA.find(l=>l.mza===mza&&l.lote===lote);
+    const loteData=_validateResLogin(user,pass);
+    if(!loteData){showLoginError('Usuario o contraseña incorrectos');return;}
+    currentResidente=loteData;
     currentRole='residente';
+    document.getElementById('loginWrap').style.display='none';
+    document.getElementById('appShell').style.display='flex';
     initResidente();
+    // Primer login: forzar cambio de contraseña
+    if(_isFirstLogin(user.toUpperCase())){
+      document.getElementById('modalCambiarPass').classList.add('open');
+      document.getElementById('modalCambiarPass')._user=user.toUpperCase();
+    }
   }
-  document.getElementById('loginWrap').style.display='none';
-  document.getElementById('appShell').style.display='flex';
+}
+
+function showLoginError(msg){
+  let el=document.getElementById('loginError');
+  if(!el){
+    el=document.createElement('p');
+    el.id='loginError';
+    el.style.cssText='color:#FCA5A5;font-size:13px;text-align:center;margin-top:-8px';
+    document.getElementById('loginPass').parentElement.after(el);
+  }
+  el.textContent=msg;
+  setTimeout(()=>{if(el)el.textContent='';},3000);
+}
+
+function _guardarNuevaPassResidente(){
+  const p1=document.getElementById('newPass1').value;
+  const p2=document.getElementById('newPass2').value;
+  if(p1.length<6){showToast('Mínimo 6 caracteres');return;}
+  if(p1!==p2){showToast('Las contraseñas no coinciden');return;}
+  const user=document.getElementById('modalCambiarPass')._user;
+  _setResPwd(user,p1);
+  document.getElementById('modalCambiarPass').classList.remove('open');
+  document.getElementById('newPass1').value='';
+  document.getElementById('newPass2').value='';
+  showToast('✅ Contraseña actualizada');
 }
 
 function doLogout(){
@@ -2775,6 +2880,21 @@ function _sendEmail(){
 // CONFIGURACIÓN
 // ============================================================
 function _initConfiguracion(){
+  // Tabla de residentes con sus estados de contraseña
+  const vendidos=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
+  document.getElementById('cfgResidentesList').innerHTML=vendidos.map(l=>{
+    const user=_resKey(l.mza,l.lote);
+    const changed=localStorage.getItem(`res_pwd_changed_${user}`);
+    const estado=changed
+      ?'<span class="badge badge-green">Cambiada</span>'
+      :'<span class="badge badge-gold">Temporal</span>';
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace;font-weight:600">${user}</td>
+      <td class="td-name">${l.propietario}</td>
+      <td>${estado}</td>
+      <td><button onclick="_adminResetPwd('${user}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">Reset</button></td>
+    </tr>`;
+  }).join('');
   // Cargar plantilla guardada
   document.getElementById('cfgEmailTemplate').value=_getEmailTemplate();
   document.getElementById('cfgEmailAsunto').value=_getEmailAsunto();
@@ -2789,6 +2909,13 @@ function _initConfiguracion(){
   if(auto.estado) document.getElementById('cfgAutoEstado').checked=true;
   if(auto.dia) document.getElementById('cfgAutoDia').value=auto.dia;
   if(auto.hora) document.getElementById('cfgAutoHora').value=auto.hora;
+}
+
+function _adminResetPwd(user){
+  if(!confirm(`¿Restablecer la contraseña de ${user} a la temporal?`)) return;
+  _resetResPwd(user);
+  showToast(`Contraseña de ${user} restablecida a temporal`);
+  _initConfiguracion();
 }
 
 function _cfgCambiarPass(){

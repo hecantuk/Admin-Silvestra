@@ -387,6 +387,108 @@ def delete_lectura(lid: int):
         s.delete(lec); s.commit()
         return {"ok": True}
 
+
+@app.post("/api/agua/importar")
+async def importar_agua(file: UploadFile = File(...), mes: str = "2026-05", tarifa: float = 15.0):
+    """
+    Importa lecturas de agua desde Excel.
+    Columnas esperadas (en cualquier orden, nombres flexibles):
+      manzana, lote/numero, lectura_anterior, lectura_actual
+    También acepta: mza, no, lote_ant, lect_ant, ant, anterior, actual, lect_act
+    """
+    import openpyxl
+    content = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+
+    # Detectar fila de encabezado
+    header_row = 0
+    for i, row in enumerate(rows[:10]):
+        vals = [str(v).lower().strip() if v else "" for v in row]
+        if any(k in " ".join(vals) for k in ["manzana","mza","lote","numero"]):
+            header_row = i
+            break
+
+    headers = [str(v).lower().strip() if v else "" for v in rows[header_row]]
+
+    def find_col(keywords):
+        for i, h in enumerate(headers):
+            if any(k in h for k in keywords):
+                return i
+        return None
+
+    col_mza  = find_col(["manzana","mza"])
+    col_lote = find_col(["lote","numero","no.","num"])
+    col_ant  = find_col(["anterior","ant","lect_ant","lectura_ant","lectura ant"])
+    col_act  = find_col(["actual","act","lect_act","lectura_act","lectura act","nueva"])
+
+    if col_lote is None or col_act is None:
+        raise HTTPException(400, "No se encontraron columnas de Lote y/o Lectura Actual. "
+                                 "Asegúrate de que el Excel tenga columnas: Manzana, Lote, Lectura Anterior, Lectura Actual")
+
+    importados = 0
+    errores = []
+    with Session(engine) as s:
+        lotes = s.exec(select(Lote)).all()
+        # índice: (manzana, numero) → lote
+        lotes_idx = {(l.manzana, l.numero): l for l in lotes}
+
+        for i, row in enumerate(rows[header_row + 1:], start=header_row + 2):
+            if not row or all(v is None for v in row):
+                continue
+            try:
+                mza_val  = int(float(str(row[col_mza]).strip())) if col_mza is not None and row[col_mza] else None
+                lote_val = int(float(str(row[col_lote]).strip())) if row[col_lote] else None
+                ant_val  = float(str(row[col_ant]).strip().replace(",", "")) if col_ant is not None and row[col_ant] else 0.0
+                act_val  = float(str(row[col_act]).strip().replace(",", "")) if row[col_act] else None
+
+                if lote_val is None or act_val is None:
+                    continue
+
+                # Buscar lote: primero con manzana, luego solo por número
+                lote = None
+                if mza_val:
+                    lote = lotes_idx.get((mza_val, lote_val))
+                if not lote:
+                    candidatos = [l for l in lotes if l.numero == lote_val]
+                    if len(candidatos) == 1:
+                        lote = candidatos[0]
+
+                if not lote:
+                    errores.append(f"Fila {i}: lote {mza_val}-{lote_val} no encontrado")
+                    continue
+
+                consumo = max(0.0, act_val - ant_val)
+                importe = round(consumo * tarifa, 2)
+
+                # Upsert: si ya existe lectura para este lote+mes la actualiza
+                existing = s.exec(
+                    select(LecturaAgua).where(LecturaAgua.lote_id == lote.id, LecturaAgua.mes == mes)
+                ).first()
+
+                if existing:
+                    existing.lectura_anterior = ant_val
+                    existing.lectura_actual   = act_val
+                    existing.consumo_m3       = consumo
+                    existing.tarifa_por_m3    = tarifa
+                    existing.importe          = importe
+                    s.add(existing)
+                else:
+                    s.add(LecturaAgua(
+                        lote_id=lote.id, mes=mes,
+                        lectura_anterior=ant_val, lectura_actual=act_val,
+                        consumo_m3=consumo, tarifa_por_m3=tarifa, importe=importe,
+                    ))
+                importados += 1
+            except Exception as e:
+                errores.append(f"Fila {i}: {e}")
+
+        s.commit()
+
+    return {"importados": importados, "errores": errores}
+
+
 @app.get("/api/agua/reporte")
 def reporte_agua(mes: str = "2026-05"):
     with Session(engine) as s:

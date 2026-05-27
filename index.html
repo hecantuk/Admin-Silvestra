@@ -736,8 +736,14 @@ tr:last-child td{border-bottom:none}
       <div class="page" id="pageAgua">
         <div class="search-row">
           <input class="search-box" type="month" id="aguaMes" value="2026-05" onchange="loadAgua()">
+          <label class="btn-primary" style="cursor:pointer" title="Excel con columnas: Manzana, Lote, Lectura Anterior, Lectura Actual">
+            ⬆ Importar Excel
+            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarAgua(this)">
+          </label>
+          <button class="btn-secondary" onclick="descargarPlantillaAgua()">📄 Plantilla</button>
           <button class="btn-primary" onclick="openModal('modalLectura')">+ Capturar lectura</button>
         </div>
+        <div id="aguaImportInfo" style="display:none;background:#EFF6FF;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#1E40AF"></div>
         <div class="stat-grid" id="aguaStats"></div>
         <div class="card">
           <div class="card-header"><span class="card-title">Lecturas del mes</span></div>
@@ -2141,6 +2147,49 @@ async function deleteLectura(id){
   if(!confirm('¿Eliminar lectura?')) return;
   await fetch(`/api/agua/lecturas/${id}`,{method:'DELETE'});
   loadAgua(); showToast('Lectura eliminada');
+}
+
+async function importarAgua(input){
+  const file=input.files[0]; if(!file) return;
+  const mes=document.getElementById('aguaMes').value;
+  const tarifa=15; // tarifa por defecto, se puede hacer configurable
+  const fd=new FormData();
+  fd.append('file',file);
+  fd.append('mes',mes);
+  fd.append('tarifa',tarifa);
+  const info=document.getElementById('aguaImportInfo');
+  info.style.display='block';
+  info.textContent='⏳ Importando lecturas…';
+  try{
+    const r=await fetch(`/api/agua/importar?mes=${mes}&tarifa=${tarifa}`,{method:'POST',body:fd}).then(x=>x.json());
+    input.value='';
+    let msg=`✅ ${r.importados} lecturas importadas correctamente para ${mes}.`;
+    if(r.errores&&r.errores.length>0){
+      msg+=` ⚠ ${r.errores.length} filas con error: ${r.errores.slice(0,3).join(' | ')}${r.errores.length>3?'…':''}`;
+      info.style.background='#FFF7ED'; info.style.color='#92400E';
+    } else {
+      info.style.background='#EFF6FF'; info.style.color='#1E40AF';
+    }
+    info.textContent=msg;
+    showToast(`${r.importados} lecturas importadas`);
+    loadAgua();
+  } catch(e){
+    info.textContent='❌ Error al importar. Verifica que el archivo tenga las columnas correctas.';
+    info.style.background='#FEE2E2'; info.style.color='#DC2626';
+  }
+}
+
+function descargarPlantillaAgua(){
+  const wb=XLSX.utils.book_new();
+  const lotes=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
+  const header=[['Manzana','Lote','Propietario','Lectura Anterior','Lectura Actual']];
+  const rows=lotes.map(l=>[l.mza,l.lote,l.propietario,'','']);
+  const ws=XLSX.utils.aoa_to_sheet([...header,...rows]);
+  ws['!cols']=[{wch:10},{wch:8},{wch:40},{wch:18},{wch:18}];
+  // Estilo de encabezado (color verde)
+  XLSX.utils.book_append_sheet(wb,ws,'Lecturas Agua');
+  XLSX.writeFile(wb,`Plantilla_Agua_${document.getElementById('aguaMes').value}.xlsx`);
+  showToast('Plantilla descargada');
 }
 
 // ============================================================

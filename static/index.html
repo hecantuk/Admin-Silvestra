@@ -1163,7 +1163,8 @@ tr:last-child td{border-bottom:none}
           <div class="email-preview" id="emailPreview"></div>
         </div>
         <div class="config-note">
-          📤 El correo se enviará desde la cuenta Outlook configurada en <strong>Configuración → Correo electrónico</strong>.
+          📎 Se adjuntará automáticamente el estado de cuenta en PDF.<br>
+          📤 Se enviará desde la cuenta Outlook configurada en <strong>Configuración → Correo electrónico</strong>.
         </div>
       </div>
     </div>
@@ -1368,10 +1369,13 @@ function initResidente(){
   document.getElementById('btnConfig').style.display='none';
   const r=currentResidente;
   document.getElementById('sidebarName').textContent=r.propietario.split(' ').slice(0,2).join(' ');
-  document.getElementById('sidebarRole').textContent=`Mza ${r.mza} L${r.lote}`;
+  document.getElementById('sidebarRole').textContent=`Mza ${r.mza} · L${r.lote}`;
   document.getElementById('sidebarAvatar').textContent=r.propietario[0];
   renderMiCuenta();
   renderMisPagos();
+  // Arrancar en Mi Estado de Cuenta, no en pageDashboard
+  const navItem=document.querySelector('#residenteNav .nav-item');
+  showPage('miCuenta', navItem);
 }
 
 // ============================================================
@@ -2610,36 +2614,50 @@ function exportFinancieroPDF(){
 // ============================================================
 // EMAIL ESTADO DE CUENTA
 // ============================================================
+const DEFAULT_EMAIL_ASUNTO = 'Estado de cuenta {{mes}} — Frac. Silvestra Mza {{mza}} L{{lote}}';
 const DEFAULT_EMAIL_TEMPLATE = `Estimado/a {{nombre}},
 
-Por medio del presente le hacemos llegar su estado de cuenta correspondiente al mes de {{mes}} en el Fraccionamiento Silvestra - Frac. Campestre, San Pedro Garza García.
+Por medio del presente le hacemos llegar su estado de cuenta correspondiente al mes de {{mes}} del Fraccionamiento Silvestra, Frac. Campestre, San Pedro Garza García.
 
-📋 RESUMEN DE CUENTA
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Manzana / Lote:   {{mza}} / {{lote}}
-Cuota mensual:    ${{cuota}}
-Estatus actual:   {{estatus}}
-Saldo pendiente:  ${{saldo}}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ESTADO DE CUENTA — {{mes}}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Propietario:      {{nombre}}
+  Manzana / Lote:   {{mza}} / {{lote}}
+  Cuota mensual:    ${{cuota}}
+  Estatus actual:   {{estatus}}
+  Saldo pendiente:  ${{saldo}}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 {{mensajeEstatus}}
 
-Para realizar su pago o aclaración, comuníquese con la administración:
-📧 administracion@silvestra.mx
-📞 (81) 0000-0000
+Se adjunta su estado de cuenta completo en formato PDF para su referencia.
+
+Para realizar su pago, puede hacerlo mediante transferencia bancaria o en las oficinas de la administración en el horario de atención.
+
+Si tiene alguna duda o aclaración, comuníquese con nosotros:
+  📧  administracion@silvestra.mx
+  📞  (81) 0000-0000
+  🕐  Lunes a viernes, 9:00 a 18:00 hrs
 
 Atentamente,
+
 Administración
-Fraccionamiento Silvestra — Asociación de Colonos Silvestra-Canoas AC`;
+Asociación de Colonos Silvestra-Canoas AC
+Fraccionamiento Silvestra — San Pedro Garza García, N.L.`;
 
 function _getEmailTemplate(){
   return localStorage.getItem('emailTemplate')||DEFAULT_EMAIL_TEMPLATE;
 }
+function _getEmailAsunto(){
+  return localStorage.getItem('emailAsunto')||DEFAULT_EMAIL_ASUNTO;
+}
 
 function _buildEmailBody(l){
   const mes=new Date().toLocaleString('es-MX',{month:'long',year:'numeric'});
-  const saldo=SALDOS_DATA[`${l.mza}-${l.lote}`]||0;
-  const estatus=saldo<=0?'✅ Al corriente':saldo<l.cuota?'🟡 Abonando':'🔴 Moroso';
+  const sd=SALDO_ESTADO[`${l.mza}-${l.lote}`]||{saldo:0,estado:'corriente'};
+  const saldo=sd.saldo||0;
+  const estatus=sd.estado==='corriente'?'✅ Al corriente':sd.estado==='abonando'?'🟡 Abonando a vencido':'🔴 Moroso';
   const mensajeEstatus=saldo<=0
     ?'Su cuenta se encuentra al corriente. ¡Gracias por su puntualidad!'
     :`Tiene un saldo pendiente de $${saldo.toLocaleString()}. Le invitamos a regularizar su situación a la brevedad.`;
@@ -2657,9 +2675,12 @@ function _buildEmailBody(l){
 let _emailCurrentLote=null;
 function _openEmailModal(l){
   _emailCurrentLote=l;
-  const asunto=localStorage.getItem('emailAsunto')||`Estado de cuenta — Fraccionamiento Silvestra`;
-  document.getElementById('emailSubject').value=`${asunto} — Mza ${l.mza} L${l.lote}`;
-  document.getElementById('emailTo').value='';
+  const mes=new Date().toLocaleString('es-MX',{month:'long',year:'numeric'});
+  const asunto=_getEmailAsunto()
+    .replace(/{{mes}}/g,mes).replace(/{{mza}}/g,l.mza)
+    .replace(/{{lote}}/g,l.lote).replace(/{{nombre}}/g,l.propietario.split(' ')[0]);
+  document.getElementById('emailSubject').value=asunto;
+  document.getElementById('emailTo').value=l.correo||'';
   document.getElementById('emailPreview').textContent=_buildEmailBody(l);
   document.getElementById('modalEmail').classList.add('open');
 }
@@ -2669,7 +2690,27 @@ function _sendEmail(){
   if(!to){showToast('Ingresa el correo del condómino');return;}
   const cfg=JSON.parse(localStorage.getItem('emailConfig')||'{}');
   if(!cfg.from){showToast('⚠ Configura el correo en Ajustes primero');return;}
-  // POST to backend
+  showToast('Generando PDF y enviando…');
+  // Generar PDF adjunto
+  const l=_emailCurrentLote;
+  let pdfBase64='';
+  try{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:'mm',format:'letter'});
+    doc.setFillColor(26,51,25);doc.rect(0,0,216,28,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont('helvetica','bold');
+    doc.text('ESTADO DE CUENTA',14,12);
+    doc.setFontSize(9);doc.setFont('helvetica','normal');
+    doc.text('Asociación de Colonos Silvestra-Canoas AC',14,19);
+    doc.text(`Período: ${new Date().toLocaleString('es-MX',{month:'long',year:'numeric'})}   |   Generado: ${new Date().toLocaleDateString('es-MX')}`,14,25);
+    doc.setTextColor(26,51,25);
+    const sd=SALDO_ESTADO[`${l.mza}-${l.lote}`]||{saldo:0,estado:'corriente'};
+    const datos=[['Propietario',l.propietario],['Manzana',l.mza],['Lote',l.lote],['m²',(l.m2||0).toFixed(0)],['Cuota mensual','$'+l.cuota.toLocaleString()],['Estatus',sd.estado==='corriente'?'Al corriente':sd.estado==='abonando'?'Abonando a vencido':'Moroso'],['Saldo pendiente','$'+sd.saldo.toLocaleString()]];
+    doc.autoTable({startY:34,head:[['Concepto','Detalle']],body:datos,theme:'striped',headStyles:{fillColor:[26,51,25],textColor:255,fontSize:9},styles:{fontSize:10,cellPadding:4}});
+    doc.setFontSize(7);doc.setTextColor(150,150,150);
+    doc.text('Generado por Sistema Silvestra · '+new Date().toLocaleString('es-MX'),14,doc.lastAutoTable.finalY+10);
+    pdfBase64=doc.output('datauristring').split(',')[1];
+  }catch(e){console.warn('PDF generation failed',e);}
   fetch('/api/correo/enviar',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -2680,11 +2721,13 @@ function _sendEmail(){
       smtp:cfg.smtp||'smtp.office365.com',
       port:cfg.port||587,
       from:cfg.from,
-      password:cfg.password
+      password:cfg.password,
+      pdf_base64:pdfBase64,
+      pdf_filename:`EstadoCuenta_Mza${l.mza}_L${l.lote}.pdf`
     })
   }).then(r=>r.json()).then(d=>{
     if(d.ok){showToast(`✉ Correo enviado a ${to}`);closeModal('modalEmail');}
-    else{showToast('Error al enviar: '+d.error);}
+    else showToast('Error al enviar: '+(d.error||'desconocido'));
   }).catch(()=>showToast('Error de conexión al enviar correo'));
 }
 
@@ -2694,7 +2737,7 @@ function _sendEmail(){
 function _initConfiguracion(){
   // Cargar plantilla guardada
   document.getElementById('cfgEmailTemplate').value=_getEmailTemplate();
-  document.getElementById('cfgEmailAsunto').value=localStorage.getItem('emailAsunto')||'Estado de cuenta — Fraccionamiento Silvestra';
+  document.getElementById('cfgEmailAsunto').value=_getEmailAsunto();
   // Cargar config de correo
   const cfg=JSON.parse(localStorage.getItem('emailConfig')||'{}');
   if(cfg.from) document.getElementById('cfgEmailFrom').value=cfg.from;
@@ -2772,8 +2815,10 @@ function _cfgGuardarPlantilla(){
 }
 
 function _cfgRestaurarPlantilla(){
+  localStorage.removeItem('emailTemplate');
+  localStorage.removeItem('emailAsunto');
   document.getElementById('cfgEmailTemplate').value=DEFAULT_EMAIL_TEMPLATE;
-  document.getElementById('cfgEmailAsunto').value='Estado de cuenta — Fraccionamiento Silvestra';
+  document.getElementById('cfgEmailAsunto').value=DEFAULT_EMAIL_ASUNTO;
   showToast('Plantilla restaurada al predeterminado');
 }
 

@@ -277,15 +277,15 @@ tr:last-child td{border-bottom:none}
     <div class="form-grid">
       <div class="field">
         <label id="loginUserLabel">Usuario</label>
-        <input type="text" id="loginUser" placeholder="administradora@silvestra.mx" value="administradora@silvestra.mx" autocomplete="username">
+        <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username">
       </div>
       <div class="field">
         <label>Contraseña</label>
-        <input type="password" id="loginPass" placeholder="••••••••" value="silvestra2024" autocomplete="current-password">
+        <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password">
       </div>
       <button class="btn-login" onclick="doLogin()">Iniciar sesión</button>
     </div>
-    <p class="login-hint" id="loginHint">Admin: <span>administradora@silvestra.mx</span> · Residente: usuario <span>M24L1</span></p>
+    <p class="login-hint" id="loginHint"></p>
   </div>
 </div>
 
@@ -1035,6 +1035,10 @@ tr:last-child td{border-bottom:none}
           <div class="config-block-body">
             <div class="config-grid">
               <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:13px;color:var(--slate)">
+                <input type="checkbox" id="cfgAutoActivo" style="width:16px;height:16px;accent-color:var(--gold)">
+                <strong>Activar envíos automáticos programados</strong>
+              </label>
+              <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:13px;color:var(--slate)">
                 <input type="checkbox" id="cfgAutoMorosos" style="width:16px;height:16px;accent-color:var(--gold)">
                 Enviar recordatorio mensual a condóminos con saldo vencido
               </label>
@@ -1044,10 +1048,10 @@ tr:last-child td{border-bottom:none}
               </label>
               <div class="config-2">
                 <div class="form-field"><label>Día del mes para envío automático</label><input type="number" id="cfgAutoDia" value="5" min="1" max="28" placeholder="5"></div>
-                <div class="form-field"><label>Hora de envío</label><input type="time" id="cfgAutoHora" value="09:00"></div>
+                <div class="form-field"><label>Hora de envío (hora Monterrey)</label><input type="time" id="cfgAutoHora" value="09:00"></div>
               </div>
-              <div class="config-note">
-                ⏰ Los envíos automáticos requieren que el servidor esté activo. Railway mantiene tu app en línea 24/7.
+              <div class="config-note" id="cfgAutoStatus">
+                ⏰ Los envíos automáticos se ejecutan en el servidor Railway 24/7. Guarda la configuración para activarlos.
               </div>
               <div>
                 <button class="btn-primary" onclick="_cfgGuardarAuto()">Guardar programación</button>
@@ -1401,14 +1405,14 @@ function setRole(role,btn){
     userInput.value='';
     passInput.placeholder='Contraseña';
     passInput.value='';
-    document.getElementById('loginHint').innerHTML='Tu usuario es tu clave de lote. Contraseña temporal: <span>silv{mza}{lote}</span>';
+    document.getElementById('loginHint').textContent='';
   } else {
     document.getElementById('loginUserLabel').textContent='Usuario';
-    userInput.placeholder='administradora@silvestra.mx';
-    userInput.value='administradora@silvestra.mx';
-    passInput.placeholder='••••••••';
-    passInput.value='silvestra2024';
-    document.getElementById('loginHint').innerHTML='Admin: <span>administradora@silvestra.mx</span> · Residente: usuario <span>M24L1</span>';
+    userInput.placeholder='Usuario';
+    userInput.value='';
+    passInput.placeholder='Contraseña';
+    passInput.value='';
+    document.getElementById('loginHint').textContent='';
   }
 }
 
@@ -1431,6 +1435,7 @@ function doLogin(){
     document.getElementById('loginWrap').style.display='none';
     document.getElementById('appShell').style.display='flex';
     if(data.rol==='admin'){
+      _preloadEmailConfig(data.token);
       initAdmin();
     } else {
       // Encontrar lote en LOTES_DATA por lote_id o por user_key
@@ -2829,11 +2834,21 @@ const DEFAULT_EMAIL_TEMPLATE = [
 'Fraccionamiento Silvestra - San Pedro Garza Garcia, N.L.'
 ].join('\n');
 
+function _preloadEmailConfig(token){
+  fetch('/api/config/plantilla',{headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(d=>{
+      if(d.template&&d.template.trim()) window._emailTemplateCache=d.template;
+      if(d.asunto&&d.asunto.trim()) window._emailAsuntoCache=d.asunto;
+    }).catch(()=>{});
+}
+
 function _getEmailTemplate(){
+  if(window._emailTemplateCache&&window._emailTemplateCache.trim()) return window._emailTemplateCache;
   const v=localStorage.getItem('emailTemplate');
   return (v&&v.trim())?v:DEFAULT_EMAIL_TEMPLATE;
 }
 function _getEmailAsunto(){
+  if(window._emailAsuntoCache&&window._emailAsuntoCache.trim()) return window._emailAsuntoCache;
   const v=localStorage.getItem('emailAsunto');
   return (v&&v.trim())?v:DEFAULT_EMAIL_ASUNTO;
 }
@@ -2873,8 +2888,8 @@ function _openEmailModal(l){
 function _sendEmail(){
   const to=document.getElementById('emailTo').value.trim();
   if(!to){showToast('Ingresa el correo del condómino');return;}
-  const cfg=JSON.parse(localStorage.getItem('emailConfig')||'{}');
-  if(!cfg.from){showToast('⚠ Configura el correo en Ajustes primero');return;}
+  const token=sessionStorage.getItem('auth_token');
+  if(!token){showToast('Sesión expirada, vuelve a iniciar sesión');return;}
   showToast('Generando PDF y enviando…');
   // Generar PDF adjunto
   const l=_emailCurrentLote;
@@ -2898,21 +2913,17 @@ function _sendEmail(){
   }catch(e){console.warn('PDF generation failed',e);}
   fetch('/api/correo/enviar',{
     method:'POST',
-    headers:{'Content-Type':'application/json'},
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
     body:JSON.stringify({
       to,
       subject:document.getElementById('emailSubject').value,
       body:document.getElementById('emailPreview').textContent,
-      smtp:cfg.smtp||'smtp.office365.com',
-      port:cfg.port||587,
-      from:cfg.from,
-      password:cfg.password,
       pdf_base64:pdfBase64,
       pdf_filename:`EstadoCuenta_Mza${l.mza}_L${l.lote}.pdf`
     })
   }).then(r=>r.json()).then(d=>{
     if(d.ok){showToast(`✉ Correo enviado a ${to}`);closeModal('modalEmail');}
-    else showToast('Error al enviar: '+(d.error||'desconocido'));
+    else showToast('Error al enviar: '+(d.detail||d.error||'desconocido'));
   }).catch(()=>showToast('Error de conexión al enviar correo'));
 }
 
@@ -2920,33 +2931,51 @@ function _sendEmail(){
 // CONFIGURACIÓN
 // ============================================================
 function _initConfiguracion(){
-  // Cargar lista de residentes en memoria para filtrar localmente
   const token=sessionStorage.getItem('auth_token');
+  // Cargar lista de residentes
   fetch('/api/auth/residentes',{headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(list=>{
       window._residentesData=list;
-      // Limpiar filtros al reabrir
       document.getElementById('cfgResMza').value='';
       document.getElementById('cfgResSearch').value='';
       document.getElementById('cfgResidentesWrap').style.display='none';
       document.getElementById('cfgResPlaceholder').style.display='block';
+    }).catch(()=>{ window._residentesData=[]; });
+  // Cargar config SMTP desde API
+  fetch('/api/config/email',{headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(d=>{
+      if(d.smtp_from) document.getElementById('cfgEmailFrom').value=d.smtp_from;
+      if(d.smtp_server) document.getElementById('cfgEmailSmtp').value=d.smtp_server;
+      if(d.smtp_port) document.getElementById('cfgEmailPort').value=d.smtp_port;
+      if(d.has_password) document.getElementById('cfgEmailPass').placeholder='••••••••  (guardada)';
+    }).catch(()=>{});
+  // Cargar plantilla desde API
+  fetch('/api/config/plantilla',{headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(d=>{
+      document.getElementById('cfgEmailTemplate').value=d.template||_getEmailTemplate();
+      document.getElementById('cfgEmailAsunto').value=d.asunto||_getEmailAsunto();
     }).catch(()=>{
-      window._residentesData=[];
+      document.getElementById('cfgEmailTemplate').value=_getEmailTemplate();
+      document.getElementById('cfgEmailAsunto').value=_getEmailAsunto();
     });
-  // Cargar plantilla guardada
-  document.getElementById('cfgEmailTemplate').value=_getEmailTemplate();
-  document.getElementById('cfgEmailAsunto').value=_getEmailAsunto();
-  // Cargar config de correo
-  const cfg=JSON.parse(localStorage.getItem('emailConfig')||'{}');
-  if(cfg.from) document.getElementById('cfgEmailFrom').value=cfg.from;
-  if(cfg.smtp) document.getElementById('cfgEmailSmtp').value=cfg.smtp;
-  if(cfg.port) document.getElementById('cfgEmailPort').value=cfg.port;
-  // Cargar config automáticos
-  const auto=JSON.parse(localStorage.getItem('emailAuto')||'{}');
-  if(auto.morosos) document.getElementById('cfgAutoMorosos').checked=true;
-  if(auto.estado) document.getElementById('cfgAutoEstado').checked=true;
-  if(auto.dia) document.getElementById('cfgAutoDia').value=auto.dia;
-  if(auto.hora) document.getElementById('cfgAutoHora').value=auto.hora;
+  // Cargar config automáticos desde API
+  fetch('/api/config/auto',{headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(d=>{
+      document.getElementById('cfgAutoActivo').checked=!!d.activo;
+      document.getElementById('cfgAutoMorosos').checked=!!d.morosos;
+      document.getElementById('cfgAutoEstado').checked=!!d.estado;
+      if(d.dia) document.getElementById('cfgAutoDia').value=d.dia;
+      if(d.hora) document.getElementById('cfgAutoHora').value=d.hora;
+      const st=document.getElementById('cfgAutoStatus');
+      if(d.activo){
+        const tipo=d.morosos&&d.estado?'morosos + todos':d.morosos?'morosos':'todos los condóminos';
+        st.textContent=`✅ Activado: día ${d.dia} a las ${d.hora} — enviando a ${tipo}`;
+        st.style.color='var(--green)';
+      } else {
+        st.textContent='⏰ Desactivado. Activa la casilla y guarda para programar envíos.';
+        st.style.color='';
+      }
+    }).catch(()=>{});
 }
 
 function _filterResidentes(){
@@ -3028,49 +3057,89 @@ function _cfgLimpiarLote(){
 }
 
 function _cfgGuardarEmail(){
-  const cfg={
-    from:document.getElementById('cfgEmailFrom').value.trim(),
-    password:document.getElementById('cfgEmailPass').value,
-    smtp:document.getElementById('cfgEmailSmtp').value.trim(),
-    port:parseInt(document.getElementById('cfgEmailPort').value)||587
-  };
-  if(!cfg.from){showToast('Ingresa el correo remitente');return;}
-  localStorage.setItem('emailConfig',JSON.stringify(cfg));
-  showToast('Configuración de correo guardada');
+  const from=document.getElementById('cfgEmailFrom').value.trim();
+  if(!from){showToast('Ingresa el correo remitente');return;}
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/config/email',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({
+      smtp_from:from,
+      smtp_server:document.getElementById('cfgEmailSmtp').value.trim()||'smtp.office365.com',
+      smtp_port:parseInt(document.getElementById('cfgEmailPort').value)||587,
+      smtp_password:document.getElementById('cfgEmailPass').value
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      showToast('✅ Configuración de correo guardada');
+      document.getElementById('cfgEmailPass').value='';
+      document.getElementById('cfgEmailPass').placeholder='••••••••  (guardada)';
+    } else showToast('Error al guardar: '+(d.detail||'desconocido'));
+  }).catch(()=>showToast('Error de conexión'));
 }
 
 function _cfgTestEmail(){
-  const cfg=JSON.parse(localStorage.getItem('emailConfig')||'{}');
-  if(!cfg.from){showToast('Guarda la configuración primero');return;}
-  fetch('/api/correo/prueba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)})
+  const token=sessionStorage.getItem('auth_token');
+  showToast('Enviando correo de prueba…');
+  fetch('/api/correo/prueba',{method:'POST',headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(d=>{
-      if(d.ok)showToast('✉ Correo de prueba enviado a '+cfg.from);
-      else showToast('Error: '+d.error);
+      if(d.ok) showToast('✉ Correo de prueba enviado correctamente');
+      else showToast('Error: '+(d.detail||d.error||'desconocido'));
     }).catch(()=>showToast('Error de conexión'));
 }
 
 function _cfgGuardarPlantilla(){
-  localStorage.setItem('emailTemplate',document.getElementById('cfgEmailTemplate').value);
-  localStorage.setItem('emailAsunto',document.getElementById('cfgEmailAsunto').value);
-  showToast('Plantilla guardada');
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/config/plantilla',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({
+      template:document.getElementById('cfgEmailTemplate').value,
+      asunto:document.getElementById('cfgEmailAsunto').value
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok) showToast('✅ Plantilla guardada');
+    else showToast('Error al guardar plantilla');
+  }).catch(()=>showToast('Error de conexión'));
 }
 
 function _cfgRestaurarPlantilla(){
   localStorage.removeItem('emailTemplate');
   localStorage.removeItem('emailAsunto');
+  window._emailTemplateCache=null;
+  window._emailAsuntoCache=null;
   document.getElementById('cfgEmailTemplate').value=DEFAULT_EMAIL_TEMPLATE;
   document.getElementById('cfgEmailAsunto').value=DEFAULT_EMAIL_ASUNTO;
+  // Reset in DB too
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/config/plantilla',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({template:'',asunto:''})
+  }).catch(()=>{});
   showToast('Plantilla restaurada al predeterminado');
 }
 
 function _cfgGuardarAuto(){
-  localStorage.setItem('emailAuto',JSON.stringify({
-    morosos:document.getElementById('cfgAutoMorosos').checked,
-    estado:document.getElementById('cfgAutoEstado').checked,
-    dia:document.getElementById('cfgAutoDia').value,
-    hora:document.getElementById('cfgAutoHora').value
-  }));
-  showToast('Programación guardada');
+  const activo=document.getElementById('cfgAutoActivo').checked;
+  const morosos=document.getElementById('cfgAutoMorosos').checked;
+  const estado=document.getElementById('cfgAutoEstado').checked;
+  if(activo&&!morosos&&!estado){showToast('Selecciona al menos un tipo de envío');return;}
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/config/auto',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({
+      activo,morosos,estado,
+      dia:parseInt(document.getElementById('cfgAutoDia').value)||5,
+      hora:document.getElementById('cfgAutoHora').value||'09:00'
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      showToast(activo?'✅ Programación activada en servidor':'Programación desactivada');
+      _initConfiguracion();
+    } else showToast('Error: '+(d.detail||'desconocido'));
+  }).catch(()=>showToast('Error de conexión'));
 }
 
 // Mobile sidebar toggle

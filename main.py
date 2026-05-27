@@ -21,11 +21,17 @@ from datetime import date, datetime, timedelta
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from pydantic import BaseModel
-import os, io, re
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+import os, io, re, smtplib, base64
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders as _email_enc
 
 from models import (Lote, Pago, Gasto, Usuario,
                     Proveedor, MovimientoBancario,
-                    LecturaAgua, GastoReal, ProrrateoPorLote)
+                    LecturaAgua, GastoReal, ProrrateoPorLote, Config)
 
 # ── Auth config ─────────────────────────────────────────────
 SECRET_KEY  = os.environ.get("SECRET_KEY", "silvestra_dev_key_cambia_en_produccion")
@@ -44,6 +50,30 @@ class CambiarPassReq(BaseModel):
 
 class ResetPassReq(BaseModel):
     user_key: str   # ej: M24L1
+
+class ConfigEmailReq(BaseModel):
+    smtp_from: str
+    smtp_server: str = "smtp.office365.com"
+    smtp_port: int = 587
+    smtp_password: str = ""   # empty = keep existing password
+
+class ConfigPlantillaReq(BaseModel):
+    template: str
+    asunto: str
+
+class ConfigAutoReq(BaseModel):
+    morosos: bool = False
+    estado: bool = False
+    dia: int = 5
+    hora: str = "09:00"
+    activo: bool = False
+
+class EnviarCorreoReq(BaseModel):
+    to: str
+    subject: str
+    body: str
+    pdf_base64: str = ""
+    pdf_filename: str = ""
 
 def _make_token(user_id: int, rol: str, lote_id: Optional[int]) -> str:
     exp = datetime.utcnow() + timedelta(hours=TOKEN_HOURS)
@@ -87,6 +117,153 @@ def get_session():
     with Session(engine) as session:
         yield session
 
+# ── Config helpers ───────────────────────────────────────────
+def _get_cfg(s: Session, clave: str, default: str = "") -> str:
+    row = s.exec(select(Config).where(Config.clave == clave)).first()
+    return row.valor if row else default
+
+def _set_cfg(s: Session, clave: str, valor: str):
+    row = s.exec(select(Config).where(Config.clave == clave)).first()
+    if row:
+        row.valor = valor
+        s.add(row)
+    else:
+        s.add(Config(clave=clave, valor=valor))
+
+# ── SMTP / email helpers ─────────────────────────────────────
+_MESES = {
+    "01": "enero", "02": "febrero", "03": "marzo", "04": "abril",
+    "05": "mayo", "06": "junio", "07": "julio", "08": "agosto",
+    "09": "septiembre", "10": "octubre", "11": "noviembre", "12": "diciembre",
+}
+
+def _send_smtp_msg(to: str, subject: str, body: str,
+                   pdf_b64: str = "", pdf_name: str = ""):
+    with Session(engine) as s:
+        smtp_from     = _get_cfg(s, "smtp_from")
+        smtp_server   = _get_cfg(s, "smtp_server", "smtp.office365.com")
+        smtp_port_str = _get_cfg(s, "smtp_port", "587")
+        smtp_password = _get_cfg(s, "smtp_password")
+    if not smtp_from or not smtp_password:
+        raise ValueError("SMTP no configurado. Ingresa correo y contraseña en Ajustes → Correo Outlook.")
+    port = int(smtp_port_str)
+    msg = MIMEMultipart()
+    msg["From"] = smtp_from
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+    if pdf_b64 and pdf_name:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(base64.b64decode(pdf_b64))
+        _email_enc.encode_base64(part)
+        part.add_header("Content-Disposition", f'attachment; filename="{pdf_name}"')
+        msg.attach(part)
+    with smtplib.SMTP(smtp_server, port, timeout=30) as srv:
+        srv.ehlo()
+        srv.starttls()
+        srv.login(smtp_from, smtp_password)
+        srv.send_message(msg)
+
+def _build_server_email_body(template: str, lote: Lote,
+                              saldo: float, estado: str, mes: str) -> str:
+    y, m = mes.split("-")
+    mes_label = f"{_MESES.get(m, m)} {y}"
+    estatus = ("Al corriente" if estado == "corriente"
+               else "Abonando a vencido" if estado == "abonando"
+               else "Moroso")
+    msg_est = ("Su cuenta se encuentra al corriente. ¡Gracias por su puntualidad!"
+               if saldo <= 0
+               else f"Tiene un saldo pendiente de ${saldo:,.0f}. Le invitamos a regularizar su situación.")
+    if not template:
+        return (f"Estimado/a {lote.propietario},\n\n"
+                f"Le informamos el estado de su cuenta al mes de {mes_label}:\n\n"
+                f"  Manzana {lote.manzana} — Lote {lote.numero}\n"
+                f"  Cuota mensual: ${lote.cuota_cof:,.0f}\n"
+                f"  Saldo pendiente: ${max(saldo,0):,.0f}\n"
+                f"  Estatus: {estatus}\n\n"
+                f"{msg_est}\n\n"
+                f"Saludos,\nAdministración Silvestra-Canoas AC")
+    return (template
+            .replace("{{nombre}}", lote.propietario or "")
+            .replace("{{lote}}", str(lote.numero))
+            .replace("{{mza}}", str(lote.manzana))
+            .replace("{{mes}}", mes_label)
+            .replace("{{cuota}}", f"{lote.cuota_cof:,.0f}")
+            .replace("{{saldo}}", f"{max(saldo, 0):,.0f}")
+            .replace("{{estatus}}", estatus)
+            .replace("{{mensajeEstatus}}", msg_est))
+
+# ── APScheduler ──────────────────────────────────────────────
+_scheduler = BackgroundScheduler(timezone="America/Monterrey")
+
+def _run_automatic_emails():
+    """Executed by APScheduler at the configured time to send monthly emails."""
+    print(f"[Scheduler] Iniciando envío automático {datetime.utcnow().isoformat()}")
+    with Session(engine) as s:
+        morosos_only = _get_cfg(s, "auto_morosos", "false") == "true"
+        send_todos   = _get_cfg(s, "auto_estado",  "false") == "true"
+        template     = _get_cfg(s, "email_template", "")
+        asunto_tpl   = _get_cfg(s, "email_asunto", "Estado de cuenta {{mes}} - Silvestra")
+
+    if not morosos_only and not send_todos:
+        print("[Scheduler] Sin opciones activas, saliendo")
+        return
+
+    mes = datetime.utcnow().strftime("%Y-%m")
+    with Session(engine) as s:
+        lotes = s.exec(
+            select(Lote).where(Lote.propietario != None, Lote.email != None)
+        ).all()
+        pagos = s.exec(
+            select(Pago).where(Pago.mes_aplicado == mes, Pago.estado == "aprobado")
+        ).all()
+    pagos_lote: dict = {}
+    for p in pagos:
+        pagos_lote[p.lote_id] = pagos_lote.get(p.lote_id, 0.0) + p.importe
+
+    y, m = mes.split("-")
+    mes_label = f"{_MESES.get(m, m)} {y}"
+    enviados = errores = 0
+    for lote in lotes:
+        if not lote.email:
+            continue
+        pagado = pagos_lote.get(lote.id, 0.0)
+        saldo  = lote.cuota_cof - pagado
+        estado = ("corriente" if saldo <= 0 else "abonando" if pagado > 0 else "moroso")
+        if morosos_only and estado == "corriente":
+            continue
+        body    = _build_server_email_body(template, lote, saldo, estado, mes)
+        subject = (asunto_tpl
+                   .replace("{{mes}}", mes_label)
+                   .replace("{{mza}}", str(lote.manzana))
+                   .replace("{{lote}}", str(lote.numero)))
+        try:
+            _send_smtp_msg(lote.email, subject, body)
+            enviados += 1
+        except Exception as exc:
+            print(f"[Scheduler] Error lote {lote.id}: {exc}")
+            errores += 1
+    print(f"[Scheduler] Completado: {enviados} enviados, {errores} errores")
+
+def _reload_scheduler():
+    _scheduler.remove_all_jobs()
+    with Session(engine) as s:
+        activo = _get_cfg(s, "auto_activo", "false") == "true"
+        dia    = _get_cfg(s, "auto_dia", "5")
+        hora   = _get_cfg(s, "auto_hora", "09:00")
+    if activo:
+        try:
+            h, mi = hora.split(":")
+            _scheduler.add_job(
+                _run_automatic_emails,
+                CronTrigger(day=dia, hour=int(h), minute=int(mi),
+                            timezone="America/Monterrey"),
+                id="email_auto", replace_existing=True,
+            )
+            print(f"[Scheduler] Job programado: día {dia} a las {hora} hora Monterrey")
+        except Exception as exc:
+            print(f"[Scheduler] Error al programar job: {exc}")
+
 # "Y todo lo que hagan, de palabra o de obra,
 #  háganlo en el nombre del Señor Jesús." — Colosenses 3:17
 app = FastAPI(title="Silvestra Admin API", version="1.0.0")
@@ -99,6 +276,9 @@ if os.path.exists(STATIC_DIR):
 @app.on_event("startup")
 def on_startup():
     SQLModel.metadata.create_all(engine)
+    if not _scheduler.running:
+        _scheduler.start()
+    _reload_scheduler()
 
 
 # ─── ROOT ───────────────────────────────────────────────────
@@ -810,3 +990,94 @@ def resumen_financiero(mes: str):
             "dicka": {"deuda_acumulada": round(deuda_dicka, 2),
                       "mes_actual": round(sum(p.importe_prorrateado for p in prorrateo if p.es_campestre), 2)},
         }
+
+
+# ─── CONFIG ──────────────────────────────────────────────────
+@app.get("/api/config/email")
+def get_config_email(admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        return {
+            "smtp_from":   _get_cfg(s, "smtp_from"),
+            "smtp_server": _get_cfg(s, "smtp_server", "smtp.office365.com"),
+            "smtp_port":   int(_get_cfg(s, "smtp_port", "587")),
+            "has_password": bool(_get_cfg(s, "smtp_password")),
+        }
+
+@app.post("/api/config/email")
+def save_config_email(req: ConfigEmailReq, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        _set_cfg(s, "smtp_from",   req.smtp_from)
+        _set_cfg(s, "smtp_server", req.smtp_server)
+        _set_cfg(s, "smtp_port",   str(req.smtp_port))
+        if req.smtp_password:
+            _set_cfg(s, "smtp_password", req.smtp_password)
+        s.commit()
+    return {"ok": True}
+
+@app.get("/api/config/plantilla")
+def get_config_plantilla(admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        return {
+            "template": _get_cfg(s, "email_template"),
+            "asunto":   _get_cfg(s, "email_asunto"),
+        }
+
+@app.post("/api/config/plantilla")
+def save_config_plantilla(req: ConfigPlantillaReq, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        _set_cfg(s, "email_template", req.template)
+        _set_cfg(s, "email_asunto",   req.asunto)
+        s.commit()
+    return {"ok": True}
+
+@app.get("/api/config/auto")
+def get_config_auto(admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        return {
+            "morosos": _get_cfg(s, "auto_morosos", "false") == "true",
+            "estado":  _get_cfg(s, "auto_estado",  "false") == "true",
+            "dia":     int(_get_cfg(s, "auto_dia",  "5")),
+            "hora":    _get_cfg(s, "auto_hora", "09:00"),
+            "activo":  _get_cfg(s, "auto_activo", "false") == "true",
+        }
+
+@app.post("/api/config/auto")
+def save_config_auto(req: ConfigAutoReq, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        _set_cfg(s, "auto_morosos", "true" if req.morosos else "false")
+        _set_cfg(s, "auto_estado",  "true" if req.estado  else "false")
+        _set_cfg(s, "auto_dia",     str(req.dia))
+        _set_cfg(s, "auto_hora",    req.hora)
+        _set_cfg(s, "auto_activo",  "true" if req.activo  else "false")
+        s.commit()
+    _reload_scheduler()
+    return {"ok": True}
+
+
+# ─── CORREO ──────────────────────────────────────────────────
+@app.post("/api/correo/enviar")
+def enviar_correo(req: EnviarCorreoReq, admin: Usuario = Depends(_admin_only)):
+    try:
+        _send_smtp_msg(req.to, req.subject, req.body,
+                       req.pdf_base64 or "", req.pdf_filename or "")
+        return {"ok": True}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+@app.post("/api/correo/prueba")
+def prueba_correo(admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        smtp_from = _get_cfg(s, "smtp_from")
+    if not smtp_from:
+        raise HTTPException(status_code=400, detail="SMTP no configurado")
+    try:
+        _send_smtp_msg(
+            smtp_from,
+            "Correo de prueba — Silvestra",
+            "Este es un correo de prueba del sistema Silvestra.\n\n"
+            "Si lo recibiste, la configuración SMTP es correcta.\n\n"
+            "— Administración Silvestra-Canoas AC",
+        )
+        return {"ok": True}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

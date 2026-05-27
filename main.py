@@ -373,6 +373,50 @@ def get_residentes_auth(admin: Usuario = Depends(_admin_only),
         })
     return result
 
+class NuevoAdminReq(BaseModel):
+    email: str
+    password: str
+
+@app.get("/api/auth/admins")
+def get_admins(admin: Usuario = Depends(_admin_only),
+               session: Session = Depends(get_session)):
+    admins = session.exec(
+        select(Usuario).where(Usuario.rol == "admin", Usuario.activo == True)
+    ).all()
+    return [{"id": u.id, "email": u.email} for u in admins]
+
+@app.post("/api/auth/admins")
+def crear_admin(req: NuevoAdminReq,
+                admin: Usuario = Depends(_admin_only),
+                session: Session = Depends(get_session)):
+    if len(req.password) < 6:
+        raise HTTPException(400, "Mínimo 6 caracteres")
+    existe = session.exec(select(Usuario).where(Usuario.email == req.email)).first()
+    if existe:
+        raise HTTPException(400, "El usuario ya existe")
+    session.add(Usuario(
+        email=req.email,
+        hashed_password=pwd_context.hash(req.password),
+        rol="admin",
+        debe_cambiar_password=False,
+    ))
+    session.commit()
+    return {"ok": True}
+
+@app.delete("/api/auth/admins/{uid}")
+def eliminar_admin(uid: int,
+                   admin: Usuario = Depends(_admin_only),
+                   session: Session = Depends(get_session)):
+    if admin.id == uid:
+        raise HTTPException(400, "No puedes eliminarte a ti mismo")
+    u = session.get(Usuario, uid)
+    if not u or u.rol != "admin":
+        raise HTTPException(404, "Admin no encontrado")
+    u.activo = False
+    session.add(u)
+    session.commit()
+    return {"ok": True}
+
 # ─── LOTES ──────────────────────────────────────────────────
 @app.get("/api/lotes")
 def get_lotes(manzana: Optional[int] = None):

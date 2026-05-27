@@ -905,16 +905,23 @@ tr:last-child td{border-bottom:none}
           <div class="config-block-head">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
             <span class="config-block-title">Usuarios administradores</span>
-            <button class="btn-primary" style="padding:5px 12px;font-size:12px" onclick="_cfgAgregarAdmin()">+ Agregar</button>
           </div>
           <div class="config-block-body">
-            <div class="table-wrap">
+            <div class="table-wrap" style="margin-bottom:16px">
               <table>
-                <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Acciones</th></tr></thead>
-                <tbody id="cfgAdminsList">
-                  <tr><td class="td-name">Administradora</td><td>administradora@silvestra.mx</td><td><span class="badge badge-gold">Admin</span></td><td><span style="color:var(--muted);font-size:12px">Cuenta principal</span></td></tr>
-                </tbody>
+                <thead><tr><th>Usuario</th><th>Rol</th><th>Acción</th></tr></thead>
+                <tbody id="cfgAdminsList"></tbody>
               </table>
+            </div>
+            <div style="border-top:1px solid var(--border);padding-top:16px">
+              <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:10px">Agregar administrador</div>
+              <div class="config-2">
+                <div class="form-field"><label>Correo / usuario</label><input type="text" id="cfgNewAdminEmail" placeholder="nombre@empresa.com"></div>
+                <div class="form-field"><label>Contraseña</label><input type="password" id="cfgNewAdminPass" placeholder="Mínimo 6 caracteres"></div>
+              </div>
+              <div style="margin-top:12px">
+                <button class="btn-primary" onclick="_cfgAgregarAdmin()">+ Agregar administrador</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1831,29 +1838,34 @@ function renderIngresosByTab(tab){
       <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-family:'DM Mono',monospace;font-weight:500;color:var(--green)">$${p.importe.toLocaleString()}</td>
       <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-size:12px;color:var(--muted)">${p.ref}</td>
       <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9">${tab==='aprobar'
-        ?`<button class="btn-primary" style="padding:5px 10px;font-size:12px" onclick="aprobarIngreso('${p.ref}',${p.id||'null'})">✓ Aprobar</button>`
-        :`<div style="display:flex;align-items:center;gap:8px"><span class="badge badge-green">✓ Aprobado</span><button onclick="revertirIngreso('${p.ref}',${p.id||'null'})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer" title="Revertir a pendiente">↩</button></div>`
+        ?`<button class="btn-primary btn-aprobar-ing" data-ref="${p.ref}" data-id="${p.id||''}" style="padding:5px 10px;font-size:12px">✓ Aprobar</button>`
+        :`<div style="display:flex;align-items:center;gap:8px"><span class="badge badge-green">✓ Aprobado</span><button class="btn-revertir-ing" data-ref="${p.ref}" data-id="${p.id||''}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer" title="Revertir a pendiente">↩</button></div>`
       }</td>
     </tr>`).join('')}</tbody></table>`;
-}
 
-function aprobarIngreso(ref,id){
-  const idx=INGRESOS_DATA.findIndex(i=>i.ref===ref);
-  if(idx<0) return;
-  INGRESOS_DATA[idx].estado='aprobado';
-  renderIngresosByTab('aprobar');
-  showToast('✅ Ingreso aprobado');
-  if(id) fetch(`/api/pagos/${id}/aprobar`,{method:'PUT'}).catch(()=>{});
-}
-
-function revertirIngreso(ref,id){
-  if(!confirm('¿Regresar este ingreso a "Por aprobar"?')) return;
-  const idx=INGRESOS_DATA.findIndex(i=>i.ref===ref);
-  if(idx<0) return;
-  INGRESOS_DATA[idx].estado='por_aprobar';
-  renderIngresosByTab('aprobados');
-  showToast('Ingreso regresado a pendiente');
-  if(id) fetch(`/api/pagos/${id}/revertir`,{method:'PUT'}).catch(()=>{});
+  el.querySelectorAll('.btn-aprobar-ing').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const ref=btn.dataset.ref, id=btn.dataset.id;
+      const idx=INGRESOS_DATA.findIndex(i=>i.ref===ref);
+      if(idx<0) return;
+      INGRESOS_DATA[idx].estado='aprobado';
+      renderIngresosByTab('aprobar');
+      showToast('✅ Ingreso aprobado');
+      if(id) fetch(`/api/pagos/${id}/aprobar`,{method:'PUT'}).catch(()=>{});
+    });
+  });
+  el.querySelectorAll('.btn-revertir-ing').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(!confirm('¿Regresar este ingreso a "Por aprobar"?')) return;
+      const ref=btn.dataset.ref, id=btn.dataset.id;
+      const idx=INGRESOS_DATA.findIndex(i=>i.ref===ref);
+      if(idx<0) return;
+      INGRESOS_DATA[idx].estado='por_aprobar';
+      renderIngresosByTab('aprobados');
+      showToast('Ingreso regresado a pendiente');
+      if(id) fetch(`/api/pagos/${id}/revertir`,{method:'PUT'}).catch(()=>{});
+    });
+  });
 }
 
 // ============================================================
@@ -2962,6 +2974,7 @@ function _sendEmail(){
 // ============================================================
 function _initConfiguracion(){
   const token=sessionStorage.getItem('auth_token');
+  _cfgCargarAdmins();
   // Cargar lista de residentes
   fetch('/api/auth/residentes',{headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(list=>{
@@ -3064,7 +3077,51 @@ function _cfgCambiarPass(){
     }).catch(()=>{showToast('Contraseña actualizada (demo)');});
 }
 
-function _cfgAgregarAdmin(){showToast('Función disponible próximamente');}
+function _cfgCargarAdmins(){
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/auth/admins',{headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(list=>{
+      const me=JSON.parse(atob(token.split('.')[1])||'{}');
+      document.getElementById('cfgAdminsList').innerHTML=list.map(a=>`
+        <tr>
+          <td style="font-size:13px">${a.email}</td>
+          <td><span class="badge badge-gold">Admin</span></td>
+          <td>${a.id==me.sub?'<span style="color:var(--muted);font-size:12px">Tú</span>'
+            :`<button onclick="_cfgEliminarAdmin(${a.id},'${a.email}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">Eliminar</button>`}
+          </td>
+        </tr>`).join('');
+    }).catch(()=>{});
+}
+
+function _cfgAgregarAdmin(){
+  const email=document.getElementById('cfgNewAdminEmail').value.trim();
+  const pass=document.getElementById('cfgNewAdminPass').value;
+  if(!email){showToast('Ingresa el usuario o correo');return;}
+  if(pass.length<6){showToast('La contraseña debe tener al menos 6 caracteres');return;}
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/auth/admins',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({email,password:pass})
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      showToast('✅ Administrador creado');
+      document.getElementById('cfgNewAdminEmail').value='';
+      document.getElementById('cfgNewAdminPass').value='';
+      _cfgCargarAdmins();
+    } else showToast('Error: '+(d.detail||'desconocido'));
+  }).catch(()=>showToast('Error de conexión'));
+}
+
+function _cfgEliminarAdmin(id,email){
+  if(!confirm(`¿Eliminar al administrador "${email}"?`)) return;
+  const token=sessionStorage.getItem('auth_token');
+  fetch(`/api/auth/admins/${id}`,{method:'DELETE',headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){showToast('Administrador eliminado');_cfgCargarAdmins();}
+      else showToast('Error: '+(d.detail||'desconocido'));
+    }).catch(()=>showToast('Error de conexión'));
+}
 
 function _cfgGuardarLote(){
   const mza=document.getElementById('cfgLoteMza').value.trim();

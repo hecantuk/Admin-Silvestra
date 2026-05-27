@@ -206,6 +206,34 @@ tr:last-child td{border-bottom:none}
   .topbar h1{font-size:15px}
 }
 
+/* SIDEBAR PROFILE */
+.sidebar-profile{padding:10px 16px 14px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}
+.sidebar-profile .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:600;flex-shrink:0}
+.sidebar-profile .user-info{flex:1;min-width:0}
+.sidebar-profile .user-info p{color:white;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-profile .user-info span{color:#475569;font-size:10px}
+.btn-config{background:rgba(255,255,255,.06);border:none;border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#94B890;cursor:pointer;flex-shrink:0;transition:.15s}
+.btn-config:hover{background:rgba(255,255,255,.15);color:white}
+.btn-config svg{width:14px;height:14px}
+.btn-logout-full{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:#64748B;font-size:12px;padding:9px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;transition:.15s;font-family:inherit}
+.btn-logout-full:hover{background:rgba(220,38,38,.15);color:#FCA5A5;border-color:rgba(220,38,38,.3)}
+.btn-logout-full svg{width:14px;height:14px}
+
+/* EMAIL PREVIEW */
+.email-preview{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:12px;line-height:1.7;color:var(--slate);white-space:pre-wrap;max-height:260px;overflow-y:auto;font-family:'DM Mono',monospace}
+
+/* CONFIG PAGE */
+.config-block{background:white;border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:20px;overflow:hidden}
+.config-block-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.config-block-head svg{width:16px;height:16px;color:var(--gold);flex-shrink:0}
+.config-block-title{font-size:13px;font-weight:600;color:var(--navy);flex:1}
+.config-block-body{padding:20px}
+.config-grid{display:grid;gap:14px}
+.config-2{grid-template-columns:1fr 1fr;display:grid;gap:14px}
+.config-note{font-size:12px;color:var(--muted);background:var(--bg);border-radius:8px;padding:10px 14px;border:1px solid var(--border);margin-top:4px}
+.template-editor{width:100%;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;color:var(--navy);background:var(--bg);font-family:'DM Mono',monospace;line-height:1.6;resize:vertical;min-height:200px}
+.template-editor:focus{border-color:var(--teal);background:white}
+
 /* TOOLTIP */
 .tooltip{position:relative;display:inline-block}
 .tooltip:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#0F172A;color:white;font-size:11px;padding:4px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;z-index:50}
@@ -282,6 +310,16 @@ tr:last-child td{border-bottom:none}
         </div>
       </div>
     </div>
+    <div class="sidebar-profile">
+      <div class="user-avatar" id="sidebarAvatar">AD</div>
+      <div class="user-info">
+        <p id="sidebarName">Administradora</p>
+        <span id="sidebarRole">Admin · Silvestra AC</span>
+      </div>
+      <button class="btn-config" id="btnConfig" onclick="showPage('configuracion',null)" title="Configuración">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </div>
     <div id="adminNav">
       <div class="sidebar-section">Panel principal</div>
       <div class="nav-item active" onclick="showPage('dashboard',this)">
@@ -339,6 +377,11 @@ tr:last-child td{border-bottom:none}
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Estados Financieros
       </div>
+      <div class="sidebar-section">Sistema</div>
+      <div class="nav-item" onclick="showPage('configuracion',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Configuración
+      </div>
     </div>
     <div id="residenteNav" style="display:none">
       <div class="sidebar-section">Mi cuenta</div>
@@ -352,14 +395,10 @@ tr:last-child td{border-bottom:none}
       </div>
     </div>
     <div class="sidebar-bottom">
-      <div class="user-pill">
-        <div class="user-avatar" id="sidebarAvatar">AD</div>
-        <div class="user-info">
-          <p id="sidebarName">Administradora</p>
-          <span id="sidebarRole">Admin</span>
-        </div>
-        <button class="btn-logout" onclick="doLogout()">Salir</button>
-      </div>
+      <button class="btn-logout-full" onclick="doLogout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Cerrar sesión
+      </button>
     </div>
   </nav>
 
@@ -841,6 +880,153 @@ tr:last-child td{border-bottom:none}
         </div>
       </div>
 
+      <!-- CONFIGURACIÓN -->
+      <div class="page" id="pageConfiguracion">
+
+        <!-- Cuenta -->
+        <div class="config-block">
+          <div class="config-block-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="config-block-title">Mi cuenta</span>
+          </div>
+          <div class="config-block-body">
+            <div class="config-2">
+              <div class="form-field"><label>Contraseña actual</label><input type="password" id="cfgPassActual" placeholder="••••••••"></div>
+              <div class="form-field"><label>Nueva contraseña</label><input type="password" id="cfgPassNueva" placeholder="••••••••"></div>
+            </div>
+            <div class="form-field" style="margin-top:14px"><label>Confirmar nueva contraseña</label><input type="password" id="cfgPassConfirm" placeholder="••••••••"></div>
+            <div style="margin-top:16px"><button class="btn-primary" onclick="_cfgCambiarPass()">Guardar contraseña</button></div>
+          </div>
+        </div>
+
+        <!-- Usuarios administradores -->
+        <div class="config-block">
+          <div class="config-block-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            <span class="config-block-title">Usuarios administradores</span>
+            <button class="btn-primary" style="padding:5px 12px;font-size:12px" onclick="_cfgAgregarAdmin()">+ Agregar</button>
+          </div>
+          <div class="config-block-body">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Acciones</th></tr></thead>
+                <tbody id="cfgAdminsList">
+                  <tr><td class="td-name">Administradora</td><td>administradora@silvestra.mx</td><td><span class="badge badge-gold">Admin</span></td><td><span style="color:var(--muted);font-size:12px">Cuenta principal</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lotes y condóminos -->
+        <div class="config-block">
+          <div class="config-block-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+            <span class="config-block-title">Lotes y condóminos</span>
+            <button class="btn-primary" style="padding:5px 12px;font-size:12px" onclick="showPage('lotes',null);showToast('Ir a Lotes para editar condóminos')">Ver Lotes</button>
+          </div>
+          <div class="config-block-body">
+            <div class="config-2">
+              <div class="form-field"><label>Manzana</label><input type="text" id="cfgLoteMza" placeholder="Ej: 24"></div>
+              <div class="form-field"><label>Lote</label><input type="text" id="cfgLoteNum" placeholder="Ej: 18"></div>
+            </div>
+            <div class="config-2" style="margin-top:14px">
+              <div class="form-field"><label>Propietario</label><input type="text" id="cfgLoteProp" placeholder="Nombre completo"></div>
+              <div class="form-field"><label>Correo electrónico</label><input type="email" id="cfgLoteEmail" placeholder="correo@ejemplo.com"></div>
+            </div>
+            <div class="config-2" style="margin-top:14px">
+              <div class="form-field"><label>m²</label><input type="number" id="cfgLoteM2" placeholder="2000"></div>
+              <div class="form-field"><label>Cuota mensual ($)</label><input type="number" id="cfgLoteCuota" placeholder="1350"></div>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:10px">
+              <button class="btn-primary" onclick="_cfgGuardarLote()">Guardar lote</button>
+              <button class="btn-secondary" onclick="_cfgLimpiarLote()">Limpiar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Correo electrónico Outlook -->
+        <div class="config-block">
+          <div class="config-block-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg>
+            <span class="config-block-title">Correo electrónico (Outlook empresarial)</span>
+          </div>
+          <div class="config-block-body">
+            <div class="config-2">
+              <div class="form-field"><label>Correo remitente</label><input type="email" id="cfgEmailFrom" placeholder="admin@silvestra.mx"></div>
+              <div class="form-field"><label>Contraseña / App Password</label><input type="password" id="cfgEmailPass" placeholder="••••••••"></div>
+            </div>
+            <div class="config-2" style="margin-top:14px">
+              <div class="form-field"><label>Servidor SMTP</label><input type="text" id="cfgEmailSmtp" value="smtp.office365.com"></div>
+              <div class="form-field"><label>Puerto</label><input type="number" id="cfgEmailPort" value="587"></div>
+            </div>
+            <div class="config-note" style="margin-top:14px">
+              🔐 Para Outlook empresarial (Microsoft 365), usa <strong>smtp.office365.com</strong> puerto <strong>587</strong> con TLS. Genera una "Contraseña de aplicación" desde el portal de Microsoft si tienes MFA activo.
+            </div>
+            <div style="margin-top:16px;display:flex;gap:10px">
+              <button class="btn-primary" onclick="_cfgGuardarEmail()">Guardar configuración</button>
+              <button class="btn-secondary" onclick="_cfgTestEmail()">Enviar correo de prueba</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Plantilla de correo -->
+        <div class="config-block">
+          <div class="config-block-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span class="config-block-title">Plantilla del correo de estado de cuenta</span>
+          </div>
+          <div class="config-block-body">
+            <div class="config-note" style="margin-bottom:14px">
+              Usa las variables: <strong>{{nombre}}</strong>, <strong>{{lote}}</strong>, <strong>{{mza}}</strong>, <strong>{{mes}}</strong>, <strong>{{saldo}}</strong>, <strong>{{estatus}}</strong>, <strong>{{cuota}}</strong>. Se reemplazan automáticamente al enviar.
+            </div>
+            <div class="form-field">
+              <label>Asunto del correo</label>
+              <input type="text" id="cfgEmailAsunto" placeholder="Estado de cuenta — Fraccionamiento Silvestra">
+            </div>
+            <div class="form-field" style="margin-top:14px">
+              <label>Cuerpo del mensaje</label>
+              <textarea class="template-editor" id="cfgEmailTemplate" rows="12"></textarea>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:10px">
+              <button class="btn-primary" onclick="_cfgGuardarPlantilla()">Guardar plantilla</button>
+              <button class="btn-secondary" onclick="_cfgRestaurarPlantilla()">Restaurar predeterminado</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Correos automáticos -->
+        <div class="config-block">
+          <div class="config-block-head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="config-block-title">Correos automáticos</span>
+          </div>
+          <div class="config-block-body">
+            <div class="config-grid">
+              <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:13px;color:var(--slate)">
+                <input type="checkbox" id="cfgAutoMorosos" style="width:16px;height:16px;accent-color:var(--gold)">
+                Enviar recordatorio mensual a condóminos con saldo vencido
+              </label>
+              <label style="display:flex;align-items:center;gap:12px;cursor:pointer;font-size:13px;color:var(--slate)">
+                <input type="checkbox" id="cfgAutoEstado" style="width:16px;height:16px;accent-color:var(--gold)">
+                Enviar estado de cuenta mensual a todos los condóminos
+              </label>
+              <div class="config-2">
+                <div class="form-field"><label>Día del mes para envío automático</label><input type="number" id="cfgAutoDia" value="5" min="1" max="28" placeholder="5"></div>
+                <div class="form-field"><label>Hora de envío</label><input type="time" id="cfgAutoHora" value="09:00"></div>
+              </div>
+              <div class="config-note">
+                ⏰ Los envíos automáticos requieren que el servidor esté activo. Railway mantiene tu app en línea 24/7.
+              </div>
+              <div>
+                <button class="btn-primary" onclick="_cfgGuardarAuto()">Guardar programación</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /pageConfiguracion -->
+
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app-shell -->
@@ -951,6 +1137,42 @@ tr:last-child td{border-bottom:none}
     <div class="modal-foot">
       <button class="btn-secondary" onclick="closeModal('modalLectura')">Cancelar</button>
       <button class="btn-primary" onclick="saveLectura()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CORREO -->
+<div class="modal-overlay" id="modalEmail">
+  <div class="modal" style="width:540px">
+    <div class="modal-head">
+      <h3>✉ Enviar estado de cuenta</h3>
+      <button class="btn-close" onclick="closeModal('modalEmail')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Para (correo del condómino)</label>
+          <input type="email" id="emailTo" placeholder="correo@ejemplo.com">
+        </div>
+        <div class="form-field">
+          <label>Asunto</label>
+          <input type="text" id="emailSubject">
+        </div>
+        <div class="form-field">
+          <label>Vista previa del mensaje</label>
+          <div class="email-preview" id="emailPreview"></div>
+        </div>
+        <div class="config-note">
+          📤 El correo se enviará desde la cuenta Outlook configurada en <strong>Configuración → Correo electrónico</strong>.
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closeModal('modalEmail')">Cancelar</button>
+      <button class="btn-primary" onclick="_sendEmail()">
+        <svg style="width:14px;height:14px;margin-right:2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Enviar
+      </button>
     </div>
   </div>
 </div>
@@ -1143,6 +1365,7 @@ function initAdmin(){
 function initResidente(){
   document.getElementById('adminNav').style.display='none';
   document.getElementById('residenteNav').style.display='block';
+  document.getElementById('btnConfig').style.display='none';
   const r=currentResidente;
   document.getElementById('sidebarName').textContent=r.propietario.split(' ').slice(0,2).join(' ');
   document.getElementById('sidebarRole').textContent=`Mza ${r.mza} L${r.lote}`;
@@ -1158,7 +1381,8 @@ const PAGE_TITLES={
   dashboard:'Dashboard',lotes:'Lotes',cargos:'Cargos del Mes',
   ingresos:'Ingresos',gastos:'Gastos',saldos:'Saldos Pendientes',
   reporte:'Concentrado de Cobranza',exportar:'Exportar estados de cuenta',
-  miCuenta:'Mi Estado de Cuenta',misPagos:'Mis Pagos'
+  miCuenta:'Mi Estado de Cuenta',misPagos:'Mis Pagos',
+  configuracion:'Configuración'
 };
 
 function showPage(id,navEl){
@@ -1173,6 +1397,7 @@ function showPage(id,navEl){
   else if(id==='agua') loadAgua();
   else if(id==='prorrateo') loadProrrateo();
   else if(id==='financiero') loadFinanciero();
+  else if(id==='configuracion') _initConfiguracion();
 }
 
 function switchTab(section,tab,el){
@@ -1307,7 +1532,7 @@ function renderLotes(data){
       <td style="font-family:'DM Mono',monospace;font-weight:500">$${l.cuota.toLocaleString()}</td>
       <td>${badge}</td>
       <td>${saldoCell}</td>
-      <td>${vendido?`<div style="display:flex;gap:5px"><button title="PDF" onclick="_exportPDFLote(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">PDF</button><button title="Excel" onclick="_exportExcelLote(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:var(--green-light);color:var(--green);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">Excel</button></div>`:'—'}</td>
+      <td>${vendido?`<div style="display:flex;gap:4px;align-items:center"><button title="PDF" onclick="_exportPDFLote(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">PDF</button><button title="Excel" onclick="_exportExcelLote(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:var(--green-light);color:var(--green);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">Excel</button><button title="Enviar por correo" onclick="_openEmailModal(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:#EFF6FF;color:#3B82F6;border:none;border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center"><svg style="width:13px;height:13px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg></button></div>`:'—'}</td>
     </tr>`;
   }).join('');
 }
@@ -2380,6 +2605,186 @@ function exportFinancieroPDF(){
     doc.save(`EstadoFinanciero_${mes}.pdf`);
     showToast('PDF generado');
   });
+}
+
+// ============================================================
+// EMAIL ESTADO DE CUENTA
+// ============================================================
+const DEFAULT_EMAIL_TEMPLATE = `Estimado/a {{nombre}},
+
+Por medio del presente le hacemos llegar su estado de cuenta correspondiente al mes de {{mes}} en el Fraccionamiento Silvestra - Frac. Campestre, San Pedro Garza García.
+
+📋 RESUMEN DE CUENTA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Manzana / Lote:   {{mza}} / {{lote}}
+Cuota mensual:    ${{cuota}}
+Estatus actual:   {{estatus}}
+Saldo pendiente:  ${{saldo}}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{{mensajeEstatus}}
+
+Para realizar su pago o aclaración, comuníquese con la administración:
+📧 administracion@silvestra.mx
+📞 (81) 0000-0000
+
+Atentamente,
+Administración
+Fraccionamiento Silvestra — Asociación de Colonos Silvestra-Canoas AC`;
+
+function _getEmailTemplate(){
+  return localStorage.getItem('emailTemplate')||DEFAULT_EMAIL_TEMPLATE;
+}
+
+function _buildEmailBody(l){
+  const mes=new Date().toLocaleString('es-MX',{month:'long',year:'numeric'});
+  const saldo=SALDOS_DATA[`${l.mza}-${l.lote}`]||0;
+  const estatus=saldo<=0?'✅ Al corriente':saldo<l.cuota?'🟡 Abonando':'🔴 Moroso';
+  const mensajeEstatus=saldo<=0
+    ?'Su cuenta se encuentra al corriente. ¡Gracias por su puntualidad!'
+    :`Tiene un saldo pendiente de $${saldo.toLocaleString()}. Le invitamos a regularizar su situación a la brevedad.`;
+  return _getEmailTemplate()
+    .replace(/{{nombre}}/g,l.propietario)
+    .replace(/{{lote}}/g,l.lote)
+    .replace(/{{mza}}/g,l.mza)
+    .replace(/{{mes}}/g,mes)
+    .replace(/{{cuota}}/g,l.cuota.toLocaleString())
+    .replace(/{{saldo}}/g,saldo.toLocaleString())
+    .replace(/{{estatus}}/g,estatus)
+    .replace(/{{mensajeEstatus}}/g,mensajeEstatus);
+}
+
+let _emailCurrentLote=null;
+function _openEmailModal(l){
+  _emailCurrentLote=l;
+  const asunto=localStorage.getItem('emailAsunto')||`Estado de cuenta — Fraccionamiento Silvestra`;
+  document.getElementById('emailSubject').value=`${asunto} — Mza ${l.mza} L${l.lote}`;
+  document.getElementById('emailTo').value='';
+  document.getElementById('emailPreview').textContent=_buildEmailBody(l);
+  document.getElementById('modalEmail').classList.add('open');
+}
+
+function _sendEmail(){
+  const to=document.getElementById('emailTo').value.trim();
+  if(!to){showToast('Ingresa el correo del condómino');return;}
+  const cfg=JSON.parse(localStorage.getItem('emailConfig')||'{}');
+  if(!cfg.from){showToast('⚠ Configura el correo en Ajustes primero');return;}
+  // POST to backend
+  fetch('/api/correo/enviar',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      to,
+      subject:document.getElementById('emailSubject').value,
+      body:document.getElementById('emailPreview').textContent,
+      smtp:cfg.smtp||'smtp.office365.com',
+      port:cfg.port||587,
+      from:cfg.from,
+      password:cfg.password
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){showToast(`✉ Correo enviado a ${to}`);closeModal('modalEmail');}
+    else{showToast('Error al enviar: '+d.error);}
+  }).catch(()=>showToast('Error de conexión al enviar correo'));
+}
+
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
+function _initConfiguracion(){
+  // Cargar plantilla guardada
+  document.getElementById('cfgEmailTemplate').value=_getEmailTemplate();
+  document.getElementById('cfgEmailAsunto').value=localStorage.getItem('emailAsunto')||'Estado de cuenta — Fraccionamiento Silvestra';
+  // Cargar config de correo
+  const cfg=JSON.parse(localStorage.getItem('emailConfig')||'{}');
+  if(cfg.from) document.getElementById('cfgEmailFrom').value=cfg.from;
+  if(cfg.smtp) document.getElementById('cfgEmailSmtp').value=cfg.smtp;
+  if(cfg.port) document.getElementById('cfgEmailPort').value=cfg.port;
+  // Cargar config automáticos
+  const auto=JSON.parse(localStorage.getItem('emailAuto')||'{}');
+  if(auto.morosos) document.getElementById('cfgAutoMorosos').checked=true;
+  if(auto.estado) document.getElementById('cfgAutoEstado').checked=true;
+  if(auto.dia) document.getElementById('cfgAutoDia').value=auto.dia;
+  if(auto.hora) document.getElementById('cfgAutoHora').value=auto.hora;
+}
+
+function _cfgCambiarPass(){
+  const actual=document.getElementById('cfgPassActual').value;
+  const nueva=document.getElementById('cfgPassNueva').value;
+  const confirm=document.getElementById('cfgPassConfirm').value;
+  if(!actual||!nueva){showToast('Completa todos los campos');return;}
+  if(nueva!==confirm){showToast('Las contraseñas no coinciden');return;}
+  if(nueva.length<6){showToast('La contraseña debe tener al menos 6 caracteres');return;}
+  fetch('/api/auth/cambiar-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actual,nueva})})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){showToast('Contraseña actualizada');['cfgPassActual','cfgPassNueva','cfgPassConfirm'].forEach(id=>document.getElementById(id).value='');}
+      else showToast('Contraseña actual incorrecta');
+    }).catch(()=>{showToast('Contraseña actualizada (demo)');});
+}
+
+function _cfgAgregarAdmin(){showToast('Función disponible próximamente');}
+
+function _cfgGuardarLote(){
+  const mza=document.getElementById('cfgLoteMza').value.trim();
+  const num=document.getElementById('cfgLoteNum').value.trim();
+  const prop=document.getElementById('cfgLoteProp').value.trim();
+  if(!mza||!num||!prop){showToast('Ingresa Manzana, Lote y Propietario');return;}
+  fetch('/api/lotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    mza:parseInt(mza),lote:parseInt(num),propietario:prop,
+    correo:document.getElementById('cfgLoteEmail').value,
+    m2:parseFloat(document.getElementById('cfgLoteM2').value)||0,
+    cuota:parseFloat(document.getElementById('cfgLoteCuota').value)||1350,
+    paseo:''
+  })}).then(r=>r.json()).then(()=>{showToast(`Lote ${mza}-${num} guardado`);_cfgLimpiarLote();renderLotes();})
+    .catch(()=>showToast('Error al guardar lote'));
+}
+
+function _cfgLimpiarLote(){
+  ['cfgLoteMza','cfgLoteNum','cfgLoteProp','cfgLoteEmail','cfgLoteM2','cfgLoteCuota'].forEach(id=>document.getElementById(id).value='');
+}
+
+function _cfgGuardarEmail(){
+  const cfg={
+    from:document.getElementById('cfgEmailFrom').value.trim(),
+    password:document.getElementById('cfgEmailPass').value,
+    smtp:document.getElementById('cfgEmailSmtp').value.trim(),
+    port:parseInt(document.getElementById('cfgEmailPort').value)||587
+  };
+  if(!cfg.from){showToast('Ingresa el correo remitente');return;}
+  localStorage.setItem('emailConfig',JSON.stringify(cfg));
+  showToast('Configuración de correo guardada');
+}
+
+function _cfgTestEmail(){
+  const cfg=JSON.parse(localStorage.getItem('emailConfig')||'{}');
+  if(!cfg.from){showToast('Guarda la configuración primero');return;}
+  fetch('/api/correo/prueba',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok)showToast('✉ Correo de prueba enviado a '+cfg.from);
+      else showToast('Error: '+d.error);
+    }).catch(()=>showToast('Error de conexión'));
+}
+
+function _cfgGuardarPlantilla(){
+  localStorage.setItem('emailTemplate',document.getElementById('cfgEmailTemplate').value);
+  localStorage.setItem('emailAsunto',document.getElementById('cfgEmailAsunto').value);
+  showToast('Plantilla guardada');
+}
+
+function _cfgRestaurarPlantilla(){
+  document.getElementById('cfgEmailTemplate').value=DEFAULT_EMAIL_TEMPLATE;
+  document.getElementById('cfgEmailAsunto').value='Estado de cuenta — Fraccionamiento Silvestra';
+  showToast('Plantilla restaurada al predeterminado');
+}
+
+function _cfgGuardarAuto(){
+  localStorage.setItem('emailAuto',JSON.stringify({
+    morosos:document.getElementById('cfgAutoMorosos').checked,
+    estado:document.getElementById('cfgAutoEstado').checked,
+    dia:document.getElementById('cfgAutoDia').value,
+    hora:document.getElementById('cfgAutoHora').value
+  }));
+  showToast('Programación guardada');
 }
 
 // Mobile sidebar toggle

@@ -922,13 +922,29 @@ tr:last-child td{border-bottom:none}
           </div>
           <div class="config-block-body">
             <div class="config-note" style="margin-bottom:14px">
-              El usuario de cada residente es su clave de lote: <strong>M{mza}L{lote}</strong> (ej: M24L1). La contraseña temporal es <strong>silv{mza}{lote}</strong> (ej: silv241). Al hacer reset se restaura la contraseña temporal.
+              Usuario: <strong>M{mza}L{lote}</strong> (ej: M24L1) · Contraseña temporal: <strong>silv{mza}{lote}</strong> (ej: silv241)
             </div>
-            <div class="table-wrap">
+            <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+              <select id="cfgResMza" onchange="_filterResidentes()" style="background:white;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--navy);flex-shrink:0">
+                <option value="">— Manzana —</option>
+                <option value="24">Mza. 24</option>
+                <option value="29">Mza. 29</option>
+                <option value="30">Mza. 30</option>
+                <option value="34">Mza. 34</option>
+                <option value="35">Mza. 35</option>
+                <option value="37">Mza. 37</option>
+                <option value="38">Mza. 38</option>
+              </select>
+              <input id="cfgResSearch" type="search" placeholder="Buscar por nombre o usuario…" oninput="_filterResidentes()" style="flex:1;min-width:160px;background:white;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--navy)">
+            </div>
+            <div class="table-wrap" id="cfgResidentesWrap" style="display:none">
               <table>
                 <thead><tr><th>Usuario</th><th>Propietario</th><th>Estado</th><th>Acción</th></tr></thead>
                 <tbody id="cfgResidentesList"></tbody>
               </table>
+            </div>
+            <div id="cfgResPlaceholder" style="text-align:center;padding:20px;color:var(--muted);font-size:13px">
+              Selecciona una manzana o escribe para buscar
             </div>
           </div>
         </div>
@@ -2904,23 +2920,18 @@ function _sendEmail(){
 // CONFIGURACIÓN
 // ============================================================
 function _initConfiguracion(){
-  // Tabla de residentes — cargada desde el servidor
+  // Cargar lista de residentes en memoria para filtrar localmente
   const token=sessionStorage.getItem('auth_token');
   fetch('/api/auth/residentes',{headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(list=>{
-      document.getElementById('cfgResidentesList').innerHTML=list.map(u=>{
-        const estado=u.debe_cambiar_password
-          ?'<span class="badge badge-gold">Temporal</span>'
-          :'<span class="badge badge-green">Personalizada</span>';
-        return `<tr>
-          <td style="font-family:'DM Mono',monospace;font-weight:600">${u.user_key}</td>
-          <td class="td-name">${u.propietario}</td>
-          <td>${estado}</td>
-          <td><button onclick="_adminResetPwd('${u.user_key}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">Reset</button></td>
-        </tr>`;
-      }).join('');
+      window._residentesData=list;
+      // Limpiar filtros al reabrir
+      document.getElementById('cfgResMza').value='';
+      document.getElementById('cfgResSearch').value='';
+      document.getElementById('cfgResidentesWrap').style.display='none';
+      document.getElementById('cfgResPlaceholder').style.display='block';
     }).catch(()=>{
-      document.getElementById('cfgResidentesList').innerHTML='<tr><td colspan="4" style="color:var(--muted);text-align:center">Error al cargar residentes</td></tr>';
+      window._residentesData=[];
     });
   // Cargar plantilla guardada
   document.getElementById('cfgEmailTemplate').value=_getEmailTemplate();
@@ -2936,6 +2947,36 @@ function _initConfiguracion(){
   if(auto.estado) document.getElementById('cfgAutoEstado').checked=true;
   if(auto.dia) document.getElementById('cfgAutoDia').value=auto.dia;
   if(auto.hora) document.getElementById('cfgAutoHora').value=auto.hora;
+}
+
+function _filterResidentes(){
+  const mza=document.getElementById('cfgResMza').value;
+  const q=document.getElementById('cfgResSearch').value.trim().toLowerCase();
+  const list=(window._residentesData||[]).filter(u=>{
+    const matchMza=!mza||u.user_key.startsWith('M'+mza+'L');
+    const matchQ=!q||u.user_key.toLowerCase().includes(q)||u.propietario.toLowerCase().includes(q);
+    return matchMza&&matchQ;
+  });
+  const wrap=document.getElementById('cfgResidentesWrap');
+  const ph=document.getElementById('cfgResPlaceholder');
+  if(!mza&&!q){wrap.style.display='none';ph.style.display='block';return;}
+  wrap.style.display='block';ph.style.display='none';
+  if(!list.length){
+    document.getElementById('cfgResidentesList').innerHTML=
+      '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:16px">Sin resultados</td></tr>';
+    return;
+  }
+  document.getElementById('cfgResidentesList').innerHTML=list.map(u=>{
+    const estado=u.debe_cambiar_password
+      ?'<span class="badge badge-gold">Temporal</span>'
+      :'<span class="badge badge-green">Personalizada</span>';
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace;font-weight:600">${u.user_key}</td>
+      <td class="td-name">${u.propietario}</td>
+      <td>${estado}</td>
+      <td><button onclick="_adminResetPwd('${u.user_key}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">Reset</button></td>
+    </tr>`;
+  }).join('');
 }
 
 function _adminResetPwd(user){

@@ -4,11 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Silvestra — Sistema de Administración</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
+<!-- XLSX se carga solo cuando se necesita exportar (~1.5MB) -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1347,19 +1349,29 @@ function doLogout(){
   document.getElementById('appShell').style.display='none';
 }
 
+// Carga XLSX solo cuando se necesita exportar (~1.5MB)
+let _xlsxLoaded=false;
+function _loadXLSX(cb){
+  if(_xlsxLoaded||window.XLSX){_xlsxLoaded=true;cb();return;}
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload=()=>{_xlsxLoaded=true;cb();};
+  document.head.appendChild(s);
+  showToast('Preparando exportación…');
+}
+
+// Páginas ya renderizadas (para no repetir render innecesariamente)
+const _rendered = new Set();
+
 function initAdmin(){
   document.getElementById('adminNav').style.display='block';
   document.getElementById('residenteNav').style.display='none';
   document.getElementById('sidebarName').textContent='Administradora';
   document.getElementById('sidebarRole').textContent='Admin · Silvestra AC';
   document.getElementById('sidebarAvatar').textContent='AD';
+  // Solo renderizar lo visible al inicio
   renderDashboard();
-  renderLotes();
-  renderCargos();
-  renderGastos();
-  renderIngresos();
-  renderSaldos();
-  renderReporte();
+  _rendered.add('dashboard');
   populateSelects();
 }
 
@@ -1396,12 +1408,30 @@ function showPage(id,navEl){
   if(navEl) navEl.classList.add('active');
   document.getElementById('pageTitle').textContent=PAGE_TITLES[id]||id;
   closeSidebar();
-  if(id==='banco') loadBanco();
-  else if(id==='diot') loadDiot();
-  else if(id==='agua') loadAgua();
-  else if(id==='prorrateo') loadProrrateo();
-  else if(id==='financiero') loadFinanciero();
-  else if(id==='configuracion') _initConfiguracion();
+  // Renderizar bajo demanda la primera vez que se visita cada sección
+  if(!_rendered.has(id)){
+    _rendered.add(id);
+    if(id==='lotes') renderLotes();
+    else if(id==='cargos') renderCargos();
+    else if(id==='gastos') renderGastos();
+    else if(id==='ingresos') renderIngresos();
+    else if(id==='saldos') renderSaldos();
+    else if(id==='reporte') renderReporte();
+    else if(id==='banco') loadBanco();
+    else if(id==='diot') loadDiot();
+    else if(id==='agua') loadAgua();
+    else if(id==='prorrateo') loadProrrateo();
+    else if(id==='financiero') loadFinanciero();
+    else if(id==='configuracion') _initConfiguracion();
+  } else {
+    // Estas siempre recargan datos frescos del servidor
+    if(id==='banco') loadBanco();
+    else if(id==='diot') loadDiot();
+    else if(id==='agua') loadAgua();
+    else if(id==='prorrateo') loadProrrateo();
+    else if(id==='financiero') loadFinanciero();
+    else if(id==='configuracion') _initConfiguracion();
+  }
 }
 
 function switchTab(section,tab,el){
@@ -2039,6 +2069,9 @@ function exportGeneralPDF(){
 // EXCEL GENERAL
 // ============================================================
 function exportGeneralExcel(){
+  _loadXLSX(()=>_exportGeneralExcelDo());
+}
+function _exportGeneralExcelDo(){
   const mes=document.getElementById('exportMes').value;
   const mesLabel=document.getElementById('exportMes').options[document.getElementById('exportMes').selectedIndex].text;
   const datos=getTablaGeneral();
@@ -2181,7 +2214,8 @@ function exportIndividualExcel(){
   _exportExcelLote(vendidos[parseInt(idx)]);
 }
 
-function _exportExcelLote(l){
+function _exportExcelLote(l){_loadXLSX(()=>_exportExcelLoteDo(l));}
+function _exportExcelLoteDo(l){
   const r=getResumenLote(l);
   const wb=XLSX.utils.book_new();
   const aoa=[
@@ -2323,7 +2357,8 @@ async function deleteProveedor(id){
   loadDiot(); showToast('Proveedor eliminado');
 }
 
-function exportDiotExcel(){
+function exportDiotExcel(){_loadXLSX(()=>_exportDiotExcelDo());}
+function _exportDiotExcelDo(){
   const mes=document.getElementById('diotMes').value;
   fetch(`/api/diot?mes=${mes}`).then(x=>x.json()).then(diot=>{
     const filas=diot.filas||[];
@@ -2433,7 +2468,8 @@ async function importarAgua(input){
   }
 }
 
-function descargarPlantillaAgua(){
+function descargarPlantillaAgua(){_loadXLSX(()=>_descargarPlantillaAguaDo());}
+function _descargarPlantillaAguaDo(){
   const wb=XLSX.utils.book_new();
   const lotes=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
   const header=[['Manzana','Lote','Propietario','Lectura Anterior','Lectura Actual']];
@@ -2530,7 +2566,8 @@ function switchProrrateoTab(tab,el){
   });
 }
 
-function exportProrrateoExcel(){
+function exportProrrateoExcel(){_loadXLSX(()=>_exportProrrateoExcelDo());}
+function _exportProrrateoExcelDo(){
   const mes=document.getElementById('prorrateoMes').value;
   fetch(`/api/prorrateo/resumen/${mes}`).then(x=>x.json()).then(resumen=>{
     if(!resumen.calculado){showToast('Calcula el prorrateo primero');return;}

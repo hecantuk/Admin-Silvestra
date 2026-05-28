@@ -3909,6 +3909,17 @@ async function loadCuotaConfig(){
   }catch(e){}
 }
 
+function _cuotaRowHtml(id, min_m2, max_m2, importe){
+  const idAttr=String(id);
+  const eliminar=`cuotaEliminarRango('${idAttr}')`;
+  return `<tr data-id="${idAttr}">
+      <td><input type="number" value="${min_m2}" min="0" step="1" style="width:90px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px"></td>
+      <td><input type="number" value="${max_m2!=null?max_m2:''}" min="0" step="1" placeholder="Sin límite" style="width:100px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px"></td>
+      <td><div style="display:flex;align-items:center;gap:4px"><span style="color:var(--muted)">$</span><input type="number" value="${importe}" min="0" step="50" style="width:90px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px"></div></td>
+      <td><button onclick="${eliminar}" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Eliminar</button></td>
+    </tr>`;
+}
+
 function loadCuotaAnio(){
   const anio=parseInt(document.getElementById('cuotaAnioSel').value);
   const rangos=_cuotaData[anio]||[];
@@ -3918,53 +3929,44 @@ function loadCuotaAnio(){
     tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted)">No hay rangos para '+anio+'. Agrega el primero.</td></tr>';
     return;
   }
-  tbody.innerHTML=rangos.map(r=>`
-    <tr data-id="${r.id}">
-      <td><input type="number" value="${r.min_m2}" min="0" step="1" style="width:90px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px" onchange="cuotaMarkDirty(${r.id},'min_m2',this.value)"></td>
-      <td><input type="number" value="${r.max_m2||''}" min="0" step="1" placeholder="Sin límite" style="width:100px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px" onchange="cuotaMarkDirty(${r.id},'max_m2',this.value)"></td>
-      <td><div style="display:flex;align-items:center;gap:4px"><span style="color:var(--muted)">$</span><input type="number" value="${r.importe}" min="0" step="50" style="width:90px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:13px" onchange="cuotaMarkDirty(${r.id},'importe',this.value)"></div></td>
-      <td><button onclick="cuotaEliminarRango(${r.id})" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Eliminar</button></td>
-    </tr>`).join('');
+  tbody.innerHTML=rangos.map(r=>_cuotaRowHtml(r.id, r.min_m2, r.max_m2, r.importe)).join('');
 }
 
-const _cuotaDirty={};
-function cuotaMarkDirty(id,field,val){
-  if(!_cuotaDirty[id]) _cuotaDirty[id]={};
-  _cuotaDirty[id][field]=val;
-}
-
-async function cuotaAgregarRango(){
+function cuotaAgregarRango(){
   const anio=parseInt(document.getElementById('cuotaAnioSel').value);
-  const token=sessionStorage.getItem('auth_token');
-  const rangos=_cuotaData[anio]||[];
-  const lastMax=rangos.length?(rangos[rangos.length-1].max_m2||3000):0;
-  try{
-    const resp=await fetch('/api/cuotas',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-      body:JSON.stringify({anio,min_m2:lastMax,max_m2:null,importe:1350})
-    });
-    if(!resp.ok){
-      const err=await resp.json().catch(()=>({}));
-      showToast('Error '+ resp.status+': '+(err.detail||'no se pudo agregar'));
-      return;
-    }
-    const r=await resp.json();
-    if(!_cuotaData[anio]) _cuotaData[anio]=[];
-    _cuotaData[anio].push(r);
-    loadCuotaAnio();
-    showToast('✅ Rango agregado');
-  }catch(e){showToast('Error de conexión');}
+  const tbody=document.getElementById('cuotaRangosBody');
+  if(!tbody) return;
+  // Clear "no hay rangos" placeholder if present
+  if(tbody.querySelector('td[colspan]')) tbody.innerHTML='';
+  // Determine default min_m2 from last existing row
+  const rows=tbody.querySelectorAll('tr[data-id]');
+  let lastMax=0;
+  if(rows.length){
+    const lastInputs=rows[rows.length-1].querySelectorAll('input');
+    const v=parseFloat(lastInputs[1].value);
+    lastMax=isNaN(v)?3000:v;
+  }
+  const tempId='new_'+Date.now();
+  tbody.insertAdjacentHTML('beforeend', _cuotaRowHtml(tempId, lastMax, null, 1350));
 }
 
 async function cuotaEliminarRango(id){
   if(!confirm('¿Eliminar este rango?')) return;
-  const token=sessionStorage.getItem('auth_token');
-  await fetch('/api/cuotas/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+token}});
-  // Remove from local data
-  for(const anio in _cuotaData){
-    _cuotaData[anio]=_cuotaData[anio].filter(r=>r.id!==id);
+  const idStr=String(id);
+  if(idStr.startsWith('new_')){
+    // Local-only row — just remove from DOM
+    const row=document.querySelector(`#cuotaRangosBody tr[data-id="${idStr}"]`);
+    if(row) row.remove();
+    const tbody=document.getElementById('cuotaRangosBody');
+    if(tbody&&!tbody.querySelector('tr[data-id]')){
+      const anio=parseInt(document.getElementById('cuotaAnioSel').value);
+      tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted)">No hay rangos para '+anio+'. Agrega el primero.</td></tr>';
+    }
+    return;
   }
+  const token=sessionStorage.getItem('auth_token');
+  await fetch('/api/cuotas/'+idStr,{method:'DELETE',headers:{Authorization:'Bearer '+token}});
+  for(const a in _cuotaData){ _cuotaData[a]=_cuotaData[a].filter(r=>String(r.id)!==idStr); }
   loadCuotaAnio();
   showToast('Rango eliminado');
 }
@@ -3975,17 +3977,19 @@ async function cuotaGuardarCambios(){
   const rows=document.querySelectorAll('#cuotaRangosBody tr[data-id]');
   let ok=0,err=0;
   for(const row of rows){
-    const id=parseInt(row.dataset.id);
+    const idStr=row.dataset.id;
     const inputs=row.querySelectorAll('input');
     const min_m2=parseFloat(inputs[0].value)||0;
     const max_m2=inputs[1].value?parseFloat(inputs[1].value):null;
     const importe=parseFloat(inputs[2].value)||0;
+    const body=JSON.stringify({anio,min_m2,max_m2,importe});
     try{
-      const r=await fetch('/api/cuotas/'+id,{
-        method:'PUT',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-        body:JSON.stringify({anio,min_m2,max_m2,importe})
-      });
+      let r;
+      if(idStr.startsWith('new_')){
+        r=await fetch('/api/cuotas',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body});
+      } else {
+        r=await fetch('/api/cuotas/'+idStr,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body});
+      }
       r.ok?ok++:err++;
     }catch(e){err++;}
   }

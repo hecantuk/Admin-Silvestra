@@ -4028,7 +4028,26 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
 });
 
 function _decodeJwt(tok){
-  try{const b=tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');return JSON.parse(atob(b));}catch(e){return null;}
+  try{
+    let b=tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    while(b.length%4) b+='=';
+    return JSON.parse(atob(b));
+  }catch(e){return null;}
+}
+
+function _restoreSession(tok,rol,usr){
+  currentRole=rol;
+  document.getElementById('loginWrap').style.display='none';
+  document.getElementById('appShell').style.display='flex';
+  if(rol==='admin'){
+    _preloadEmailConfig(tok);
+    initAdmin();
+  } else if(usr){
+    const m=usr.toUpperCase().match(/^M(\d+)L(\d+)$/);
+    if(m) currentResidente=LOTES_DATA.find(l=>l.mza===parseInt(m[1])&&l.lote===parseInt(m[2]));
+    if(currentResidente) initResidente();
+    else doLogout();
+  }
 }
 
 window.addEventListener('DOMContentLoaded',()=>{
@@ -4036,31 +4055,28 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!localStorage.getItem('emailTemplate')?.trim()) localStorage.removeItem('emailTemplate');
   if(!localStorage.getItem('emailAsunto')?.trim()) localStorage.removeItem('emailAsunto');
 
-  // Auto-restore session on page refresh
   const _tok=localStorage.getItem('auth_token');
   const _rol=localStorage.getItem('auth_rol');
   const _usr=localStorage.getItem('auth_user');
-  if(_tok&&_rol){
-    const _pl=_decodeJwt(_tok);
-    if(_pl&&_pl.exp*1000>Date.now()){
-      currentRole=_rol;
-      document.getElementById('loginWrap').style.display='none';
-      document.getElementById('appShell').style.display='flex';
-      if(_rol==='admin'){
-        _preloadEmailConfig(_tok);
-        initAdmin();
-      } else if(_usr){
-        const _m=_usr.toUpperCase().match(/^M(\d+)L(\d+)$/);
-        if(_m) currentResidente=LOTES_DATA.find(l=>l.mza===parseInt(_m[1])&&l.lote===parseInt(_m[2]));
-        if(currentResidente) initResidente();
-        else doLogout();
-      }
-    } else {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_rol');
-      localStorage.removeItem('auth_user');
-    }
+  if(!_tok||!_rol) return;
+
+  // Try to decode locally first (avoids a network round-trip)
+  const _pl=_decodeJwt(_tok);
+  if(_pl&&typeof _pl.exp==='number'&&_pl.exp*1000>Date.now()){
+    _restoreSession(_tok,_rol,_usr);
+    return;
   }
+  // Fallback: validate token with the server in case local decode failed
+  fetch('/api/reporte/saldos',{headers:{Authorization:'Bearer '+_tok}})
+    .then(r=>{
+      if(r.ok||r.status!==401){ _restoreSession(_tok,_rol,_usr); }
+      else {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_rol');
+        localStorage.removeItem('auth_user');
+      }
+    })
+    .catch(()=>{ _restoreSession(_tok,_rol,_usr); }); // network error → assume valid
 });
 </script>
 </body>

@@ -130,6 +130,8 @@ tr:last-child td{border-bottom:none}
 .badge-teal{background:var(--teal-light);color:var(--teal)}
 .badge-gray{background:#F1F5F9;color:var(--muted)}
 .badge-orange{background:#FFF7ED;color:#EA580C}
+.badge-visor{background:#EEF2FF;color:#4F46E5}
+.visor-mode .admin-only{display:none!important}
 
 /* TABS */
 .tabs{display:flex;gap:4px;padding:4px;background:var(--bg);border-radius:10px;width:fit-content;margin-bottom:20px;border:1px solid var(--border)}
@@ -318,7 +320,7 @@ tr:last-child td{border-bottom:none}
         <p id="sidebarName">Administradora</p>
         <span id="sidebarRole">Admin · Silvestra AC</span>
       </div>
-      <button class="btn-config" id="btnConfig" onclick="showPage('configuracion',null)" title="Configuración">
+      <button class="btn-config admin-only" id="btnConfig" onclick="showPage('configuracion',null)" title="Configuración">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       </button>
     </div>
@@ -379,8 +381,8 @@ tr:last-child td{border-bottom:none}
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Estados Financieros
       </div>
-      <div class="sidebar-section">Sistema</div>
-      <div class="nav-item" onclick="showPage('configuracion',this)">
+      <div class="sidebar-section admin-only">Sistema</div>
+      <div class="nav-item admin-only" onclick="showPage('configuracion',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
         Configuración
       </div>
@@ -530,7 +532,7 @@ tr:last-child td{border-bottom:none}
         </div>
         <div class="search-row">
           <input class="search-box" type="search" placeholder="Buscar lote o propietario…" oninput="filterCargos(this.value)">
-          <button class="btn-primary" onclick="openModal('modalAplicarPago')">+ Registrar cargo</button>
+          <button class="btn-primary admin-only" onclick="openModal('modalAplicarPago')">+ Registrar cargo</button>
         </div>
         <div class="card">
           <div class="card-header" style="background:#FFF7ED">
@@ -557,7 +559,7 @@ tr:last-child td{border-bottom:none}
         </div>
         <div class="search-row">
           <input class="search-box" type="search" placeholder="Buscar ingreso…">
-          <button class="btn-primary" onclick="openModal('modalNuevoIngreso');document.getElementById('ingFecha').value=new Date().toISOString().split('T')[0]">+ Registrar ingreso</button>
+          <button class="btn-primary admin-only" onclick="openModal('modalNuevoIngreso');document.getElementById('ingFecha').value=new Date().toISOString().split('T')[0]">+ Registrar ingreso</button>
         </div>
         <div class="card" id="cardIngresos">
           <div class="card-body" style="padding:0">
@@ -574,7 +576,7 @@ tr:last-child td{border-bottom:none}
         </div>
         <div class="search-row">
           <input class="search-box" type="search" placeholder="Buscar gasto o proveedor…">
-          <button class="btn-primary" onclick="openModal('modalNuevoGasto')">+ Nuevo gasto</button>
+          <button class="btn-primary admin-only" onclick="openModal('modalNuevoGasto')">+ Nuevo gasto</button>
         </div>
         <div class="stat-grid" style="margin-bottom:20px">
           <div class="stat-card"><div class="stat-label">Total gastos mayo</div><div class="stat-value">$41,850</div><div class="stat-sub">12 conceptos</div></div>
@@ -823,7 +825,7 @@ tr:last-child td{border-bottom:none}
         <div class="stat-grid" id="bancoStats"></div>
         <div class="search-row">
           <input class="search-box" type="month" id="bancoMes" value="2026-05" onchange="loadBanco()">
-          <label class="btn-primary" style="cursor:pointer">
+          <label class="btn-primary admin-only" style="cursor:pointer">
             ⬆ Importar Excel
             <input type="file" accept=".xlsx" style="display:none" onchange="importarBanco(this)">
           </label>
@@ -857,7 +859,7 @@ tr:last-child td{border-bottom:none}
           </div>
         </div>
         <div class="card" style="margin-top:20px">
-          <div class="card-header"><span class="card-title">Directorio de proveedores</span><button class="btn-secondary" onclick="openModal('modalProveedor')">+ Agregar</button></div>
+          <div class="card-header"><span class="card-title">Directorio de proveedores</span><button class="btn-secondary admin-only" onclick="openModal('modalProveedor')">+ Agregar</button></div>
           <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>RFC</th><th>Tipo</th><th>Acción</th></tr></thead><tbody id="proveedoresBody"></tbody></table></div>
         </div>
       </div>
@@ -866,12 +868,12 @@ tr:last-child td{border-bottom:none}
       <div class="page" id="pageAgua">
         <div class="search-row">
           <input class="search-box" type="month" id="aguaMes" value="2026-05" onchange="loadAgua()">
-          <label class="btn-primary" style="cursor:pointer" title="Excel con columnas: Manzana, Lote, Lectura Anterior, Lectura Actual">
+          <label class="btn-primary admin-only" style="cursor:pointer" title="Excel con columnas: Manzana, Lote, Lectura Anterior, Lectura Actual">
             ⬆ Importar Excel
             <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarAgua(this)">
           </label>
           <button class="btn-secondary" onclick="descargarPlantillaAgua()">📄 Plantilla</button>
-          <button class="btn-primary" onclick="openModal('modalLectura')">+ Capturar lectura</button>
+          <button class="btn-primary admin-only" onclick="openModal('modalLectura')">+ Capturar lectura</button>
         </div>
         <div id="aguaImportInfo" style="display:none;background:#EFF6FF;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#1E40AF"></div>
         <div class="stat-grid" id="aguaStats"></div>
@@ -890,7 +892,7 @@ tr:last-child td{border-bottom:none}
       <div class="page" id="pageProrrateo">
         <div class="search-row">
           <input class="search-box" type="month" id="prorrateoMes" value="2026-05" onchange="loadProrrateo()">
-          <button class="btn-primary" onclick="calcularProrrateo()">⚙ Calcular prorrateo</button>
+          <button class="btn-primary admin-only" onclick="calcularProrrateo()">⚙ Calcular prorrateo</button>
           <button class="btn-secondary" onclick="exportProrrateoExcel()">⬇ Excel</button>
         </div>
         <div class="stat-grid" id="prorrateoStats"></div>
@@ -906,7 +908,7 @@ tr:last-child td{border-bottom:none}
             <div class="card-header"><span class="card-title">Captura de gastos reales del mes</span></div>
             <div class="card-body">
               <div id="gastosRealesForm" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
-              <button class="btn-primary" style="margin-top:16px" onclick="guardarGastosReales()">Guardar gastos</button>
+              <button class="btn-primary admin-only" style="margin-top:16px" onclick="guardarGastosReales()">Guardar gastos</button>
             </div>
           </div>
         </div>
@@ -938,7 +940,7 @@ tr:last-child td{border-bottom:none}
                   <span style="color:var(--muted)">$</span>
                   <input type="number" id="deudaCampestre" step="0.01" placeholder="0.00" style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px;font-family:'DM Mono',monospace;width:180px">
                 </div>
-                <button class="btn-primary" onclick="guardarDeudaCampestre()">Guardar</button>
+                <button class="btn-primary admin-only" onclick="guardarDeudaCampestre()">Guardar</button>
               </div>
               <div style="background:linear-gradient(135deg,#1A3319,#2D5A27);border-radius:var(--radius-lg);padding:20px 24px;color:white;max-width:400px">
                 <div style="font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Deuda acumulada registrada</div>
@@ -1024,6 +1026,33 @@ tr:last-child td{border-bottom:none}
                 </div>
                 <div style="margin-top:12px">
                   <button class="btn-primary" onclick="_cfgAgregarAdmin()">+ Agregar administrador</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Usuarios Visor -->
+          <div class="config-block" style="margin-top:20px">
+            <div class="config-block-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span class="config-block-title">Usuarios Visor</span>
+            </div>
+            <div class="config-block-body">
+              <div class="config-note" style="margin-bottom:14px">Los usuarios Visor pueden consultar toda la información pero <strong>no pueden crear, editar ni eliminar nada</strong>.</div>
+              <div class="table-wrap" style="margin-bottom:16px">
+                <table>
+                  <thead><tr><th>Usuario</th><th>Rol</th><th>Acción</th></tr></thead>
+                  <tbody id="cfgVisoresList"></tbody>
+                </table>
+              </div>
+              <div style="border-top:1px solid var(--border);padding-top:16px">
+                <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:10px">Agregar visor</div>
+                <div class="config-2">
+                  <div class="form-field"><label>Correo / usuario</label><input type="text" id="cfgNewVisorEmail" placeholder="nombre@empresa.com"></div>
+                  <div class="form-field"><label>Contraseña</label><input type="password" id="cfgNewVisorPass" placeholder="Mínimo 6 caracteres"></div>
+                </div>
+                <div style="margin-top:12px">
+                  <button class="btn-primary" onclick="_cfgAgregarVisor()">+ Agregar visor</button>
                 </div>
               </div>
             </div>
@@ -1647,6 +1676,8 @@ function doLogin(){
     if(data.rol==='admin'){
       _preloadEmailConfig(data.token);
       initAdmin();
+    } else if(data.rol==='visor'){
+      initVisor(user);
     } else {
       // Encontrar lote en LOTES_DATA por lote_id o por user_key
       const m=user.toUpperCase().match(/^M(\d+)L(\d+)$/);
@@ -1705,6 +1736,7 @@ function doLogout(){
   localStorage.removeItem('auth_user');
   currentResidente=null;
   currentRole='admin';
+  document.body.classList.remove('visor-mode');
   _rendered.clear();
   document.getElementById('loginWrap').style.display='flex';
   document.getElementById('appShell').style.display='none';
@@ -1744,7 +1776,21 @@ function initAdmin(){
   document.getElementById('sidebarName').textContent='Administradora';
   document.getElementById('sidebarRole').textContent='Admin · Silvestra AC';
   document.getElementById('sidebarAvatar').textContent='AD';
-  // Solo renderizar lo visible al inicio
+  document.body.classList.remove('visor-mode');
+  renderDashboard();
+  _rendered.add('dashboard');
+  populateSelects();
+  loadCOVData();
+}
+
+function initVisor(email){
+  document.getElementById('adminNav').style.display='block';
+  document.getElementById('residenteNav').style.display='none';
+  const name=(email||'').split('@')[0];
+  document.getElementById('sidebarName').textContent=name||'Visor';
+  document.getElementById('sidebarRole').textContent='Visor · Solo lectura';
+  document.getElementById('sidebarAvatar').textContent=(name[0]||'V').toUpperCase();
+  document.body.classList.add('visor-mode');
   renderDashboard();
   _rendered.add('dashboard');
   populateSelects();
@@ -2116,7 +2162,8 @@ function renderIngresosByTab(tab){
         <td style="${TD};font-family:'DM Mono',monospace;font-weight:500;color:var(--teal)">${esCOV?'$'+p.importe.toLocaleString():'—'}</td>
         <td style="${TD};font-family:'DM Mono',monospace;font-weight:600;color:var(--navy)">$${p.importe.toLocaleString()}</td>
         <td style="${TD};font-size:12px;color:var(--muted)">${p.ref}</td>
-        <td style="${TD}">${tab==='aprobar'
+        <td style="${TD}">${document.body.classList.contains('visor-mode')?''
+          :tab==='aprobar'
           ?`<button class="btn-primary btn-aprobar-ing" data-ref="${p.ref}" data-id="${p.id||''}" style="padding:5px 10px;font-size:12px">✓ Aprobar</button>`
           :`<div style="display:flex;align-items:center;gap:8px"><span class="badge badge-green">✓ Aprobado</span><button class="btn-revertir-ing" data-ref="${p.ref}" data-id="${p.id||''}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer" title="Revertir a pendiente">↩</button></div>`
         }</td>
@@ -3602,6 +3649,7 @@ function _sendEmail(){
 function _initConfiguracion(){
   const token=localStorage.getItem('auth_token');
   _cfgCargarAdmins();
+  _cfgCargarVisores();
   // Cargar lista de residentes
   fetch('/api/auth/residentes',{headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(list=>{
@@ -3756,6 +3804,55 @@ function _cfgEliminarAdmin(id,email){
   fetch(`/api/auth/admins/${id}`,{method:'DELETE',headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(d=>{
       if(d.ok){showToast('Administrador eliminado');_cfgCargarAdmins();}
+      else showToast('Error: '+(d.detail||'desconocido'));
+    }).catch(()=>showToast('Error de conexión'));
+}
+
+function _cfgCargarVisores(){
+  const token=localStorage.getItem('auth_token');
+  fetch('/api/auth/visores',{headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(list=>{
+      const el=document.getElementById('cfgVisoresList');
+      if(!el) return;
+      if(!list.length){
+        el.innerHTML='<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--muted);font-size:13px">No hay usuarios visor</td></tr>';
+        return;
+      }
+      el.innerHTML=list.map(v=>`
+        <tr>
+          <td style="font-size:13px">${v.email}</td>
+          <td><span class="badge badge-visor">Visor</span></td>
+          <td><button onclick="_cfgEliminarVisor(${v.id},'${v.email}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">Eliminar</button></td>
+        </tr>`).join('');
+    }).catch(()=>{});
+}
+
+function _cfgAgregarVisor(){
+  const email=document.getElementById('cfgNewVisorEmail').value.trim();
+  const pass=document.getElementById('cfgNewVisorPass').value;
+  if(!email){showToast('Ingresa el usuario o correo');return;}
+  if(pass.length<6){showToast('La contraseña debe tener al menos 6 caracteres');return;}
+  const token=localStorage.getItem('auth_token');
+  fetch('/api/auth/visores',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({email,password:pass})
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      showToast('✅ Usuario visor creado');
+      document.getElementById('cfgNewVisorEmail').value='';
+      document.getElementById('cfgNewVisorPass').value='';
+      _cfgCargarVisores();
+    } else showToast('Error: '+(d.detail||'desconocido'));
+  }).catch(()=>showToast('Error de conexión'));
+}
+
+function _cfgEliminarVisor(id,email){
+  if(!confirm(`¿Eliminar al usuario visor "${email}"?`)) return;
+  const token=localStorage.getItem('auth_token');
+  fetch(`/api/auth/visores/${id}`,{method:'DELETE',headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){showToast('Usuario visor eliminado');_cfgCargarVisores();}
       else showToast('Error: '+(d.detail||'desconocido'));
     }).catch(()=>showToast('Error de conexión'));
 }
@@ -4045,6 +4142,8 @@ function _restoreSession(tok,rol,usr){
   if(rol==='admin'){
     _preloadEmailConfig(tok);
     initAdmin();
+  } else if(rol==='visor'){
+    initVisor(usr);
   } else if(usr){
     const m=usr.toUpperCase().match(/^M(\d+)L(\d+)$/);
     if(m) currentResidente=LOTES_DATA.find(l=>l.mza===parseInt(m[1])&&l.lote===parseInt(m[2]));

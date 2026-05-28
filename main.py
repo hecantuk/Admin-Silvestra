@@ -447,6 +447,44 @@ def eliminar_admin(uid: int,
     session.commit()
     return {"ok": True}
 
+@app.get("/api/auth/visores")
+def get_visores(admin: Usuario = Depends(_admin_only),
+                session: Session = Depends(get_session)):
+    visores = session.exec(
+        select(Usuario).where(Usuario.rol == "visor", Usuario.activo == True)
+    ).all()
+    return [{"id": u.id, "email": u.email} for u in visores]
+
+@app.post("/api/auth/visores")
+def crear_visor(req: NuevoAdminReq,
+                admin: Usuario = Depends(_admin_only),
+                session: Session = Depends(get_session)):
+    if len(req.password) < 6:
+        raise HTTPException(400, "Mínimo 6 caracteres")
+    existe = session.exec(select(Usuario).where(Usuario.email == req.email)).first()
+    if existe:
+        raise HTTPException(400, "El usuario ya existe")
+    session.add(Usuario(
+        email=req.email,
+        hashed_password=pwd_context.hash(req.password),
+        rol="visor",
+        debe_cambiar_password=False,
+    ))
+    session.commit()
+    return {"ok": True}
+
+@app.delete("/api/auth/visores/{uid}")
+def eliminar_visor(uid: int,
+                   admin: Usuario = Depends(_admin_only),
+                   session: Session = Depends(get_session)):
+    u = session.get(Usuario, uid)
+    if not u or u.rol != "visor":
+        raise HTTPException(404, "Visor no encontrado")
+    u.activo = False
+    session.add(u)
+    session.commit()
+    return {"ok": True}
+
 # ─── LOTES ──────────────────────────────────────────────────
 @app.get("/api/lotes")
 def get_lotes(manzana: Optional[int] = None):

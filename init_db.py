@@ -142,19 +142,25 @@ def init():
         else:
             print(f"ℹ️  Lotes ya existen ({len(existing_lotes)}), se omite seed")
 
-        # ── Admin: upsert (no sobreescribir si ya existe) ────────
-        admin = session.exec(
-            select(Usuario).where(Usuario.email == "administradora@silvestra.mx")
-        ).first()
-        if not admin:
-            session.add(Usuario(
-                email="administradora@silvestra.mx",
-                hashed_password=hash_password("silvestra2024"),
-                rol="admin",
-                debe_cambiar_password=False,
-            ))
-            session.commit()
-            print("✅ Usuario admin creado")
+        # ── Admins: upsert (no sobreescribir si ya existe) ───────
+        ADMINS_SEED = [
+            ("administradora@silvestra.mx", "silvestra2024", False),
+            ("sena.ana@dicka.com.mx",        "silvestra2024", True),
+        ]
+        for email_admin, pwd_admin, cambiar in ADMINS_SEED:
+            existe_admin = session.exec(
+                select(Usuario).where(Usuario.email == email_admin)
+            ).first()
+            if not existe_admin:
+                session.add(Usuario(
+                    email=email_admin,
+                    hashed_password=hash_password(pwd_admin),
+                    rol="admin",
+                    debe_cambiar_password=cambiar,
+                    activo=True,
+                ))
+                print(f"✅ Admin creado: {email_admin}")
+        session.commit()
 
         # ── Residentes: crear usuario por lote si no existe ──────
         lotes_con_prop = session.exec(

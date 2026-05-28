@@ -511,7 +511,7 @@ tr:last-child td{border-bottom:none}
             <table id="tableLotes">
               <thead>
                 <tr>
-                  <th>Mza.</th><th>Lote</th><th>Paseo/Calle</th><th>m²</th><th>Propietario</th><th>Cuota COF</th><th>Estado</th><th>Saldo</th><th>Estado de cuenta</th>
+                  <th>Mza.</th><th>Lote</th><th>Paseo/Calle</th><th>m²</th><th>Propietario</th><th>Cuota COF</th><th>COV</th><th>Estado</th><th>Saldo</th><th>Estado de cuenta</th>
                 </tr>
               </thead>
               <tbody id="lotesBody"></tbody>
@@ -1369,6 +1369,7 @@ const LOTES_DATA = [
 
 // Simular saldos de morosos / corriente / abonando
 const SALDO_ESTADO = {};
+const COV_DATA = {};
 LOTES_DATA.forEach((l,i)=>{
   const r = i%5;
   if(l.propietario==='') return;
@@ -1579,6 +1580,20 @@ function _loadXLSX(cb){
 // Páginas ya renderizadas (para no repetir render innecesariamente)
 const _rendered = new Set();
 
+async function loadCOVData(){
+  const now=new Date();
+  const mes=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  try{
+    const token=sessionStorage.getItem('auth_token');
+    const data=await fetch(`/api/agua/lecturas?mes=${mes}`,{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json());
+    (data||[]).forEach(lec=>{
+      const key=`${lec.manzana}-${lec.numero}`;
+      COV_DATA[key]=lec.importe;
+    });
+    if(document.getElementById('lotesBody')&&document.getElementById('lotesBody').innerHTML!=='') renderLotes();
+  }catch(e){}
+}
+
 function initAdmin(){
   document.getElementById('adminNav').style.display='block';
   document.getElementById('residenteNav').style.display='none';
@@ -1589,6 +1604,7 @@ function initAdmin(){
   renderDashboard();
   _rendered.add('dashboard');
   populateSelects();
+  loadCOVData();
 }
 
 function initResidente(){
@@ -1769,7 +1785,9 @@ function renderLotes(data){
         if(sd.estado==='corriente') badge='<span class="badge badge-green">✓ Al corriente</span>';
         else if(sd.estado==='moroso') badge='<span class="badge badge-red">Moroso</span>';
         else badge='<span class="badge badge-gold">Abonando</span>';
-        saldoCell=`<span class="td-monto ${sd.saldo>0?'deuda':'ok'}">$${sd.saldo.toLocaleString()}</span>`;
+        const covImporte = COV_DATA[key] || 0;
+        const totalSaldo = (sd.saldo || 0) + covImporte;
+        saldoCell = `<span class="td-monto ${totalSaldo>0?'deuda':'ok'}">$${totalSaldo.toLocaleString()}</span>`;
       } else {
         badge='<span class="badge badge-green">Vendido</span>';
       }
@@ -1781,6 +1799,7 @@ function renderLotes(data){
       <td style="font-family:'DM Mono',monospace;font-size:12px">${l.m2.toFixed(0)}</td>
       <td class="td-name">${l.propietario||'—'}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:500">$${l.cuota.toLocaleString()}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--teal)">${COV_DATA[key]?'$'+(COV_DATA[key]).toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
       <td>${badge}</td>
       <td>${saldoCell}</td>
       <td>${vendido?`<div style="display:flex;gap:4px;align-items:center"><button title="PDF" onclick="_exportPDFLote(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">PDF</button><button title="Excel" onclick="_exportExcelLote(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:var(--green-light);color:var(--green);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">Excel</button><button title="Enviar por correo" onclick="_openEmailModal(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:#EFF6FF;color:#3B82F6;border:none;border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center"><svg style="width:13px;height:13px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg></button></div>`:'—'}</td>
@@ -2515,6 +2534,8 @@ function _exportPDFLote(l){
   doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(61,122,58);
   doc.text(`Manzana ${l.mza}  ·  Lote ${l.lote}  ·  ${l.paseo}  ·  ${l.m2.toFixed(0)} m²`,17,65);
   doc.text(`Cuota mensual COF: $${l.cuota.toLocaleString()}`,17,71);
+  const covAmt = COV_DATA[`${l.mza}-${l.lote}`] || 0;
+  if(covAmt > 0) doc.text(`Cuota COV (agua): $${covAmt.toLocaleString('es-MX',{minimumFractionDigits:2})}`, 17, 76);
 
   // Bloque saldo
   const saldoColor=r.saldoFinal>0?[220,38,38]:[22,163,74];
@@ -2531,20 +2552,20 @@ function _exportPDFLote(l){
   // Tabla historial
   doc.autoTable({
     startY:80,
-    head:[['Mes','Cuota COF','Pago aplicado','Saldo del mes','Estado']],
-    body:r.hist.map(h=>[h.mes,'$'+h.cuota.toLocaleString(),'$'+h.pagado.toLocaleString(),'$'+h.saldo.toLocaleString(),h.ok?'Pagado':'Pendiente']),
-    foot:[['TOTALES','$'+(l.cuota*5).toLocaleString(),'$'+r.totalPagado.toLocaleString(),'$'+r.saldoFinal.toLocaleString(),'']],
+    head:[['Mes','Cuota COF','COV (agua)','Pago aplicado','Saldo','Estado']],
+    body:r.hist.map(h=>[h.mes,'$'+h.cuota.toLocaleString(),'$'+covAmt.toLocaleString('es-MX',{minimumFractionDigits:2}),'$'+h.pagado.toLocaleString(),'$'+h.saldo.toLocaleString(),h.ok?'Pagado':'Pendiente']),
+    foot:[['TOTALES','$'+(l.cuota*5).toLocaleString(),'$'+(covAmt*5).toLocaleString('es-MX',{minimumFractionDigits:2}),'$'+r.totalPagado.toLocaleString(),'$'+r.saldoFinal.toLocaleString(),'']],
     theme:'grid',
     styles:{fontSize:9,cellPadding:3.5,halign:'center'},
     headStyles:{fillColor:[26,51,25],textColor:255,fontStyle:'bold'},
     footStyles:{fillColor:[244,247,240],textColor:[26,51,25],fontStyle:'bold'},
-    columnStyles:{0:{halign:'left'},1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'center'}},
+    columnStyles:{0:{halign:'left'},1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'},5:{halign:'center'}},
     didParseCell:data=>{
-      if(data.section==='body'&&data.column.index===4){
+      if(data.section==='body'&&data.column.index===5){
         data.cell.styles.textColor=data.cell.raw==='Pagado'?[22,163,74]:[220,38,38];
         data.cell.styles.fontStyle='bold';
       }
-      if(data.section==='body'&&data.column.index===3){
+      if(data.section==='body'&&data.column.index===4){
         data.cell.styles.textColor=parseFloat(data.cell.raw.replace(/[$,]/g,''))>0?[220,38,38]:[22,163,74];
       }
     }
@@ -2588,13 +2609,14 @@ function _exportExcelLoteDo(l){
     ['Paseo/Calle:',l.paseo],
     ['Superficie:',parseFloat(l.m2.toFixed(0)),'m²'],
     ['Cuota mensual COF:',l.cuota],
+    ['Cuota COV (agua):',COV_DATA[`${l.mza}-${l.lote}`]||0],
     [''],
     ['HISTORIAL DE PAGOS 2026'],
     [''],
-    ['Mes','Cuota COF','Pago Aplicado','Saldo del Mes','Estado'],
-    ...r.hist.map(h=>[h.mes,h.cuota,h.pagado,h.saldo,h.ok?'Pagado':'Pendiente']),
+    ['Mes','Cuota COF','COV (agua)','Pago Aplicado','Saldo','Estado'],
+    ...r.hist.map(h=>[h.mes,h.cuota,COV_DATA[`${l.mza}-${l.lote}`]||0,h.pagado,h.saldo,h.ok?'Pagado':'Pendiente']),
     [''],
-    ['TOTALES',l.cuota*5,r.totalPagado,r.saldoFinal,''],
+    ['TOTALES',l.cuota*5,(COV_DATA[`${l.mza}-${l.lote}`]||0)*5,r.totalPagado,r.saldoFinal,''],
     [''],
     ['Estado general:',r.estado==='corriente'?'Al corriente':r.estado==='moroso'?'Moroso':'Abonando a saldo vencido'],
     [''],

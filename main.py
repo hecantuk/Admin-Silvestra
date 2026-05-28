@@ -1161,6 +1161,22 @@ def save_config_plantilla(req: ConfigPlantillaReq, admin: Usuario = Depends(_adm
         s.commit()
     return {"ok": True}
 
+@app.get("/api/config/plantilla-morosos")
+def get_config_plantilla_morosos(admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        return {
+            "template": _get_cfg(s, "email_plantilla_morosos"),
+            "asunto": _get_cfg(s, "email_asunto_morosos"),
+        }
+
+@app.post("/api/config/plantilla-morosos")
+def save_config_plantilla_morosos(req: ConfigPlantillaReq, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        _set_cfg(s, "email_plantilla_morosos", req.template)
+        _set_cfg(s, "email_asunto_morosos", req.asunto)
+        s.commit()
+    return {"ok": True}
+
 @app.get("/api/config/auto")
 def get_config_auto(admin: Usuario = Depends(_admin_only)):
     with Session(engine) as s:

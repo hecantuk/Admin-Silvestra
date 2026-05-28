@@ -1059,27 +1059,49 @@ tr:last-child td{border-bottom:none}
           </div>
         </div>
 
-        <!-- Plantilla de correo -->
+        <!-- Plantillas de correo (dos columnas) -->
         <div class="config-block">
           <div class="config-block-head">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span class="config-block-title">Plantilla del correo de estado de cuenta</span>
+            <span class="config-block-title">Plantillas de correo</span>
           </div>
           <div class="config-block-body">
             <div class="config-note" style="margin-bottom:14px">
-              Usa las variables: <strong>{{nombre}}</strong>, <strong>{{lote}}</strong>, <strong>{{mza}}</strong>, <strong>{{mes}}</strong>, <strong>{{saldo}}</strong>, <strong>{{estatus}}</strong>, <strong>{{cuota}}</strong>. Se reemplazan automáticamente al enviar.
+              Variables disponibles: <strong>{{nombre}}</strong>, <strong>{{lote}}</strong>, <strong>{{mza}}</strong>, <strong>{{mes}}</strong>, <strong>{{saldo}}</strong>, <strong>{{estatus}}</strong>, <strong>{{cuota}}</strong>
             </div>
-            <div class="form-field">
-              <label>Asunto del correo</label>
-              <input type="text" id="cfgEmailAsunto" placeholder="Estado de cuenta — Fraccionamiento Silvestra">
-            </div>
-            <div class="form-field" style="margin-top:14px">
-              <label>Cuerpo del mensaje</label>
-              <textarea class="template-editor" id="cfgEmailTemplate" rows="12"></textarea>
-            </div>
-            <div style="margin-top:16px;display:flex;gap:10px">
-              <button class="btn-primary" onclick="_cfgGuardarPlantilla()">Guardar plantilla</button>
-              <button class="btn-secondary" onclick="_cfgRestaurarPlantilla()">Restaurar predeterminado</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+              <!-- LEFT: Morosos -->
+              <div>
+                <h4 style="font-size:13px;font-weight:600;color:var(--red);margin-bottom:12px">Plantilla de los morosos</h4>
+                <div class="form-field">
+                  <label>Asunto</label>
+                  <input type="text" id="cfgEmailAsuntoMorosos">
+                </div>
+                <div class="form-field" style="margin-top:10px">
+                  <label>Cuerpo del mensaje</label>
+                  <textarea class="template-editor" id="cfgEmailTemplateMorosos" rows="12"></textarea>
+                </div>
+                <div style="margin-top:12px;display:flex;gap:8px">
+                  <button class="btn-primary" style="font-size:12px" onclick="_cfgGuardarPlantillaMorosos()">Guardar</button>
+                  <button class="btn-secondary" style="font-size:12px" onclick="_cfgRestaurarPlantillaMorosos()">Restaurar</button>
+                </div>
+              </div>
+              <!-- RIGHT: Estado de cuenta general -->
+              <div>
+                <h4 style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:12px">Plantilla estado de cuenta</h4>
+                <div class="form-field">
+                  <label>Asunto</label>
+                  <input type="text" id="cfgEmailAsunto">
+                </div>
+                <div class="form-field" style="margin-top:10px">
+                  <label>Cuerpo del mensaje</label>
+                  <textarea class="template-editor" id="cfgEmailTemplate" rows="12"></textarea>
+                </div>
+                <div style="margin-top:12px;display:flex;gap:8px">
+                  <button class="btn-primary" style="font-size:12px" onclick="_cfgGuardarPlantilla()">Guardar</button>
+                  <button class="btn-secondary" style="font-size:12px" onclick="_cfgRestaurarPlantilla()">Restaurar</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -3067,6 +3089,29 @@ const DEFAULT_EMAIL_TEMPLATE = [
 'Fraccionamiento Silvestra - San Pedro Garza Garcia, N.L.'
 ].join('\n');
 
+const DEFAULT_EMAIL_ASUNTO_MOROSOS = 'Aviso de saldo vencido — Frac. Silvestra Mza {{mza}} L{{lote}}';
+const DEFAULT_EMAIL_TEMPLATE_MOROSOS = `Estimado(a) {{nombre}},
+
+Por medio del presente le informamos que a la fecha registra un saldo vencido de ${{saldo}} en su cuenta de la Asociación de Colonos de Fraccionamiento Silvestra, Frac. Campestre, San Pedro Garza García.
+
+---------------------------------------------
+  AVISO DE ADEUDO — {{mes}}
+---------------------------------------------
+  Propietario : {{nombre}}
+  Manzana/Lote: {{mza}} / {{lote}}
+  Cuota mensual: ${{cuota}}
+  Estatus      : {{estatus}}
+  Saldo vencido: ${{saldo}}
+---------------------------------------------
+
+Le solicitamos regularizar su situación a la brevedad posible para evitar cargos adicionales.
+
+Para cualquier aclaración favor de contactar a la administración.
+
+Atentamente,
+Administración — Fraccionamiento Silvestra
+Frac. Campestre, San Pedro Garza García`;
+
 function _preloadEmailConfig(token){
   fetch('/api/config/plantilla',{headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(d=>{
@@ -3191,6 +3236,15 @@ function _initConfiguracion(){
     }).catch(()=>{
       document.getElementById('cfgEmailTemplate').value=_getEmailTemplate();
       document.getElementById('cfgEmailAsunto').value=_getEmailAsunto();
+    });
+  // Cargar plantilla morosos
+  fetch('/api/config/plantilla-morosos',{headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json()).then(d=>{
+      document.getElementById('cfgEmailTemplateMorosos').value=d.template||DEFAULT_EMAIL_TEMPLATE_MOROSOS;
+      document.getElementById('cfgEmailAsuntoMorosos').value=d.asunto||DEFAULT_EMAIL_ASUNTO_MOROSOS;
+    }).catch(()=>{
+      document.getElementById('cfgEmailTemplateMorosos').value=DEFAULT_EMAIL_TEMPLATE_MOROSOS;
+      document.getElementById('cfgEmailAsuntoMorosos').value=DEFAULT_EMAIL_ASUNTO_MOROSOS;
     });
   // Cargar config automáticos desde API
   fetch('/api/config/auto',{headers:{'Authorization':'Bearer '+token}})
@@ -3395,6 +3449,33 @@ function _cfgRestaurarPlantilla(){
     body:JSON.stringify({template:'',asunto:''})
   }).catch(()=>{});
   showToast('Plantilla restaurada al predeterminado');
+}
+
+function _cfgGuardarPlantillaMorosos(){
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/config/plantilla-morosos',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({
+      template:document.getElementById('cfgEmailTemplateMorosos').value,
+      asunto:document.getElementById('cfgEmailAsuntoMorosos').value
+    })
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok) showToast('✅ Plantilla morosos guardada');
+    else showToast('Error al guardar');
+  }).catch(()=>showToast('Error de conexión'));
+}
+
+function _cfgRestaurarPlantillaMorosos(){
+  document.getElementById('cfgEmailTemplateMorosos').value=DEFAULT_EMAIL_TEMPLATE_MOROSOS;
+  document.getElementById('cfgEmailAsuntoMorosos').value=DEFAULT_EMAIL_ASUNTO_MOROSOS;
+  const token=sessionStorage.getItem('auth_token');
+  fetch('/api/config/plantilla-morosos',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({template:'',asunto:''})
+  }).catch(()=>{});
+  showToast('Plantilla morosos restaurada');
 }
 
 function _cfgGuardarAuto(){

@@ -613,7 +613,7 @@ tr:last-child td{border-bottom:none}
         <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Lote</th><th>Propietario</th><th>Cuota COF</th><th>COV</th><th>Pagado</th><th>Saldo COF</th><th>Meses vencidos</th><th>Estado</th><th>PDF</th></tr></thead>
+              <thead><tr><th>Lote</th><th>Propietario</th><th>Cuota COF</th><th>COV</th><th>Saldo COF</th><th>Estado</th><th>Pagado</th><th>Meses vencidos</th><th>PDF</th></tr></thead>
               <tbody id="saldosBody"></tbody>
             </table>
           </div>
@@ -1638,8 +1638,9 @@ function doLogin(){
     if(!r.ok) return r.json().then(d=>{throw new Error(d.detail||'Error');});
     return r.json();
   }).then(data=>{
-    sessionStorage.setItem('auth_token', data.token);
-    sessionStorage.setItem('auth_rol', data.rol);
+    localStorage.setItem('auth_token', data.token);
+    localStorage.setItem('auth_rol', data.rol);
+    localStorage.setItem('auth_user', user);
     currentRole=data.rol;
     document.getElementById('loginWrap').style.display='none';
     document.getElementById('appShell').style.display='flex';
@@ -1682,7 +1683,7 @@ function _guardarNuevaPassResidente(){
   const p2=document.getElementById('newPass2').value;
   if(p1.length<6){showToast('Mínimo 6 caracteres');return;}
   if(p1!==p2){showToast('Las contraseñas no coinciden');return;}
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch('/api/auth/cambiar-password',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -1699,8 +1700,9 @@ function _guardarNuevaPassResidente(){
 
 function doLogout(){
   closeSidebar();
-  sessionStorage.removeItem('auth_token');
-  sessionStorage.removeItem('auth_rol');
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_rol');
+  localStorage.removeItem('auth_user');
   currentResidente=null;
   currentRole='admin';
   _rendered.clear();
@@ -1726,7 +1728,7 @@ async function loadCOVData(){
   const now=new Date();
   const mes=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   try{
-    const token=sessionStorage.getItem('auth_token');
+    const token=localStorage.getItem('auth_token');
     const data=await fetch(`/api/agua/lecturas?mes=${mes}`,{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json());
     (data||[]).forEach(lec=>{
       const key=`${lec.manzana}-${lec.numero}`;
@@ -2005,7 +2007,7 @@ function openModalPago(mza,lote,nombre,cuota){
 // GASTOS
 // ============================================================
 async function loadGastos(){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   try{
     const [gastos, archivos]=await Promise.all([
       fetch('/api/gastos',{headers:{Authorization:'Bearer '+token}}).then(r=>r.json()),
@@ -2047,7 +2049,7 @@ async function gastoSubirArchivo(gid){
     if(!file) return;
     const form=new FormData();
     form.append('archivo',file);
-    const token=sessionStorage.getItem('auth_token');
+    const token=localStorage.getItem('auth_token');
     try{
       const r=await fetch('/api/gastos/'+gid+'/archivos',{
         method:'POST',headers:{Authorization:'Bearer '+token},body:form
@@ -2061,7 +2063,7 @@ async function gastoSubirArchivo(gid){
 }
 
 async function gastoVerArchivo(aid){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   try{
     const resp=await fetch('/api/archivos/'+aid,{headers:{Authorization:'Bearer '+token}});
     if(!resp.ok){showToast('Error al obtener archivo');return;}
@@ -2168,7 +2170,7 @@ function renderIngresosByTab(tab){
 // INGRESOS — carga desde API y registrar nuevo
 // ============================================================
 async function loadIngresos(){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   if(!token){renderIngresosByTab('aprobar');return;}
   try{
     const data=await fetch('/api/pagos/lista',{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
@@ -2203,7 +2205,7 @@ async function guardarIngreso(){
   if(!fecha){showToast('⚠ Ingresa la fecha');return;}
   const [mza,loteNum]=loteVal.split('-').map(Number);
   const loteData=LOTES_DATA.find(l=>l.mza===mza&&l.lote===loteNum);
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   try{
     const res=await fetch('/api/pagos/nuevo',{
       method:'POST',
@@ -2243,7 +2245,7 @@ function switchDashTab(tab,el){
 }
 
 async function renderDashboardCOV(){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   const mes=new Date().toISOString().slice(0,7);
   const lecturas=await fetch(`/api/agua/lecturas?mes=${mes}`).then(r=>r.json()).catch(()=>[]);
   const vendidos=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA').length;
@@ -2294,10 +2296,10 @@ function renderSaldos(){
       <td class="td-name">${l.propietario}</td>
       <td class="td-monto">$${l.cuota.toLocaleString()}</td>
       <td class="td-monto" style="color:var(--teal)">${cov>0?'$'+cov.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
-      <td class="td-monto ok">$${sd.pagado.toLocaleString()}</td>
       <td class="td-monto ${sd.saldo>0?'deuda':'ok'}">$${sd.saldo.toLocaleString()}</td>
-      <td style="text-align:center">${meses>0?`<span style="background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">${meses}</span>`:'—'}</td>
       <td><span class="badge ${bdg}">${lbl}</span></td>
+      <td class="td-monto ok">$${sd.pagado.toLocaleString()}</td>
+      <td style="text-align:center">${meses>0?`<span style="background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">${meses}</span>`:'—'}</td>
       <td><button onclick="_saldoPDF(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">📄 PDF</button></td>
     </tr>`;
   }).join('');
@@ -2331,23 +2333,23 @@ function exportSaldosPDF(){
     const cov=COV_DATA[key]||0;
     const meses=sd.estado==='moroso'?Math.ceil(sd.saldo/l.cuota):sd.estado==='abonando'?1:0;
     const lbl=sd.estado==='corriente'?'Al corriente':sd.estado==='moroso'?'Moroso':'Abonando';
-    return [`Mza ${l.mza} L${l.lote}`,l.propietario,'$'+l.cuota.toLocaleString(),cov>0?'$'+cov.toLocaleString('es-MX',{minimumFractionDigits:2}):'—','$'+sd.pagado.toLocaleString(),'$'+sd.saldo.toLocaleString(),meses>0?String(meses):'—',lbl];
+    return [`Mza ${l.mza} L${l.lote}`,l.propietario,'$'+l.cuota.toLocaleString(),cov>0?'$'+cov.toLocaleString('es-MX',{minimumFractionDigits:2}):'—','$'+sd.saldo.toLocaleString(),lbl,'$'+sd.pagado.toLocaleString(),meses>0?String(meses):'—'];
   });
   const totPagado=list.reduce((a,l)=>{const sd=SALDO_ESTADO[`${l.mza}-${l.lote}`]||{pagado:0};return a+sd.pagado;},0);
   const totSaldo=list.reduce((a,l)=>{const sd=SALDO_ESTADO[`${l.mza}-${l.lote}`]||{saldo:0};return a+sd.saldo;},0);
 
   doc.autoTable({
     startY:30,
-    head:[['Lote','Propietario','Cuota COF','COV','Pagado','Saldo COF','Meses venc.','Estado']],
+    head:[['Lote','Propietario','Cuota COF','COV','Saldo COF','Estado','Pagado','Meses venc.']],
     body,
-    foot:[['','TOTALES','','','$'+totPagado.toLocaleString(),'$'+totSaldo.toLocaleString(),'','']],
+    foot:[['','TOTALES','','','$'+totSaldo.toLocaleString(),'','$'+totPagado.toLocaleString(),'']],
     theme:'grid',
     styles:{fontSize:8,cellPadding:2.5},
     headStyles:{fillColor:[26,51,25],textColor:255,fontStyle:'bold',fontSize:8},
     footStyles:{fillColor:[244,247,240],textColor:[26,51,25],fontStyle:'bold'},
-    columnStyles:{0:{cellWidth:28},1:{cellWidth:60},2:{cellWidth:22,halign:'right'},3:{cellWidth:22,halign:'right'},4:{cellWidth:22,halign:'right'},5:{cellWidth:22,halign:'right'},6:{cellWidth:18,halign:'center'},7:{cellWidth:22}},
+    columnStyles:{0:{cellWidth:28},1:{cellWidth:60},2:{cellWidth:22,halign:'right'},3:{cellWidth:22,halign:'right'},4:{cellWidth:22,halign:'right'},5:{cellWidth:22},6:{cellWidth:22,halign:'right'},7:{cellWidth:18,halign:'center'}},
     didParseCell:data=>{
-      if(data.section==='body'&&data.column.index===7){
+      if(data.section==='body'&&data.column.index===5){
         const v=data.cell.raw;
         data.cell.styles.textColor=v==='Al corriente'?[22,163,74]:v==='Moroso'?[220,38,38]:[234,88,12];
         data.cell.styles.fontStyle='bold';
@@ -2368,7 +2370,7 @@ function _exportSaldosExcelDo(){
     ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC — SALDOS PENDIENTES'],
     ['Fecha: '+fecha+'  ·  Total registros: '+list.length],
     [],
-    ['Mza.','Lote','Propietario','m²','Cuota COF','COV','Pagado','Saldo COF','Meses Vencidos','Estado']
+    ['Mza.','Lote','Propietario','m²','Cuota COF','COV','Saldo COF','Estado','Pagado','Meses Vencidos']
   ];
   const rows=list.map(l=>{
     const key=`${l.mza}-${l.lote}`;
@@ -2376,14 +2378,14 @@ function _exportSaldosExcelDo(){
     const cov=COV_DATA[key]||0;
     const meses=sd.estado==='moroso'?Math.ceil(sd.saldo/l.cuota):sd.estado==='abonando'?1:0;
     const lbl=sd.estado==='corriente'?'Al corriente':sd.estado==='moroso'?'Moroso':'Abonando';
-    return [l.mza,l.lote,l.propietario,parseFloat(l.m2.toFixed(0)),l.cuota,cov||'',sd.pagado,sd.saldo,meses||'',lbl];
+    return [l.mza,l.lote,l.propietario,parseFloat(l.m2.toFixed(0)),l.cuota,cov||'',sd.saldo,lbl,sd.pagado,meses||''];
   });
   const totPagado=list.reduce((a,l)=>{const sd=SALDO_ESTADO[`${l.mza}-${l.lote}`]||{pagado:0};return a+sd.pagado;},0);
   const totSaldo=list.reduce((a,l)=>{const sd=SALDO_ESTADO[`${l.mza}-${l.lote}`]||{saldo:0};return a+sd.saldo;},0);
-  const footer=[['','','TOTALES','','','','',totPagado,totSaldo,'','']];
+  const footer=[['','','TOTALES','','','',totSaldo,'',totPagado,'']];
 
   const ws=XLSX.utils.aoa_to_sheet([...header,...rows,...footer]);
-  ws['!cols']=[{wch:8},{wch:8},{wch:42},{wch:8},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16}];
+  ws['!cols']=[{wch:8},{wch:8},{wch:42},{wch:8},{wch:14},{wch:14},{wch:14},{wch:16},{wch:14},{wch:14}];
   ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
   XLSX.utils.book_append_sheet(wb,ws,'Saldos');
   XLSX.writeFile(wb,`Silvestra_Saldos_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -3291,7 +3293,7 @@ async function loadProrrateo(){
     </tr>`).join('');
 
     // Tab deuda a campestre — load saved value
-    const token=sessionStorage.getItem('auth_token');
+    const token=localStorage.getItem('auth_token');
     if(token){
       fetch('/api/config/deuda-campestre',{headers:{Authorization:'Bearer '+token}})
         .then(r=>r.json()).then(d=>{
@@ -3308,7 +3310,7 @@ async function loadProrrateo(){
 
 async function guardarDeudaCampestre(){
   const val=parseFloat(document.getElementById('deudaCampestre').value)||0;
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   try{
     const r=await fetch('/api/config/deuda-campestre',{
       method:'POST',
@@ -3552,7 +3554,7 @@ function _openEmailModal(l){
 function _sendEmail(){
   const to=document.getElementById('emailTo').value.trim();
   if(!to){showToast('Ingresa el correo del condómino');return;}
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   if(!token){showToast('Sesión expirada, vuelve a iniciar sesión');return;}
   showToast('Generando PDF y enviando…');
   // Generar PDF adjunto
@@ -3595,7 +3597,7 @@ function _sendEmail(){
 // CONFIGURACIÓN
 // ============================================================
 function _initConfiguracion(){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   _cfgCargarAdmins();
   // Cargar lista de residentes
   fetch('/api/auth/residentes',{headers:{'Authorization':'Bearer '+token}})
@@ -3684,7 +3686,7 @@ function _filterResidentes(){
 
 function _adminResetPwd(user){
   if(!confirm(`¿Restablecer la contraseña de ${user} a la temporal?\nNueva contraseña temporal: silv${user.replace(/M(\d+)L(\d+)/,'$1$2')}`)) return;
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch('/api/auth/reset-password',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -3710,7 +3712,7 @@ function _cfgCambiarPass(){
 }
 
 function _cfgCargarAdmins(){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch('/api/auth/admins',{headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(list=>{
       const me=JSON.parse(atob(token.split('.')[1])||'{}');
@@ -3730,7 +3732,7 @@ function _cfgAgregarAdmin(){
   const pass=document.getElementById('cfgNewAdminPass').value;
   if(!email){showToast('Ingresa el usuario o correo');return;}
   if(pass.length<6){showToast('La contraseña debe tener al menos 6 caracteres');return;}
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch('/api/auth/admins',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -3747,7 +3749,7 @@ function _cfgAgregarAdmin(){
 
 function _cfgEliminarAdmin(id,email){
   if(!confirm(`¿Eliminar al administrador "${email}"?`)) return;
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch(`/api/auth/admins/${id}`,{method:'DELETE',headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(d=>{
       if(d.ok){showToast('Administrador eliminado');_cfgCargarAdmins();}
@@ -3777,7 +3779,7 @@ function _cfgLimpiarLote(){
 function _cfgGuardarEmail(){
   const from=document.getElementById('cfgEmailFrom').value.trim();
   if(!from){showToast('Ingresa el correo remitente');return;}
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch('/api/config/email',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -3797,7 +3799,7 @@ function _cfgGuardarEmail(){
 }
 
 function _cfgTestEmail(){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   showToast('Enviando correo de prueba…');
   fetch('/api/correo/prueba',{method:'POST',headers:{'Authorization':'Bearer '+token}})
     .then(r=>r.json()).then(d=>{
@@ -3807,7 +3809,7 @@ function _cfgTestEmail(){
 }
 
 function _cfgGuardarPlantilla(){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch('/api/config/plantilla',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -3829,7 +3831,7 @@ function _cfgRestaurarPlantilla(){
   document.getElementById('cfgEmailTemplate').value=DEFAULT_EMAIL_TEMPLATE;
   document.getElementById('cfgEmailAsunto').value=DEFAULT_EMAIL_ASUNTO;
   // Reset in DB too
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch('/api/config/plantilla',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -3839,7 +3841,7 @@ function _cfgRestaurarPlantilla(){
 }
 
 function _cfgGuardarPlantillaMorosos(){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch('/api/config/plantilla-morosos',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -3856,7 +3858,7 @@ function _cfgGuardarPlantillaMorosos(){
 function _cfgRestaurarPlantillaMorosos(){
   document.getElementById('cfgEmailTemplateMorosos').value=DEFAULT_EMAIL_TEMPLATE_MOROSOS;
   document.getElementById('cfgEmailAsuntoMorosos').value=DEFAULT_EMAIL_ASUNTO_MOROSOS;
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch('/api/config/plantilla-morosos',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -3869,7 +3871,7 @@ function _cfgGuardarAuto(){
   const morosos=document.getElementById('cfgAutoMorosos').checked;
   const estado=document.getElementById('cfgAutoEstado').checked;
   const activo=morosos||estado;
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   fetch('/api/config/auto',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -3900,7 +3902,7 @@ function switchCfgTab(panel, el){
 let _cuotaData = {}; // {anio: [{id, min_m2, max_m2, importe}]}
 
 async function loadCuotaConfig(){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   if(!token) return;
   try{
     const data=await fetch('/api/cuotas',{headers:{Authorization:'Bearer '+token}}).then(r=>r.json());
@@ -3964,7 +3966,7 @@ async function cuotaEliminarRango(id){
     }
     return;
   }
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   await fetch('/api/cuotas/'+idStr,{method:'DELETE',headers:{Authorization:'Bearer '+token}});
   for(const a in _cuotaData){ _cuotaData[a]=_cuotaData[a].filter(r=>String(r.id)!==idStr); }
   loadCuotaAnio();
@@ -3972,7 +3974,7 @@ async function cuotaEliminarRango(id){
 }
 
 async function cuotaGuardarCambios(){
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   const anio=parseInt(document.getElementById('cuotaAnioSel').value);
   const rows=document.querySelectorAll('#cuotaRangosBody tr[data-id]');
   let ok=0,err=0;
@@ -4003,7 +4005,7 @@ async function aplicarCuotasAnio(){
   if(!confirm('¿Aplicar las cuotas de '+anio+' a todos los lotes? Esto actualizará la cuota mensual de cada lote según su m².')) return;
   // First save any pending changes
   await cuotaGuardarCambios();
-  const token=sessionStorage.getItem('auth_token');
+  const token=localStorage.getItem('auth_token');
   try{
     const r=await fetch('/api/cuotas/'+anio+'/aplicar',{method:'POST',headers:{Authorization:'Bearer '+token}}).then(r=>r.json());
     showToast('✅ '+r.actualizados+' lotes actualizados con cuotas de '+anio);
@@ -4025,11 +4027,40 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{
   m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')});
 });
 
+function _decodeJwt(tok){
+  try{const b=tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');return JSON.parse(atob(b));}catch(e){return null;}
+}
+
 window.addEventListener('DOMContentLoaded',()=>{
   setRole('admin',document.querySelectorAll('.tab-l')[0]);
-  // Limpiar valores vacíos en localStorage para que el default siempre cargue
   if(!localStorage.getItem('emailTemplate')?.trim()) localStorage.removeItem('emailTemplate');
   if(!localStorage.getItem('emailAsunto')?.trim()) localStorage.removeItem('emailAsunto');
+
+  // Auto-restore session on page refresh
+  const _tok=localStorage.getItem('auth_token');
+  const _rol=localStorage.getItem('auth_rol');
+  const _usr=localStorage.getItem('auth_user');
+  if(_tok&&_rol){
+    const _pl=_decodeJwt(_tok);
+    if(_pl&&_pl.exp*1000>Date.now()){
+      currentRole=_rol;
+      document.getElementById('loginWrap').style.display='none';
+      document.getElementById('appShell').style.display='flex';
+      if(_rol==='admin'){
+        _preloadEmailConfig(_tok);
+        initAdmin();
+      } else if(_usr){
+        const _m=_usr.toUpperCase().match(/^M(\d+)L(\d+)$/);
+        if(_m) currentResidente=LOTES_DATA.find(l=>l.mza===parseInt(_m[1])&&l.lote===parseInt(_m[2]));
+        if(currentResidente) initResidente();
+        else doLogout();
+      }
+    } else {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_rol');
+      localStorage.removeItem('auth_user');
+    }
+  }
 });
 </script>
 </body>

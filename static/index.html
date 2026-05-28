@@ -1932,7 +1932,7 @@ function renderIngresosByTab(tab){
 // INGRESOS — carga desde API y registrar nuevo
 // ============================================================
 async function loadIngresos(){
-  const token=sessionStorage.getItem('jwtToken');
+  const token=sessionStorage.getItem('auth_token');
   if(!token){renderIngresos();return;}
   try{
     const data=await fetch('/api/pagos/lista',{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
@@ -1964,7 +1964,7 @@ async function guardarIngreso(){
   if(!fecha){showToast('⚠ Ingresa la fecha');return;}
   const [mza,loteNum]=loteVal.split('-').map(Number);
   const loteData=LOTES_DATA.find(l=>l.mza===mza&&l.lote===loteNum);
-  const token=sessionStorage.getItem('jwtToken');
+  const token=sessionStorage.getItem('auth_token');
   try{
     const res=await fetch('/api/pagos/nuevo',{
       method:'POST',
@@ -2004,7 +2004,7 @@ function switchDashTab(tab,el){
 }
 
 async function renderDashboardCOV(){
-  const token=sessionStorage.getItem('jwtToken');
+  const token=sessionStorage.getItem('auth_token');
   const mes=new Date().toISOString().slice(0,7);
   const lecturas=await fetch(`/api/agua/lecturas?mes=${mes}`).then(r=>r.json()).catch(()=>[]);
   const vendidos=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA').length;

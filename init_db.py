@@ -13,7 +13,7 @@ Corre UNA SOLA VEZ para crear la base de datos con los lotes reales.
     python app/init_db.py
 """
 from sqlmodel import Session, select, create_engine, SQLModel
-from models import Lote, Gasto, Usuario
+from models import Lote, Gasto, Usuario, CuotaAnual
 from datetime import date
 import bcrypt, os
 
@@ -187,6 +187,22 @@ def init():
             print(f"✅ {creados} usuarios de residentes creados")
         else:
             print("ℹ️  Usuarios de residentes ya existen")
+
+        # ── Cuotas anuales 2026: rangos por m² ───────────────
+        hay_cuotas = session.exec(select(CuotaAnual).where(CuotaAnual.anio == 2026)).first()
+        if not hay_cuotas:
+            rangos_2026 = [
+                CuotaAnual(anio=2026, min_m2=0,      max_m2=2300,  importe=1350.0),
+                CuotaAnual(anio=2026, min_m2=2300,   max_m2=2400,  importe=1400.0),
+                CuotaAnual(anio=2026, min_m2=2400,   max_m2=2600,  importe=1450.0),
+                CuotaAnual(anio=2026, min_m2=2600,   max_m2=None,  importe=1500.0),
+            ]
+            for r in rangos_2026:
+                session.add(r)
+            session.commit()
+            print("✅ Rangos de cuota COF 2026 insertados")
+        else:
+            print("ℹ️  Cuotas 2026 ya existen")
 
 if __name__ == "__main__":
     init()

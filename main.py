@@ -31,7 +31,7 @@ from email import encoders as _email_enc
 
 from models import (Lote, Pago, Gasto, Usuario,
                     Proveedor, MovimientoBancario,
-                    LecturaAgua, GastoReal, ProrrateoPorLote, Config)
+                    LecturaAgua, GastoReal, ProrrateoPorLote, Config, CuotaAnual)
 
 # ── Auth config ─────────────────────────────────────────────
 SECRET_KEY  = os.environ.get("SECRET_KEY", "silvestra_dev_key_cambia_en_produccion")
@@ -264,6 +264,12 @@ def _reload_scheduler():
                 id="email_auto", replace_existing=True,
             )
             print(f"[Scheduler] Job programado: día {dia} a las {hora} hora Monterrey")
+        # Job mensual: actualizar cuotas el día 1 de cada mes a las 00:05
+        _scheduler.add_job(
+            lambda: _apply_cuotas_anuales(),
+            CronTrigger(day=1, hour=0, minute=5, timezone="America/Monterrey"),
+            id="cuotas_anuales", replace_existing=True,
+        )
     except Exception as exc:
         print(f"[Scheduler] Error en _reload_scheduler: {exc}")
 
@@ -385,6 +391,12 @@ def get_residentes_auth(admin: Usuario = Depends(_admin_only),
 class NuevoAdminReq(BaseModel):
     email: str
     password: str
+
+class CuotaAnualReq(BaseModel):
+    anio: int
+    min_m2: float
+    max_m2: Optional[float] = None
+    importe: float
 
 class NuevoPagoReq(BaseModel):
     manzana: int
@@ -1228,3 +1240,73 @@ def prueba_correo(admin: Usuario = Depends(_admin_only)):
         return {"ok": True}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+# ─── CUOTAS ANUALES ──────────────────────────────────────────
+def _get_cuota_para_lote(s: Session, lote: Lote, anio: int) -> Optional[float]:
+    rangos = s.exec(
+        select(CuotaAnual).where(CuotaAnual.anio == anio).order_by(CuotaAnual.min_m2)
+    ).all()
+    for r in rangos:
+        tope = r.max_m2 if r.max_m2 is not None else float("inf")
+        if r.min_m2 <= lote.m2 < tope:
+            return r.importe
+    return None
+
+def _apply_cuotas_anuales(anio: int = None):
+    if anio is None:
+        anio = datetime.utcnow().year
+    with Session(engine) as s:
+        lotes = s.exec(select(Lote).where(Lote.activo == True)).all()
+        updated = 0
+        for lote in lotes:
+            nueva = _get_cuota_para_lote(s, lote, anio)
+            if nueva is not None and lote.cuota_cof != nueva:
+                lote.cuota_cof = nueva
+                s.add(lote)
+                updated += 1
+        s.commit()
+    print(f"[Cuotas] {updated} lotes actualizados con cuotas de {anio}")
+    return updated
+
+@app.get("/api/cuotas")
+def get_cuotas(admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        rangos = s.exec(select(CuotaAnual).order_by(CuotaAnual.anio, CuotaAnual.min_m2)).all()
+    by_year: dict = {}
+    for r in rangos:
+        by_year.setdefault(r.anio, []).append({
+            "id": r.id, "min_m2": r.min_m2, "max_m2": r.max_m2, "importe": r.importe
+        })
+    return by_year
+
+@app.post("/api/cuotas")
+def crear_cuota(req: CuotaAnualReq, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        c = CuotaAnual(anio=req.anio, min_m2=req.min_m2, max_m2=req.max_m2, importe=req.importe)
+        s.add(c); s.commit(); s.refresh(c)
+        return {"id": c.id, "anio": c.anio, "min_m2": c.min_m2, "max_m2": c.max_m2, "importe": c.importe}
+
+@app.put("/api/cuotas/{cid}")
+def actualizar_cuota(cid: int, req: CuotaAnualReq, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        c = s.get(CuotaAnual, cid)
+        if not c:
+            raise HTTPException(404, "Rango no encontrado")
+        c.anio = req.anio; c.min_m2 = req.min_m2; c.max_m2 = req.max_m2; c.importe = req.importe
+        s.add(c); s.commit()
+        return {"ok": True}
+
+@app.delete("/api/cuotas/{cid}")
+def eliminar_cuota(cid: int, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        c = s.get(CuotaAnual, cid)
+        if not c:
+            raise HTTPException(404, "Rango no encontrado")
+        s.delete(c); s.commit()
+        return {"ok": True}
+
+@app.post("/api/cuotas/{anio}/aplicar")
+def aplicar_cuotas(anio: int, admin: Usuario = Depends(_admin_only)):
+    updated = _apply_cuotas_anuales(anio)
+    return {"ok": True, "actualizados": updated}

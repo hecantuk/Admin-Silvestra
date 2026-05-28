@@ -121,3 +121,11 @@ class Config(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     clave: str = Field(unique=True)
     valor: str = ""
+
+
+class CuotaAnual(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    anio: int
+    min_m2: float
+    max_m2: Optional[float] = None   # None = sin límite superior
+    importe: float

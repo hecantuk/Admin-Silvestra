@@ -339,7 +339,7 @@ tr:last-child td{border-bottom:none}
       </div>
       <div class="nav-item" onclick="showPage('ingresos',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-        COF
+        Ingresos
       </div>
       <div class="nav-item" onclick="showPage('gastos',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
@@ -613,7 +613,7 @@ tr:last-child td{border-bottom:none}
         <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Lote</th><th>Propietario</th><th>Cuota COF</th><th>COV</th><th>Saldo COF</th><th>Estado</th><th>Pagado</th><th>Meses vencidos</th><th>PDF</th></tr></thead>
+              <thead><tr><th>Lote</th><th>Propietario</th><th>COF</th><th>COV</th><th>Saldo Total</th><th>Estado</th><th>Pagado</th><th>Meses vencidos</th><th>PDF</th></tr></thead>
               <tbody id="saldosBody"></tbody>
             </table>
           </div>
@@ -2340,7 +2340,7 @@ function exportSaldosPDF(){
 
   doc.autoTable({
     startY:30,
-    head:[['Lote','Propietario','Cuota COF','COV','Saldo COF','Estado','Pagado','Meses venc.']],
+    head:[['Lote','Propietario','COF','COV','Saldo Total','Estado','Pagado','Meses venc.']],
     body,
     foot:[['','TOTALES','','','$'+totSaldo.toLocaleString(),'','$'+totPagado.toLocaleString(),'']],
     theme:'grid',
@@ -2370,7 +2370,7 @@ function _exportSaldosExcelDo(){
     ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC — SALDOS PENDIENTES'],
     ['Fecha: '+fecha+'  ·  Total registros: '+list.length],
     [],
-    ['Mza.','Lote','Propietario','m²','Cuota COF','COV','Saldo COF','Estado','Pagado','Meses Vencidos']
+    ['Mza.','Lote','Propietario','m²','COF','COV','Saldo Total','Estado','Pagado','Meses Vencidos']
   ];
   const rows=list.map(l=>{
     const key=`${l.mza}-${l.lote}`;

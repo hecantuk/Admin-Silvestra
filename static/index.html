@@ -2100,6 +2100,7 @@ function renderIngresosByTab(tab){
       <th style="${TH}">Concepto</th>
       <th style="${TH}">COF</th>
       <th style="${TH}">COV</th>
+      <th style="${TH}">Total</th>
       <th style="${TH}">Ref.</th>
       <th style="${TH}">Acción</th>
     </tr></thead>
@@ -2113,6 +2114,7 @@ function renderIngresosByTab(tab){
         <td style="${TD};font-size:12px">${p.concepto}</td>
         <td style="${TD};font-family:'DM Mono',monospace;font-weight:500;color:var(--green)">${esCOF?'$'+p.importe.toLocaleString():'—'}</td>
         <td style="${TD};font-family:'DM Mono',monospace;font-weight:500;color:var(--teal)">${esCOV?'$'+p.importe.toLocaleString():'—'}</td>
+        <td style="${TD};font-family:'DM Mono',monospace;font-weight:600;color:var(--navy)">$${p.importe.toLocaleString()}</td>
         <td style="${TD};font-size:12px;color:var(--muted)">${p.ref}</td>
         <td style="${TD}">${tab==='aprobar'
           ?`<button class="btn-primary btn-aprobar-ing" data-ref="${p.ref}" data-id="${p.id||''}" style="padding:5px 10px;font-size:12px">✓ Aprobar</button>`
@@ -2124,7 +2126,8 @@ function renderIngresosByTab(tab){
       <td colspan="4" style="padding:10px 14px;font-size:12px;color:var(--navy)">Total (${list.length} registros)</td>
       <td style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--green)">$${totCOF.toLocaleString()}</td>
       <td style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--teal)">$${totCOV.toLocaleString()}</td>
-      <td style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--navy)" colspan="2">Total: $${totTotal.toLocaleString()}</td>
+      <td style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--navy);font-weight:700">$${totTotal.toLocaleString()}</td>
+      <td colspan="2"></td>
     </tr></tfoot>
   </table>`;
 

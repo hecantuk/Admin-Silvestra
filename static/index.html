@@ -512,7 +512,7 @@ tr:last-child td{border-bottom:none}
             <table id="tableLotes">
               <thead>
                 <tr>
-                  <th>Mza.</th><th>Lote</th><th>Paseo/Calle</th><th>m²</th><th>Propietario</th><th>Cuota COF</th><th>COV</th><th>Estado</th><th>Saldo</th><th>Estado de cuenta</th>
+                  <th>Mza.</th><th>Lote</th><th>Paseo/Calle</th><th>m²</th><th>Propietario</th><th>Cuota COF</th><th>COV</th><th>Saldo</th><th>Estado</th><th>Estado de cuenta</th>
                 </tr>
               </thead>
               <tbody id="lotesBody"></tbody>
@@ -1944,8 +1944,8 @@ function renderLotes(data){
       <td class="td-name">${l.propietario||'—'}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:500">$${l.cuota.toLocaleString()}</td>
       <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--teal)">${COV_DATA[key]?'$'+(COV_DATA[key]).toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
-      <td>${badge}</td>
       <td>${saldoCell}</td>
+      <td>${badge}</td>
       <td>${vendido?`<div style="display:flex;gap:4px;align-items:center"><button title="PDF" onclick="_exportPDFLote(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">PDF</button><button title="Excel" onclick="_exportExcelLote(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:var(--green-light);color:var(--green);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer">Excel</button><button title="Enviar por correo" onclick="_openEmailModal(LOTES_DATA.find(x=>x.mza===${l.mza}&&x.lote===${l.lote}))" style="background:#EFF6FF;color:#3B82F6;border:none;border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center"><svg style="width:13px;height:13px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,12 2,6"/></svg></button></div>`:'—'}</td>
     </tr>`;
   }).join('');

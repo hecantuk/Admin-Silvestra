@@ -386,6 +386,15 @@ class NuevoAdminReq(BaseModel):
     email: str
     password: str
 
+class NuevoPagoReq(BaseModel):
+    manzana: int
+    lote_num: int
+    fecha_pago: str   # "YYYY-MM-DD"
+    importe: float
+    concepto: str = "COF"
+    referencia: str = ""
+    notas: str = ""
+
 @app.get("/api/auth/admins")
 def get_admins(admin: Usuario = Depends(_admin_only),
                session: Session = Depends(get_session)):
@@ -497,6 +506,64 @@ def revertir_pago(pago_id: int):
         s.add(pago)
         s.commit()
         return {"ok": True, "id": pago_id}
+
+@app.post("/api/pagos/nuevo")
+def nuevo_pago(req: NuevoPagoReq, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        lote = s.exec(
+            select(Lote).where(Lote.manzana == req.manzana, Lote.numero == req.lote_num)
+        ).first()
+        if not lote:
+            raise HTTPException(404, "Lote no encontrado")
+        fecha = date.fromisoformat(req.fecha_pago)
+        mes_aplicado = req.fecha_pago[:7]
+        pago = Pago(
+            lote_id=lote.id,
+            fecha_pago=fecha,
+            importe=req.importe,
+            mes_aplicado=mes_aplicado,
+            concepto=req.concepto,
+            referencia=req.referencia or None,
+            notas=req.notas or None,
+            estado="por_aprobar",
+        )
+        s.add(pago)
+        s.commit()
+        s.refresh(pago)
+        return {
+            "id": pago.id,
+            "manzana": lote.manzana,
+            "lote_num": lote.numero,
+            "propietario": lote.propietario or "",
+            "fecha_pago": str(pago.fecha_pago),
+            "importe": pago.importe,
+            "concepto": pago.concepto,
+            "referencia": pago.referencia or "",
+            "estado": pago.estado,
+        }
+
+@app.get("/api/pagos/lista")
+def lista_pagos(estado: Optional[str] = None, mes: Optional[str] = None,
+                admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        q = select(Pago, Lote).join(Lote, Pago.lote_id == Lote.id)
+        if estado:
+            q = q.where(Pago.estado == estado)
+        if mes:
+            q = q.where(Pago.mes_aplicado == mes)
+        q = q.order_by(Pago.fecha_pago.desc())
+        rows = s.exec(q).all()
+        return [{
+            "id": pago.id,
+            "manzana": lote.manzana,
+            "lote_num": lote.numero,
+            "propietario": lote.propietario or "",
+            "fecha_pago": str(pago.fecha_pago),
+            "importe": pago.importe,
+            "concepto": pago.concepto,
+            "referencia": pago.referencia or "",
+            "estado": pago.estado,
+        } for pago, lote in rows]
 
 
 # ─── GASTOS ──────────────────────────────────────────────────

@@ -368,7 +368,7 @@ tr:last-child td{border-bottom:none}
       </div>
       <div class="nav-item" onclick="showPage('agua',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg>
-        Cuota Agua
+        COV
       </div>
       <div class="nav-item" onclick="showPage('prorrateo',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
@@ -416,36 +416,72 @@ tr:last-child td{border-bottom:none}
 
       <!-- DASHBOARD -->
       <div class="page active" id="pageDashboard">
-        <div class="stat-grid" id="statsGrid"></div>
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Estado de cobranza — Mayo 2026</span>
-              <span class="pill-teal pill" style="font-size:11px;padding:3px 8px;border-radius:20px">COF</span>
-            </div>
-            <div class="card-body">
-              <div class="chart-container">
-                <canvas id="donutChart" role="img" aria-label="Distribución de cobranza entre morosos, al corriente y abonando"></canvas>
+        <div class="tabs" style="margin-bottom:16px">
+          <div class="tab active" onclick="switchDashTab('cof',this)">COF — Cuota Fija</div>
+          <div class="tab" onclick="switchDashTab('cov',this)">COV — Cuota Variable</div>
+        </div>
+
+        <!-- COF Dashboard -->
+        <div id="dashCOF">
+          <div class="stat-grid" id="statsGrid"></div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Estado de cobranza — Mayo 2026</span>
+                <span class="pill-teal pill" style="font-size:11px;padding:3px 8px;border-radius:20px">COF</span>
               </div>
-              <div class="chart-legend" id="donutLegend"></div>
+              <div class="card-body">
+                <div class="chart-container">
+                  <canvas id="donutChart" role="img" aria-label="Distribución de cobranza entre morosos, al corriente y abonando"></canvas>
+                </div>
+                <div class="chart-legend" id="donutLegend"></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><span class="card-title">Recaudación mensual 2026</span></div>
+              <div class="card-body">
+                <div class="chart-container">
+                  <canvas id="barChart" role="img" aria-label="Ingresos por mes en 2026"></canvas>
+                </div>
+              </div>
             </div>
           </div>
           <div class="card">
-            <div class="card-header"><span class="card-title">Recaudación mensual 2026</span></div>
-            <div class="card-body">
-              <div class="chart-container">
-                <canvas id="barChart" role="img" aria-label="Ingresos por mes en 2026"></canvas>
-              </div>
+            <div class="card-header">
+              <span class="card-title">Últimos pagos recibidos</span>
+              <button class="btn-secondary" onclick="showPage('ingresos',document.querySelector('[data-page=ingresos]'))">Ver todos →</button>
+            </div>
+            <div class="card-body" style="padding:0">
+              <div id="dashPagos"></div>
             </div>
           </div>
         </div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Últimos pagos recibidos</span>
-            <button class="btn-secondary" onclick="showPage('ingresos',document.querySelector('[data-page=ingresos]'))">Ver todos →</button>
-          </div>
-          <div class="card-body" style="padding:0">
-            <div id="dashPagos"></div>
+
+        <!-- COV Dashboard -->
+        <div id="dashCOV" style="display:none">
+          <div class="stat-grid" id="covStatsGrid"></div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Estado COV — Mayo 2026</span>
+              <span class="pill-teal pill" style="font-size:11px;padding:3px 8px;border-radius:20px">COV</span>
+            </div>
+            <div class="card-body" style="padding:0">
+              <table style="width:100%;border-collapse:collapse">
+                <thead>
+                  <tr>
+                    <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Lote</th>
+                    <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Propietario</th>
+                    <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Lect. Ant.</th>
+                    <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Lect. Act.</th>
+                    <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Consumo m³</th>
+                    <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Importe COV</th>
+                  </tr>
+                </thead>
+                <tbody id="covTableBody">
+                  <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">Cargando…</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -520,7 +556,7 @@ tr:last-child td{border-bottom:none}
         </div>
         <div class="search-row">
           <input class="search-box" type="search" placeholder="Buscar ingreso…">
-          <button class="btn-primary" onclick="openModal('modalNuevoIngreso')">+ Registrar ingreso</button>
+          <button class="btn-primary" onclick="openModal('modalNuevoIngreso');document.getElementById('ingFecha').value=new Date().toISOString().split('T')[0]">+ Registrar ingreso</button>
         </div>
         <div class="card" id="cardIngresos">
           <div class="card-body" style="padding:0">
@@ -1120,16 +1156,16 @@ tr:last-child td{border-bottom:none}
     </div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-field"><label>Concepto</label><select><option>Cuota Ordinaria Fija</option><option>Cuota Variable (agua)</option><option>Amenidad</option><option>Otro</option></select></div>
-        <div class="form-field"><label>Lote</label><select id="ingLote"><option>— Selecciona —</option></select></div>
-        <div class="form-field"><label>Importe</label><input type="number" placeholder="0.00"></div>
-        <div class="form-field"><label>Fecha</label><input type="date"></div>
-        <div class="form-field"><label>Referencia</label><input type="text" placeholder="REF-XXXX"></div>
+        <div class="form-field"><label>Concepto</label><select id="ingConcepto"><option value="COF">COF — Cuota Fija</option><option value="COV">COV — Cuota Variable</option><option value="Amenidad">Amenidad</option><option value="Otro">Otro</option></select></div>
+        <div class="form-field"><label>Lote</label><select id="ingLote"><option value="">— Selecciona —</option></select></div>
+        <div class="form-field"><label>Importe</label><input id="ingImporte" type="number" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="form-field"><label>Fecha</label><input id="ingFecha" type="date"></div>
+        <div class="form-field"><label>Referencia</label><input id="ingRef" type="text" placeholder="REF-XXXX"></div>
       </div>
     </div>
     <div class="modal-foot">
       <button class="btn-secondary" onclick="closeModal('modalNuevoIngreso')">Cancelar</button>
-      <button class="btn-primary" onclick="closeModal('modalNuevoIngreso');showToast('Ingreso registrado')">Guardar</button>
+      <button class="btn-primary" onclick="guardarIngreso()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1594,7 +1630,7 @@ function showPage(id,navEl){
     if(id==='lotes') renderLotes();
     else if(id==='cargos') renderCargos();
     else if(id==='gastos') renderGastos();
-    else if(id==='ingresos') renderIngresos();
+    else if(id==='ingresos') loadIngresos();
     else if(id==='saldos') renderSaldos();
     else if(id==='reporte') renderReporte();
     else if(id==='banco') loadBanco();
@@ -1607,6 +1643,7 @@ function showPage(id,navEl){
     // Estas siempre recargan datos frescos del servidor
     if(id==='banco') loadBanco();
     else if(id==='diot') loadDiot();
+    else if(id==='ingresos') loadIngresos();
     else if(id==='agua') loadAgua();
     else if(id==='prorrateo') loadProrrateo();
     else if(id==='financiero') loadFinanciero();
@@ -1858,8 +1895,21 @@ function renderIngresosByTab(tab){
       const ref=btn.dataset.ref, id=btn.dataset.id;
       const idx=INGRESOS_DATA.findIndex(i=>i.ref===ref);
       if(idx<0) return;
-      INGRESOS_DATA[idx].estado='aprobado';
-      renderIngresosByTab('aprobar');
+      const pago=INGRESOS_DATA[idx];
+      pago.estado='aprobado';
+      // Actualizar saldo del lote
+      const m=pago.lote&&pago.lote.match(/Mza (\d+) L(\d+)/);
+      if(m){
+        const sk=`${m[1]}-${m[2]}`;
+        const sd=SALDO_ESTADO[sk]||(SALDO_ESTADO[sk]={estado:'moroso',saldo:0,pagado:0});
+        sd.pagado=(sd.pagado||0)+pago.importe;
+        sd.saldo=Math.max(0,(sd.saldo||0)-pago.importe);
+        if(sd.saldo<=0) sd.estado='corriente';
+      }
+      // Cambiar al tab de Aprobados
+      const tabAprobados=document.querySelector('#pageIngresos .tabs .tab:nth-child(2)');
+      if(tabAprobados) switchTab('ingresos','aprobados',tabAprobados);
+      else renderIngresosByTab('aprobados');
       showToast('✅ Ingreso aprobado');
       if(id) fetch(`/api/pagos/${id}/aprobar`,{method:'PUT'}).catch(()=>{});
     });
@@ -1876,6 +1926,106 @@ function renderIngresosByTab(tab){
       if(id) fetch(`/api/pagos/${id}/revertir`,{method:'PUT'}).catch(()=>{});
     });
   });
+}
+
+// ============================================================
+// INGRESOS — carga desde API y registrar nuevo
+// ============================================================
+async function loadIngresos(){
+  const token=sessionStorage.getItem('jwtToken');
+  if(!token){renderIngresos();return;}
+  try{
+    const data=await fetch('/api/pagos/lista',{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
+    INGRESOS_DATA.length=0;
+    data.forEach(p=>{
+      INGRESOS_DATA.push({
+        id:p.id,
+        fecha:p.fecha_pago,
+        lote:`Mza ${p.manzana} L${p.lote_num}`,
+        propietario:p.propietario,
+        concepto:p.concepto,
+        importe:p.importe,
+        ref:p.referencia||`ID-${p.id}`,
+        estado:p.estado,
+      });
+    });
+  }catch(e){}
+  renderIngresosByTab('aprobar');
+}
+
+async function guardarIngreso(){
+  const loteVal=document.getElementById('ingLote').value;
+  const concepto=document.getElementById('ingConcepto').value;
+  const importe=parseFloat(document.getElementById('ingImporte').value);
+  const fecha=document.getElementById('ingFecha').value;
+  const ref=document.getElementById('ingRef').value.trim();
+  if(!loteVal){showToast('⚠ Selecciona un lote');return;}
+  if(!importe||importe<=0){showToast('⚠ Ingresa un importe válido');return;}
+  if(!fecha){showToast('⚠ Ingresa la fecha');return;}
+  const [mza,loteNum]=loteVal.split('-').map(Number);
+  const loteData=LOTES_DATA.find(l=>l.mza===mza&&l.lote===loteNum);
+  const token=sessionStorage.getItem('jwtToken');
+  try{
+    const res=await fetch('/api/pagos/nuevo',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body:JSON.stringify({manzana:mza,lote_num:loteNum,fecha_pago:fecha,importe,concepto,referencia:ref})
+    });
+    if(!res.ok){showToast('❌ Error al registrar ingreso');return;}
+    const pago=await res.json();
+    INGRESOS_DATA.unshift({
+      id:pago.id,
+      fecha:pago.fecha_pago,
+      lote:`Mza ${pago.manzana} L${pago.lote_num}`,
+      propietario:pago.propietario||(loteData?loteData.propietario:''),
+      concepto:pago.concepto,
+      importe:pago.importe,
+      ref:pago.referencia||ref||`ID-${pago.id}`,
+      estado:'por_aprobar',
+    });
+    closeModal('modalNuevoIngreso');
+    // Asegurar que la vista de ingresos está activa y muestra Por Aprobar
+    const tabAprobar=document.querySelector('#pageIngresos .tabs .tab:first-child');
+    if(tabAprobar) switchTab('ingresos','aprobar',tabAprobar);
+    else renderIngresosByTab('aprobar');
+    showToast('✅ Ingreso registrado — pendiente de aprobar');
+  }catch(e){showToast('❌ Error de conexión');}
+}
+
+// ============================================================
+// DASHBOARD — tab COF / COV
+// ============================================================
+function switchDashTab(tab,el){
+  el.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('dashCOF').style.display=tab==='cof'?'':'none';
+  document.getElementById('dashCOV').style.display=tab==='cov'?'':'none';
+  if(tab==='cov') renderDashboardCOV();
+}
+
+async function renderDashboardCOV(){
+  const token=sessionStorage.getItem('jwtToken');
+  const mes=new Date().toISOString().slice(0,7);
+  const lecturas=await fetch(`/api/agua/lecturas?mes=${mes}`).then(r=>r.json()).catch(()=>[]);
+  const vendidos=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA').length;
+  const totalConsumo=lecturas.reduce((a,l)=>a+(l.consumo_m3||0),0);
+  const totalImporte=lecturas.reduce((a,l)=>a+(l.importe||0),0);
+  const promedio=lecturas.length?(totalConsumo/lecturas.length).toFixed(1):0;
+  document.getElementById('covStatsGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-label">📋 Lecturas capturadas</div><div class="stat-value">${lecturas.length}</div><div class="stat-sub">de ${vendidos} lotes vendidos</div></div>
+    <div class="stat-card"><div class="stat-label">💧 Consumo total</div><div class="stat-value">${totalConsumo.toFixed(1)} m³</div><div class="stat-sub">${mes}</div></div>
+    <div class="stat-card"><div class="stat-label">💰 Total COV</div><div class="stat-value">$${totalImporte.toLocaleString('es-MX',{minimumFractionDigits:2})}</div><div class="stat-sub">Este mes</div></div>
+    <div class="stat-card"><div class="stat-label">📊 Promedio por lote</div><div class="stat-value">${promedio} m³</div><div class="stat-sub">Tarifa: $${lecturas[0]?.tarifa_por_m3||15}/m³</div></div>
+  `;
+  document.getElementById('covTableBody').innerHTML=lecturas.length?lecturas.map(l=>`
+    <tr>
+      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-weight:500">Mza ${l.manzana} L${l.numero}</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;color:var(--navy)">${l.propietario||'—'}</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-family:'DM Mono',monospace">${(l.lectura_anterior||0).toFixed(2)}</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-family:'DM Mono',monospace">${(l.lectura_actual||0).toFixed(2)}</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-family:'DM Mono',monospace;font-weight:600">${(l.consumo_m3||0).toFixed(2)}</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-family:'DM Mono',monospace;color:var(--green);font-weight:500">$${(l.importe||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+    </tr>`).join(''):'<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">No hay lecturas COV para este mes. Captura las lecturas en la sección COV.</td></tr>';
 }
 
 // ============================================================
@@ -2065,14 +2215,20 @@ function aplicarPago(){
   showToast('Pago aplicado correctamente');
 }
 function populateSelects(){
-  ['pagoLote','ingLote'].forEach(id=>{
-    const sel=document.getElementById(id);
-    if(!sel) return;
-    sel.innerHTML='<option>— Selecciona —</option>';
+  const ingSel=document.getElementById('ingLote');
+  if(ingSel){
+    ingSel.innerHTML='<option value="">— Selecciona —</option>';
     LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA').forEach(l=>{
-      sel.innerHTML+=`<option>Mza ${l.mza} L${l.lote} — ${l.propietario.split(' ').slice(0,3).join(' ')}</option>`;
+      ingSel.innerHTML+=`<option value="${l.mza}-${l.lote}">Mza ${l.mza} L${l.lote} — ${l.propietario.split(' ').slice(0,3).join(' ')}</option>`;
     });
-  });
+  }
+  const pagoSel=document.getElementById('pagoLote');
+  if(pagoSel){
+    pagoSel.innerHTML='<option>— Selecciona —</option>';
+    LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA').forEach(l=>{
+      pagoSel.innerHTML+=`<option>Mza ${l.mza} L${l.lote} — ${l.propietario.split(' ').slice(0,3).join(' ')}</option>`;
+    });
+  }
   document.getElementById('pagoFecha').value=new Date().toISOString().split('T')[0];
   // populate export selects
   const exportSel=document.getElementById('exportLoteSelect');
@@ -2457,7 +2613,7 @@ function _exportExcelLoteDo(l){
 // HELPERS PAGE TITLES
 // ============================================================
 const _origTitles = PAGE_TITLES;
-Object.assign(PAGE_TITLES,{banco:'Movimientos Bancarios',diot:'DIOT Fiscal',agua:'Cuota Variable Agua',prorrateo:'Prorrateo por m²',financiero:'Estados Financieros'});
+Object.assign(PAGE_TITLES,{banco:'Movimientos Bancarios',diot:'DIOT Fiscal',agua:'COV — Cuota Variable',prorrateo:'Prorrateo por m²',financiero:'Estados Financieros'});
 
 // ============================================================
 // MÓDULO 1 — BANCO

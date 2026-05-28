@@ -338,7 +338,7 @@ tr:last-child td{border-bottom:none}
       </div>
       <div class="nav-item" onclick="showPage('ingresos',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-        Ingresos
+        COF
       </div>
       <div class="nav-item" onclick="showPage('gastos',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
@@ -584,7 +584,7 @@ tr:last-child td{border-bottom:none}
         <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Fecha</th><th>Concepto</th><th>Proveedor</th><th>Tipo</th><th>Importe</th><th>Factura</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Concepto</th><th>Proveedor</th><th>Tipo</th><th>Importe</th><th>Factura</th><th>Archivos</th></tr></thead>
               <tbody id="gastosBody"></tbody>
             </table>
           </div>
@@ -1214,6 +1214,7 @@ tr:last-child td{border-bottom:none}
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app-shell -->
+<input type="file" id="gastoFileInput" accept=".pdf,.xml,application/pdf,text/xml,application/xml" style="display:none">
 
 <!-- MODALES -->
 <div class="modal-overlay" id="modalAplicarPago">
@@ -1277,7 +1278,7 @@ tr:last-child td{border-bottom:none}
         <div class="form-field"><label>Proveedor</label><input type="text" placeholder="Nombre o empresa"></div>
         <div class="form-field"><label>Tipo</label><select><option>Mantenimiento</option><option>Seguridad</option><option>Administración</option><option>Servicios</option><option>Otro</option></select></div>
         <div class="form-field"><label>Importe</label><input type="number" placeholder="0.00"></div>
-        <div class="form-field"><label>Fecha</label><input type="date"></div>
+        <div class="form-field"><label>Fecha de pago</label><input type="date"></div>
         <div class="form-field"><label>Factura / Recibo</label><input type="text" placeholder="A-0001"></div>
       </div>
     </div>
@@ -1722,7 +1723,7 @@ function initResidente(){
 // ============================================================
 const PAGE_TITLES={
   dashboard:'Dashboard',lotes:'Lotes',cargos:'Cargos del Mes',
-  ingresos:'Ingresos',gastos:'Gastos',saldos:'Saldos Pendientes',
+  ingresos:'COF / COV',gastos:'Gastos',saldos:'Saldos Pendientes',
   reporte:'Concentrado de Cobranza',exportar:'Exportar estados de cuenta',
   miCuenta:'Mi Estado de Cuenta',misPagos:'Mis Pagos',
   configuracion:'Configuración'
@@ -1740,7 +1741,7 @@ function showPage(id,navEl){
     _rendered.add(id);
     if(id==='lotes') renderLotes();
     else if(id==='cargos') renderCargos();
-    else if(id==='gastos') renderGastos();
+    else if(id==='gastos') loadGastos();
     else if(id==='ingresos') loadIngresos();
     else if(id==='saldos') renderSaldos();
     else if(id==='reporte') renderReporte();
@@ -1957,6 +1958,25 @@ function openModalPago(mza,lote,nombre,cuota){
 // ============================================================
 // GASTOS
 // ============================================================
+async function loadGastos(){
+  const token=sessionStorage.getItem('auth_token');
+  try{
+    const [gastos, archivos]=await Promise.all([
+      fetch('/api/gastos',{headers:{Authorization:'Bearer '+token}}).then(r=>r.json()),
+      fetch('/api/archivos',{headers:{Authorization:'Bearer '+token}}).then(r=>r.json()).catch(()=>[])
+    ]);
+    if(gastos&&gastos.length){
+      const byGasto={};
+      (archivos||[]).forEach(a=>{
+        if(!byGasto[a.gasto_id]) byGasto[a.gasto_id]=[];
+        byGasto[a.gasto_id].push(a);
+      });
+      GASTOS_DATA.splice(0,GASTOS_DATA.length,...gastos.map(g=>({...g,_archivos:byGasto[g.id]||[]})));
+    }
+  }catch(e){}
+  renderGastos();
+}
+
 function renderGastos(){
   const tbody=document.getElementById('gastosBody');
   tbody.innerHTML=GASTOS_DATA.map(g=>`<tr>
@@ -1965,8 +1985,44 @@ function renderGastos(){
     <td>${g.proveedor}</td>
     <td><span class="badge ${g.tipo==='Seguridad'?'badge-red':g.tipo==='Mantenimiento'?'badge-teal':g.tipo==='Servicios'?'badge-gold':'badge-gray'}">${g.tipo}</span></td>
     <td class="td-monto">$${g.importe.toLocaleString()}</td>
-    <td style="font-size:12px;color:var(--muted)">${g.factura}</td>
+    <td style="font-size:12px;color:var(--muted)">${g.factura||'—'}</td>
+    <td style="font-size:11px">${g.id?`
+      <button onclick="gastoSubirArchivo(${g.id})" title="Subir PDF o XML" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;white-space:nowrap">📎 Subir</button>
+      ${(g._archivos||[]).map(a=>`<a href="#" onclick="gastoVerArchivo(${a.id});return false" title="${a.nombre}" style="display:block;margin-top:3px;color:var(--teal);text-decoration:underline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px">${a.nombre.length>18?a.nombre.slice(0,16)+'…':a.nombre}</a>`).join('')}
+    `:'—'}</td>
   </tr>`).join('');
+}
+
+async function gastoSubirArchivo(gid){
+  const input=document.getElementById('gastoFileInput');
+  input.value='';
+  input.onchange=async function(){
+    const file=input.files[0];
+    if(!file) return;
+    const form=new FormData();
+    form.append('archivo',file);
+    const token=sessionStorage.getItem('auth_token');
+    try{
+      const r=await fetch('/api/gastos/'+gid+'/archivos',{
+        method:'POST',headers:{Authorization:'Bearer '+token},body:form
+      }).then(r=>r.json());
+      if(r.ok){showToast('✅ Archivo subido: '+r.nombre);loadGastos();}
+      else showToast('Error: '+(r.detail||'al subir archivo'));
+    }catch(e){showToast('Error de conexión');}
+    input.value='';
+  };
+  input.click();
+}
+
+async function gastoVerArchivo(aid){
+  const token=sessionStorage.getItem('auth_token');
+  try{
+    const resp=await fetch('/api/archivos/'+aid,{headers:{Authorization:'Bearer '+token}});
+    if(!resp.ok){showToast('Error al obtener archivo');return;}
+    const blob=await resp.blob();
+    const url=URL.createObjectURL(blob);
+    window.open(url,'_blank');
+  }catch(e){showToast('Error de conexión');}
 }
 
 // ============================================================
@@ -1976,33 +2032,53 @@ function renderIngresos(){renderIngresosByTab('aprobar')}
 function renderIngresosByTab(tab){
   const list=tab==='aprobar'?INGRESOS_DATA.filter(i=>i.estado==='por_aprobar'):INGRESOS_DATA.filter(i=>i.estado==='aprobado');
   const el=document.getElementById('ingresosBody');
+  const TH='padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)';
+  const TD='padding:12px 14px;border-bottom:1px solid #F1F5F9';
+
+  // Totals
+  const totCOF=list.filter(p=>p.concepto&&p.concepto.includes('COF')).reduce((s,p)=>s+p.importe,0);
+  const totCOV=list.filter(p=>p.concepto&&p.concepto.includes('COV')).reduce((s,p)=>s+p.importe,0);
+  const totTotal=list.reduce((s,p)=>s+p.importe,0);
+
   if(!list.length){
     el.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>No hay ingresos en esta sección</p></div>';
     return;
   }
   el.innerHTML=`<table style="width:100%;border-collapse:collapse">
     <thead><tr>
-      <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Fecha</th>
-      <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Lote</th>
-      <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Propietario</th>
-      <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Concepto</th>
-      <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Importe</th>
-      <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Ref.</th>
-      <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Acción</th>
+      <th style="${TH}">Fecha</th>
+      <th style="${TH}">Lote</th>
+      <th style="${TH}">Propietario</th>
+      <th style="${TH}">Concepto</th>
+      <th style="${TH}">COF</th>
+      <th style="${TH}">COV</th>
+      <th style="${TH}">Ref.</th>
+      <th style="${TH}">Acción</th>
     </tr></thead>
-    <tbody>${list.map(p=>`
-    <tr>
-      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;color:var(--muted)">${p.fecha}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-weight:500">${p.lote}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-weight:500;color:var(--navy)">${p.propietario}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9">${p.concepto}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-family:'DM Mono',monospace;font-weight:500;color:var(--green)">$${p.importe.toLocaleString()}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9;font-size:12px;color:var(--muted)">${p.ref}</td>
-      <td style="padding:12px 14px;border-bottom:1px solid #F1F5F9">${tab==='aprobar'
-        ?`<button class="btn-primary btn-aprobar-ing" data-ref="${p.ref}" data-id="${p.id||''}" style="padding:5px 10px;font-size:12px">✓ Aprobar</button>`
-        :`<div style="display:flex;align-items:center;gap:8px"><span class="badge badge-green">✓ Aprobado</span><button class="btn-revertir-ing" data-ref="${p.ref}" data-id="${p.id||''}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer" title="Revertir a pendiente">↩</button></div>`
-      }</td>
-    </tr>`).join('')}</tbody></table>`;
+    <tbody>${list.map(p=>{
+      const esCOF=p.concepto&&p.concepto.includes('COF');
+      const esCOV=p.concepto&&p.concepto.includes('COV');
+      return `<tr>
+        <td style="${TD};color:var(--muted)">${p.fecha}</td>
+        <td style="${TD};font-weight:500">${p.lote}</td>
+        <td style="${TD};font-weight:500;color:var(--navy)">${p.propietario}</td>
+        <td style="${TD};font-size:12px">${p.concepto}</td>
+        <td style="${TD};font-family:'DM Mono',monospace;font-weight:500;color:var(--green)">${esCOF?'$'+p.importe.toLocaleString():'—'}</td>
+        <td style="${TD};font-family:'DM Mono',monospace;font-weight:500;color:var(--teal)">${esCOV?'$'+p.importe.toLocaleString():'—'}</td>
+        <td style="${TD};font-size:12px;color:var(--muted)">${p.ref}</td>
+        <td style="${TD}">${tab==='aprobar'
+          ?`<button class="btn-primary btn-aprobar-ing" data-ref="${p.ref}" data-id="${p.id||''}" style="padding:5px 10px;font-size:12px">✓ Aprobar</button>`
+          :`<div style="display:flex;align-items:center;gap:8px"><span class="badge badge-green">✓ Aprobado</span><button class="btn-revertir-ing" data-ref="${p.ref}" data-id="${p.id||''}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--muted);cursor:pointer" title="Revertir a pendiente">↩</button></div>`
+        }</td>
+      </tr>`;
+    }).join('')}</tbody>
+    <tfoot><tr style="background:var(--bg);font-weight:600">
+      <td colspan="4" style="padding:10px 14px;font-size:12px;color:var(--navy)">Total (${list.length} registros)</td>
+      <td style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--green)">$${totCOF.toLocaleString()}</td>
+      <td style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--teal)">$${totCOV.toLocaleString()}</td>
+      <td style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--navy)" colspan="2">Total: $${totTotal.toLocaleString()}</td>
+    </tr></tfoot>
+  </table>`;
 
   el.querySelectorAll('.btn-aprobar-ing').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -3631,19 +3707,25 @@ function cuotaMarkDirty(id,field,val){
 async function cuotaAgregarRango(){
   const anio=parseInt(document.getElementById('cuotaAnioSel').value);
   const token=sessionStorage.getItem('auth_token');
-  // Find suggested min_m2 from last range
   const rangos=_cuotaData[anio]||[];
-  const lastMax=rangos.length?rangos[rangos.length-1].max_m2||3000:0;
+  const lastMax=rangos.length?(rangos[rangos.length-1].max_m2||3000):0;
   try{
-    const r=await fetch('/api/cuotas',{
+    const resp=await fetch('/api/cuotas',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
       body:JSON.stringify({anio,min_m2:lastMax,max_m2:null,importe:1350})
-    }).then(r=>r.json());
+    });
+    if(!resp.ok){
+      const err=await resp.json().catch(()=>({}));
+      showToast('Error '+ resp.status+': '+(err.detail||'no se pudo agregar'));
+      return;
+    }
+    const r=await resp.json();
     if(!_cuotaData[anio]) _cuotaData[anio]=[];
     _cuotaData[anio].push(r);
     loadCuotaAnio();
-  }catch(e){showToast('Error al agregar rango');}
+    showToast('✅ Rango agregado');
+  }catch(e){showToast('Error de conexión');}
 }
 
 async function cuotaEliminarRango(id){
@@ -3662,7 +3744,7 @@ async function cuotaGuardarCambios(){
   const token=sessionStorage.getItem('auth_token');
   const anio=parseInt(document.getElementById('cuotaAnioSel').value);
   const rows=document.querySelectorAll('#cuotaRangosBody tr[data-id]');
-  let ok=0;
+  let ok=0,err=0;
   for(const row of rows){
     const id=parseInt(row.dataset.id);
     const inputs=row.querySelectorAll('input');
@@ -3670,15 +3752,16 @@ async function cuotaGuardarCambios(){
     const max_m2=inputs[1].value?parseFloat(inputs[1].value):null;
     const importe=parseFloat(inputs[2].value)||0;
     try{
-      await fetch('/api/cuotas/'+id,{
+      const r=await fetch('/api/cuotas/'+id,{
         method:'PUT',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
         body:JSON.stringify({anio,min_m2,max_m2,importe})
       });
-      ok++;
-    }catch(e){}
+      r.ok?ok++:err++;
+    }catch(e){err++;}
   }
-  showToast('✅ '+ok+' rangos guardados');
+  if(err) showToast(`${ok} guardados, ${err} errores`);
+  else showToast('✅ '+ok+' rangos guardados');
   loadCuotaConfig();
 }
 

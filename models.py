@@ -129,3 +129,12 @@ class CuotaAnual(SQLModel, table=True):
     min_m2: float
     max_m2: Optional[float] = None   # None = sin límite superior
     importe: float
+
+
+class GastoArchivo(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    gasto_id: int = Field(foreign_key="gasto.id")
+    nombre: str
+    tipo_mime: str = "application/octet-stream"
+    contenido_b64: str   # base64-encoded file content
+    subido_en: datetime = Field(default_factory=datetime.utcnow)

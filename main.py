@@ -13,7 +13,7 @@
 
 from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlmodel import Session, select, create_engine, SQLModel
 from typing import Optional, List
@@ -29,7 +29,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders as _email_enc
 
-from models import (Lote, Pago, Gasto, Usuario,
+from models import (Lote, Pago, Gasto, GastoArchivo, Usuario,
                     Proveedor, MovimientoBancario,
                     LecturaAgua, GastoReal, ProrrateoPorLote, Config, CuotaAnual)
 
@@ -594,6 +594,52 @@ def create_gasto(gasto: Gasto):
         s.commit()
         s.refresh(gasto)
         return gasto
+
+@app.post("/api/gastos/{gid}/archivos")
+async def subir_archivo_gasto(gid: int, archivo: UploadFile = File(...), admin: Usuario = Depends(_admin_only)):
+    contenido = await archivo.read()
+    if len(contenido) > 10_000_000:
+        raise HTTPException(400, "Archivo muy grande (máx 10 MB)")
+    b64 = base64.b64encode(contenido).decode()
+    with Session(engine) as s:
+        if not s.get(Gasto, gid):
+            raise HTTPException(404, "Gasto no encontrado")
+        a = GastoArchivo(gasto_id=gid, nombre=archivo.filename or "archivo",
+                         tipo_mime=archivo.content_type or "application/octet-stream",
+                         contenido_b64=b64)
+        s.add(a); s.commit(); s.refresh(a)
+        return {"ok": True, "id": a.id, "nombre": a.nombre}
+
+@app.get("/api/gastos/{gid}/archivos")
+def listar_archivos_gasto(gid: int, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        archivos = s.exec(select(GastoArchivo).where(GastoArchivo.gasto_id == gid)).all()
+        return [{"id": a.id, "nombre": a.nombre, "tipo_mime": a.tipo_mime} for a in archivos]
+
+@app.get("/api/archivos")
+def listar_todos_archivos(admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        archivos = s.exec(select(GastoArchivo)).all()
+        return [{"id": a.id, "gasto_id": a.gasto_id, "nombre": a.nombre, "tipo_mime": a.tipo_mime} for a in archivos]
+
+@app.get("/api/archivos/{aid}")
+def ver_archivo(aid: int, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        a = s.get(GastoArchivo, aid)
+        if not a:
+            raise HTTPException(404, "Archivo no encontrado")
+        contenido = base64.b64decode(a.contenido_b64)
+        return Response(content=contenido, media_type=a.tipo_mime,
+                        headers={"Content-Disposition": f'inline; filename="{a.nombre}"'})
+
+@app.delete("/api/archivos/{aid}")
+def eliminar_archivo(aid: int, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        a = s.get(GastoArchivo, aid)
+        if not a:
+            raise HTTPException(404)
+        s.delete(a); s.commit()
+        return {"ok": True}
 
 
 # ─── REPORTE / SALDOS ────────────────────────────────────────

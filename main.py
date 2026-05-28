@@ -194,7 +194,7 @@ def _build_server_email_body(template: str, lote: Lote,
             .replace("{{mensajeEstatus}}", msg_est))
 
 # ── APScheduler ──────────────────────────────────────────────
-_scheduler = BackgroundScheduler(timezone="America/Monterrey")
+_scheduler = None
 
 def _run_automatic_emails():
     """Executed by APScheduler at the configured time to send monthly emails."""
@@ -246,13 +246,16 @@ def _run_automatic_emails():
     print(f"[Scheduler] Completado: {enviados} enviados, {errores} errores")
 
 def _reload_scheduler():
-    _scheduler.remove_all_jobs()
-    with Session(engine) as s:
-        activo = _get_cfg(s, "auto_activo", "false") == "true"
-        dia    = _get_cfg(s, "auto_dia", "5")
-        hora   = _get_cfg(s, "auto_hora", "09:00")
-    if activo:
-        try:
+    global _scheduler
+    if _scheduler is None:
+        return
+    try:
+        _scheduler.remove_all_jobs()
+        with Session(engine) as s:
+            activo = _get_cfg(s, "auto_activo", "false") == "true"
+            dia    = _get_cfg(s, "auto_dia", "5")
+            hora   = _get_cfg(s, "auto_hora", "09:00")
+        if activo:
             h, mi = hora.split(":")
             _scheduler.add_job(
                 _run_automatic_emails,
@@ -261,8 +264,8 @@ def _reload_scheduler():
                 id="email_auto", replace_existing=True,
             )
             print(f"[Scheduler] Job programado: día {dia} a las {hora} hora Monterrey")
-        except Exception as exc:
-            print(f"[Scheduler] Error al programar job: {exc}")
+    except Exception as exc:
+        print(f"[Scheduler] Error en _reload_scheduler: {exc}")
 
 # "Y todo lo que hagan, de palabra o de obra,
 #  háganlo en el nombre del Señor Jesús." — Colosenses 3:17
@@ -275,10 +278,16 @@ if os.path.exists(STATIC_DIR):
 
 @app.on_event("startup")
 def on_startup():
+    global _scheduler
     SQLModel.metadata.create_all(engine)
-    if not _scheduler.running:
+    try:
+        _scheduler = BackgroundScheduler(timezone="America/Monterrey")
         _scheduler.start()
-    _reload_scheduler()
+        _reload_scheduler()
+        print("[Scheduler] Iniciado correctamente")
+    except Exception as exc:
+        print(f"[Scheduler] No se pudo iniciar: {exc}")
+        _scheduler = None
 
 
 # ─── ROOT ───────────────────────────────────────────────────

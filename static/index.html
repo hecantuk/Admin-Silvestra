@@ -442,7 +442,7 @@ tr:last-child td{border-bottom:none}
         <div class="card">
           <div class="card-header">
             <span class="card-title">Últimos pagos recibidos</span>
-            <button class="btn-secondary" onclick="showPage('ingresos',null)">Ver todos</button>
+            <button class="btn-secondary" onclick="showPage('ingresos',document.querySelector('[data-page=ingresos]'))">Ver todos →</button>
           </div>
           <div class="card-body" style="padding:0">
             <div id="dashPagos"></div>
@@ -493,7 +493,7 @@ tr:last-child td{border-bottom:none}
         </div>
         <div class="search-row">
           <input class="search-box" type="search" placeholder="Buscar lote o propietario…" oninput="filterCargos(this.value)">
-          <button class="btn-primary" onclick="openModal('modalAplicarPago')">+ Registrar pago</button>
+          <button class="btn-primary" onclick="openModal('modalAplicarPago')">+ Registrar cargo</button>
         </div>
         <div class="card">
           <div class="card-header" style="background:#FFF7ED">
@@ -558,7 +558,17 @@ tr:last-child td{border-bottom:none}
       <!-- SALDOS -->
       <div class="page" id="pageSaldos">
         <div class="search-row">
-          <input class="search-box" type="search" placeholder="Buscar residente…" oninput="filterSaldos(this.value)">
+          <select id="saldosMzaFilter" onchange="renderSaldos()" style="background:white;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--navy);flex-shrink:0">
+            <option value="">— Todas las manzanas —</option>
+            <option value="24">Mza. 24</option>
+            <option value="29">Mza. 29</option>
+            <option value="30">Mza. 30</option>
+            <option value="34">Mza. 34</option>
+            <option value="35">Mza. 35</option>
+            <option value="37">Mza. 37</option>
+            <option value="38">Mza. 38</option>
+          </select>
+          <input class="search-box" type="search" id="saldosSearch" placeholder="Buscar residente o lote…" oninput="renderSaldos()" style="flex:1">
           <button class="btn-primary" onclick="calcularSaldos()">⚙ Calcular saldos</button>
         </div>
         <div class="card">
@@ -831,7 +841,7 @@ tr:last-child td{border-bottom:none}
           <div class="tab active" onclick="switchProrrateoTab('captura',this)">Captura gastos</div>
           <div class="tab" onclick="switchProrrateoTab('conceptos',this)">Por concepto</div>
           <div class="tab" onclick="switchProrrateoTab('lotes',this)">Por lote</div>
-          <div class="tab" onclick="switchProrrateoTab('campestre',this)">Deuda Dicka</div>
+          <div class="tab" onclick="switchProrrateoTab('campestre',this)">Monto Dicka Campestre</div>
         </div>
         <div id="prorrateoTabCaptura">
           <div class="card">
@@ -850,9 +860,9 @@ tr:last-child td{border-bottom:none}
         </div>
         <div id="prorrateoTabCampestre" style="display:none">
           <div style="background:linear-gradient(135deg,#1A3319,#2D5A27);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:20px;color:white">
-            <div style="font-size:12px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Deuda acumulada Dicka Campestre → Asociación</div>
+            <div style="font-size:12px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Deuda acumulada de la Asociación para pagar a Dicka Campestre</div>
             <div style="font-size:32px;font-weight:700" id="deudaDickaTotal">$0</div>
-            <div style="font-size:12px;opacity:.65;margin-top:4px">Suma de gastos de lotes sin propietario desde inicio de operaciones</div>
+            <div style="font-size:12px;opacity:.65;margin-top:4px">Monto que corresponde a Dicka Campestre por lotes no vendidos desde inicio de operaciones</div>
           </div>
           <div class="card"><div class="table-wrap"><table><thead><tr><th>Mza.</th><th>Lote</th><th>m²</th><th>Total deuda</th></tr></thead><tbody id="campestreBody"></tbody></table></div></div>
         </div>
@@ -1871,10 +1881,13 @@ function renderIngresosByTab(tab){
 // ============================================================
 // SALDOS
 // ============================================================
+function filterSaldos(v){ renderSaldos(); }
 function renderSaldos(search){
-  const s=(search||'').toLowerCase();
+  const mza=(document.getElementById('saldosMzaFilter')||{}).value||'';
+  const s=(search||(document.getElementById('saldosSearch')||{}).value||'').toLowerCase();
   let list=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
-  if(s) list=list.filter(l=>l.propietario.toLowerCase().includes(s));
+  if(mza) list=list.filter(l=>String(l.mza)===mza);
+  if(s) list=list.filter(l=>l.propietario.toLowerCase().includes(s)||String(l.lote).includes(s)||String(l.mza).includes(s));
   const tbody=document.getElementById('saldosBody');
   tbody.innerHTML=list.map(l=>{
     const key=`${l.mza}-${l.lote}`;
@@ -2807,11 +2820,11 @@ async function loadFinanciero(){
   // Dicka
   document.getElementById('dickaInfo').innerHTML=`
     <div class="stat-grid">
-      <div class="stat-card"><div class="stat-label">Deuda acumulada Dicka</div><div class="stat-value" style="color:var(--gold-dark)">$${Math.round(data.dicka.deuda_acumulada).toLocaleString()}</div><div class="stat-sub">Total desde inicio de operaciones</div></div>
+      <div class="stat-card"><div class="stat-label">Monto a pagar a Dicka Campestre</div><div class="stat-value" style="color:var(--gold-dark)">$${Math.round(data.dicka.deuda_acumulada).toLocaleString()}</div><div class="stat-sub">Total acumulado desde inicio de operaciones</div></div>
       <div class="stat-card"><div class="stat-label">Cargo este mes</div><div class="stat-value">$${Math.round(data.dicka.mes_actual).toLocaleString()}</div><div class="stat-sub">Lotes sin propietario × costo/m²</div></div>
     </div>
     <div style="background:#FFF7ED;border-radius:8px;padding:14px;margin-top:12px;font-size:13px;color:#92400E">
-      ⚠ Esta deuda es el monto que la Asociación puede cobrar a Dicka Campestre por el mantenimiento de sus lotes no vendidos. Requiere cálculo de prorrateo activo.
+      ⚠ Esta deuda es el monto que la Asociación debe pagar a Dicka Campestre por los gastos cubiertos de sus lotes no vendidos. Requiere cálculo de prorrateo activo.
     </div>`;
 }
 

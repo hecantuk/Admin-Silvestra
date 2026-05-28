@@ -1352,6 +1352,24 @@ def eliminar_cuota(cid: int, admin: Usuario = Depends(_admin_only)):
         s.delete(c); s.commit()
         return {"ok": True}
 
+@app.get("/api/config/deuda-campestre")
+def get_deuda_campestre(admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        cfg = s.exec(select(Config).where(Config.clave == "deuda_campestre")).first()
+        return {"valor": float(cfg.valor) if cfg and cfg.valor else 0.0}
+
+@app.post("/api/config/deuda-campestre")
+def set_deuda_campestre(req: dict, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        cfg = s.exec(select(Config).where(Config.clave == "deuda_campestre")).first()
+        if cfg:
+            cfg.valor = str(req.get("valor", 0))
+            s.add(cfg)
+        else:
+            s.add(Config(clave="deuda_campestre", valor=str(req.get("valor", 0))))
+        s.commit()
+    return {"ok": True}
+
 @app.post("/api/cuotas/{anio}/aplicar")
 def aplicar_cuotas(anio: int, admin: Usuario = Depends(_admin_only)):
     updated = _apply_cuotas_anuales(anio)

@@ -129,6 +129,7 @@ tr:last-child td{border-bottom:none}
 .badge-gold{background:var(--gold-light);color:var(--gold-dark)}
 .badge-teal{background:var(--teal-light);color:var(--teal)}
 .badge-gray{background:#F1F5F9;color:var(--muted)}
+.badge-orange{background:#FFF7ED;color:#EA580C}
 
 /* TABS */
 .tabs{display:flex;gap:4px;padding:4px;background:var(--bg);border-radius:10px;width:fit-content;margin-bottom:20px;border:1px solid var(--border)}
@@ -605,12 +606,14 @@ tr:last-child td{border-bottom:none}
             <option value="38">Mza. 38</option>
           </select>
           <input class="search-box" type="search" id="saldosSearch" placeholder="Buscar residente o lote…" oninput="renderSaldos()" style="flex:1">
-          <button class="btn-primary" onclick="calcularSaldos()">⚙ Calcular saldos</button>
+          <button class="btn-secondary" onclick="calcularSaldos()">⚙ Calcular</button>
+          <button class="btn-secondary" onclick="exportSaldosPDF()">📄 PDF</button>
+          <button class="btn-secondary" onclick="exportSaldosExcel()">⬇ Excel</button>
         </div>
         <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Lote</th><th>Propietario</th><th>Cuota</th><th>Pagado</th><th>Saldo</th><th>Meses vencidos</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Lote</th><th>Propietario</th><th>Cuota COF</th><th>COV</th><th>Pagado</th><th>Saldo COF</th><th>Meses vencidos</th><th>Estado</th><th>PDF</th></tr></thead>
               <tbody id="saldosBody"></tbody>
             </table>
           </div>
@@ -626,21 +629,39 @@ tr:last-child td{border-bottom:none}
           </div>
           <div style="display:flex;gap:10px">
             <button class="btn-secondary" onclick="printReport()">🖨 Imprimir</button>
-            <button class="btn-primary" onclick="exportCSV()">⬇ Exportar CSV</button>
+            <button class="btn-secondary" onclick="exportGeneralPDF()">📄 PDF</button>
+            <button class="btn-secondary" onclick="exportGeneralExcel()">⬇ Excel</button>
           </div>
         </div>
         <div class="stat-grid">
           <div class="stat-card"><div class="stat-label">🏡 Total lotes vendidos</div><div class="stat-value">62</div></div>
           <div class="stat-card"><div class="stat-label">✅ Pagan al corriente</div><div class="stat-value" id="rCorriente">—</div><div class="stat-sub" id="rCorrientePct"></div></div>
           <div class="stat-card"><div class="stat-label">🔴 Morosos</div><div class="stat-value" id="rMorosos">—</div><div class="stat-sub" id="rMorososPct"></div></div>
-          <div class="stat-card"><div class="stat-label">🟡 Abonando a vencido</div><div class="stat-value" id="rAbonando">—</div><div class="stat-sub" id="rAbonadoPct"></div></div>
+          <div class="stat-card"><div class="stat-label">🟠 Abonando a vencido</div><div class="stat-value" id="rAbonando">—</div><div class="stat-sub" id="rAbonadoPct"></div></div>
         </div>
         <div class="card" style="margin-top:20px">
-          <div class="card-header"><span class="card-title">Detalle individual — Cuota Ordinaria Fija</span></div>
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+            <span class="card-title">Detalle individual — Cuota Ordinaria Fija</span>
+            <select id="reporteEstadoFilter" onchange="renderReporte()" style="background:white;border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--navy)">
+              <option value="">— Todos los estados —</option>
+              <option value="corriente">Al corriente</option>
+              <option value="moroso">Moroso</option>
+              <option value="abonando">Abonando</option>
+            </select>
+          </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Mza.</th><th>Lote</th><th>Propietario</th><th>m²</th><th>Cuota</th><th>Total cargado</th><th>Total pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Mza.</th><th>Lote</th><th>Propietario</th><th>m²</th><th>Cuota COF</th><th>COV</th><th>Total cargado</th><th>Total pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
               <tbody id="reporteBody"></tbody>
+              <tfoot><tr style="background:var(--bg);font-weight:700;font-size:12px">
+                <td colspan="4" style="padding:10px 14px">TOTALES</td>
+                <td id="rTotCOF" style="padding:10px 14px;font-family:'DM Mono',monospace"></td>
+                <td id="rTotCOV" style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--teal)"></td>
+                <td id="rTotCargado" style="padding:10px 14px;font-family:'DM Mono',monospace"></td>
+                <td id="rTotPagado" style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--green)"></td>
+                <td id="rTotSaldo" style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--red)"></td>
+                <td></td>
+              </tr></tfoot>
             </table>
           </div>
         </div>
@@ -878,6 +899,7 @@ tr:last-child td{border-bottom:none}
           <div class="tab" onclick="switchProrrateoTab('conceptos',this)">Por concepto</div>
           <div class="tab" onclick="switchProrrateoTab('lotes',this)">Por lote</div>
           <div class="tab" onclick="switchProrrateoTab('campestre',this)">Monto Dicka Campestre</div>
+          <div class="tab" onclick="switchProrrateoTab('deuda',this)">Deuda a Campestre</div>
         </div>
         <div id="prorrateoTabCaptura">
           <div class="card">
@@ -895,12 +917,36 @@ tr:last-child td{border-bottom:none}
           <div class="card"><div class="table-wrap"><table><thead><tr><th>Mza.</th><th>Lote</th><th>Propietario</th><th>m²</th><th>Total prorrateado</th></tr></thead><tbody id="prorrateoLotesBody"></tbody></table></div></div>
         </div>
         <div id="prorrateoTabCampestre" style="display:none">
-          <div style="background:linear-gradient(135deg,#1A3319,#2D5A27);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:20px;color:white">
-            <div style="font-size:12px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Deuda acumulada de la Asociación para pagar a Dicka Campestre</div>
-            <div style="font-size:32px;font-weight:700" id="deudaDickaTotal">$0</div>
-            <div style="font-size:12px;opacity:.65;margin-top:4px">Monto que corresponde a Dicka Campestre por lotes no vendidos desde inicio de operaciones</div>
+          <div class="config-note" style="margin-bottom:16px">Monto mensual que corresponde a Dicka Campestre por lotes no vendidos, calculado del prorrateo del mes.</div>
+          <div class="card"><div class="table-wrap"><table><thead><tr><th>Mza.</th><th>Lote</th><th>m²</th><th>Monto del mes</th></tr></thead><tbody id="campestreBody"></tbody></table></div></div>
+          <div style="margin-top:16px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:13px;font-weight:600;color:var(--navy)">Total Monto Dicka Campestre (mes):</span>
+            <span id="campestreTotalLabel" style="font-size:18px;font-weight:700;color:var(--gold-dark)">$0</span>
           </div>
-          <div class="card"><div class="table-wrap"><table><thead><tr><th>Mza.</th><th>Lote</th><th>m²</th><th>Total deuda</th></tr></thead><tbody id="campestreBody"></tbody></table></div></div>
+        </div>
+        <div id="prorrateoTabDeuda" style="display:none">
+          <div class="config-block">
+            <div class="config-block-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6"/></svg>
+              <span class="config-block-title">Deuda acumulada de la Asociación a Dicka Campestre</span>
+            </div>
+            <div class="config-block-body">
+              <div class="config-note" style="margin-bottom:16px">Ingresa el monto total acumulado que la Asociación le debe a Dicka Campestre por los lotes no vendidos desde inicio de operaciones.</div>
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                <label style="font-size:13px;font-weight:600;color:var(--navy)">Deuda acumulada total:</label>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <span style="color:var(--muted)">$</span>
+                  <input type="number" id="deudaCampestre" step="0.01" placeholder="0.00" style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px;font-family:'DM Mono',monospace;width:180px">
+                </div>
+                <button class="btn-primary" onclick="guardarDeudaCampestre()">Guardar</button>
+              </div>
+              <div style="background:linear-gradient(135deg,#1A3319,#2D5A27);border-radius:var(--radius-lg);padding:20px 24px;color:white;max-width:400px">
+                <div style="font-size:11px;opacity:.6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Deuda acumulada registrada</div>
+                <div style="font-size:32px;font-weight:700" id="deudaDickaTotal">$0</div>
+                <div style="font-size:12px;opacity:.65;margin-top:4px">Monto que la Asociación debe a Dicka Campestre desde inicio de operaciones</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1880,7 +1926,7 @@ function renderLotes(data){
       if(sd){
         if(sd.estado==='corriente') badge='<span class="badge badge-green">✓ Al corriente</span>';
         else if(sd.estado==='moroso') badge='<span class="badge badge-red">Moroso</span>';
-        else badge='<span class="badge badge-gold">Abonando</span>';
+        else badge='<span class="badge badge-orange">Abonando</span>';
         const covImporte = COV_DATA[key] || 0;
         const totalSaldo = (sd.saldo || 0) + covImporte;
         saldoCell = `<span class="td-monto ${totalSaldo>0?'deuda':'ok'}">$${totalSaldo.toLocaleString()}</span>`;
@@ -2224,70 +2270,189 @@ async function renderDashboardCOV(){
 // ============================================================
 // SALDOS
 // ============================================================
-function filterSaldos(v){ renderSaldos(); }
-function renderSaldos(search){
+function renderSaldos(){
   const mza=(document.getElementById('saldosMzaFilter')||{}).value||'';
-  const s=(search||(document.getElementById('saldosSearch')||{}).value||'').toLowerCase();
+  const s=(document.getElementById('saldosSearch')||{}).value.toLowerCase();
   let list=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
   if(mza) list=list.filter(l=>String(l.mza)===mza);
   if(s) list=list.filter(l=>l.propietario.toLowerCase().includes(s)||String(l.lote).includes(s)||String(l.mza).includes(s));
   const tbody=document.getElementById('saldosBody');
-  tbody.innerHTML=list.map(l=>{
+  const vendidos=list.filter(l=>{
+    const key=`${l.mza}-${l.lote}`;
+    const sd=SALDO_ESTADO[key]||{};
+    return true;
+  });
+  tbody.innerHTML=list.map((l,idx)=>{
     const key=`${l.mza}-${l.lote}`;
     const sd=SALDO_ESTADO[key]||{estado:'corriente',saldo:0,pagado:l.cuota};
+    const cov=COV_DATA[key]||0;
     const meses=sd.estado==='moroso'?Math.ceil(sd.saldo/l.cuota):sd.estado==='abonando'?1:0;
-    const bdg=sd.estado==='corriente'?'badge-green':sd.estado==='moroso'?'badge-red':'badge-gold';
+    const bdg=sd.estado==='corriente'?'badge-green':sd.estado==='moroso'?'badge-red':'badge-orange';
     const lbl=sd.estado==='corriente'?'Al corriente':sd.estado==='moroso'?'Moroso':'Abonando';
     return `<tr>
       <td><strong>Mza ${l.mza} L${l.lote}</strong></td>
       <td class="td-name">${l.propietario}</td>
       <td class="td-monto">$${l.cuota.toLocaleString()}</td>
+      <td class="td-monto" style="color:var(--teal)">${cov>0?'$'+cov.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
       <td class="td-monto ok">$${sd.pagado.toLocaleString()}</td>
       <td class="td-monto ${sd.saldo>0?'deuda':'ok'}">$${sd.saldo.toLocaleString()}</td>
       <td style="text-align:center">${meses>0?`<span style="background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">${meses}</span>`:'—'}</td>
       <td><span class="badge ${bdg}">${lbl}</span></td>
+      <td><button onclick="_saldoPDF(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">📄 PDF</button></td>
     </tr>`;
   }).join('');
+  window._saldosList=list;
 }
 
-function filterSaldos(s){renderSaldos(s)}
-function calcularSaldos(){showToast('Saldos actualizados al 26/05/2026')}
+function filterSaldos(s){renderSaldos()}
+function calcularSaldos(){showToast('Saldos actualizados al 28/05/2026')}
+
+function _saldoPDF(idx){
+  const l=(window._saldosList||[])[idx];
+  if(l) _exportPDFLote(l);
+}
+
+function exportSaldosPDF(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'letter'});
+  const list=window._saldosList||LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
+
+  // Header
+  doc.setFillColor(26,51,25);doc.rect(0,0,280,26,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);
+  doc.text('SILVESTRA — SALDOS PENDIENTES',14,11);
+  doc.setFont('helvetica','normal');doc.setFontSize(8);
+  doc.text(`Asociación de Colonos Silvestra-Canoas AC  ·  Generado: ${new Date().toLocaleDateString('es-MX')}`,14,19);
+  doc.text(`Total registros: ${list.length}`,220,19);
+
+  const body=list.map(l=>{
+    const key=`${l.mza}-${l.lote}`;
+    const sd=SALDO_ESTADO[key]||{estado:'corriente',saldo:0,pagado:l.cuota};
+    const cov=COV_DATA[key]||0;
+    const meses=sd.estado==='moroso'?Math.ceil(sd.saldo/l.cuota):sd.estado==='abonando'?1:0;
+    const lbl=sd.estado==='corriente'?'Al corriente':sd.estado==='moroso'?'Moroso':'Abonando';
+    return [`Mza ${l.mza} L${l.lote}`,l.propietario,'$'+l.cuota.toLocaleString(),cov>0?'$'+cov.toLocaleString('es-MX',{minimumFractionDigits:2}):'—','$'+sd.pagado.toLocaleString(),'$'+sd.saldo.toLocaleString(),meses>0?String(meses):'—',lbl];
+  });
+  const totPagado=list.reduce((a,l)=>{const sd=SALDO_ESTADO[`${l.mza}-${l.lote}`]||{pagado:0};return a+sd.pagado;},0);
+  const totSaldo=list.reduce((a,l)=>{const sd=SALDO_ESTADO[`${l.mza}-${l.lote}`]||{saldo:0};return a+sd.saldo;},0);
+
+  doc.autoTable({
+    startY:30,
+    head:[['Lote','Propietario','Cuota COF','COV','Pagado','Saldo COF','Meses venc.','Estado']],
+    body,
+    foot:[['','TOTALES','','','$'+totPagado.toLocaleString(),'$'+totSaldo.toLocaleString(),'','']],
+    theme:'grid',
+    styles:{fontSize:8,cellPadding:2.5},
+    headStyles:{fillColor:[26,51,25],textColor:255,fontStyle:'bold',fontSize:8},
+    footStyles:{fillColor:[244,247,240],textColor:[26,51,25],fontStyle:'bold'},
+    columnStyles:{0:{cellWidth:28},1:{cellWidth:60},2:{cellWidth:22,halign:'right'},3:{cellWidth:22,halign:'right'},4:{cellWidth:22,halign:'right'},5:{cellWidth:22,halign:'right'},6:{cellWidth:18,halign:'center'},7:{cellWidth:22}},
+    didParseCell:data=>{
+      if(data.section==='body'&&data.column.index===7){
+        const v=data.cell.raw;
+        data.cell.styles.textColor=v==='Al corriente'?[22,163,74]:v==='Moroso'?[220,38,38]:[234,88,12];
+        data.cell.styles.fontStyle='bold';
+      }
+    }
+  });
+  doc.save(`Silvestra_Saldos_${new Date().toISOString().slice(0,10)}.pdf`);
+  showToast('PDF de saldos generado');
+}
+
+function exportSaldosExcel(){_loadXLSX(()=>_exportSaldosExcelDo());}
+function _exportSaldosExcelDo(){
+  const list=window._saldosList||LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
+  const fecha=new Date().toLocaleDateString('es-MX');
+  const wb=XLSX.utils.book_new();
+
+  const header=[
+    ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC — SALDOS PENDIENTES'],
+    ['Fecha: '+fecha+'  ·  Total registros: '+list.length],
+    [],
+    ['Mza.','Lote','Propietario','m²','Cuota COF','COV','Pagado','Saldo COF','Meses Vencidos','Estado']
+  ];
+  const rows=list.map(l=>{
+    const key=`${l.mza}-${l.lote}`;
+    const sd=SALDO_ESTADO[key]||{estado:'corriente',saldo:0,pagado:l.cuota};
+    const cov=COV_DATA[key]||0;
+    const meses=sd.estado==='moroso'?Math.ceil(sd.saldo/l.cuota):sd.estado==='abonando'?1:0;
+    const lbl=sd.estado==='corriente'?'Al corriente':sd.estado==='moroso'?'Moroso':'Abonando';
+    return [l.mza,l.lote,l.propietario,parseFloat(l.m2.toFixed(0)),l.cuota,cov||'',sd.pagado,sd.saldo,meses||'',lbl];
+  });
+  const totPagado=list.reduce((a,l)=>{const sd=SALDO_ESTADO[`${l.mza}-${l.lote}`]||{pagado:0};return a+sd.pagado;},0);
+  const totSaldo=list.reduce((a,l)=>{const sd=SALDO_ESTADO[`${l.mza}-${l.lote}`]||{saldo:0};return a+sd.saldo;},0);
+  const footer=[['','','TOTALES','','','','',totPagado,totSaldo,'','']];
+
+  const ws=XLSX.utils.aoa_to_sheet([...header,...rows,...footer]);
+  ws['!cols']=[{wch:8},{wch:8},{wch:42},{wch:8},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16}];
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
+  XLSX.utils.book_append_sheet(wb,ws,'Saldos');
+  XLSX.writeFile(wb,`Silvestra_Saldos_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('Excel de saldos generado');
+}
 
 // ============================================================
 // REPORTE
 // ============================================================
 function renderReporte(){
   const vendidos=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
-  const corriente=vendidos.filter((_,i)=>i%5>2);
-  const morosos=vendidos.filter((_,i)=>i%5<=1);
-  const abonando=vendidos.filter((_,i)=>i%5===2);
+  const estadoFil=(document.getElementById('reporteEstadoFilter')||{}).value||'';
+
+  const withSD=vendidos.map(l=>{
+    const key=`${l.mza}-${l.lote}`;
+    const sd=SALDO_ESTADO[key]||{estado:'corriente',saldo:0,pagado:l.cuota};
+    const meses5=5;
+    const cargado=l.cuota*meses5;
+    const pagado=sd.pagado||0;
+    const saldo=sd.saldo||0;
+    const cov=COV_DATA[key]||0;
+    return {...l,sd,cargado,pagado,saldo,cov};
+  });
+
+  const corriente=withSD.filter(d=>d.sd.estado==='corriente');
+  const morosos=withSD.filter(d=>d.sd.estado==='moroso');
+  const abonando=withSD.filter(d=>d.sd.estado==='abonando');
 
   document.getElementById('rCorriente').textContent=corriente.length;
-  document.getElementById('rCorrientePct').textContent=`${Math.round(corriente.length/vendidos.length*100)}% · $${corriente.reduce((a,l)=>a+l.cuota,0).toLocaleString()}`;
+  document.getElementById('rCorrientePct').textContent=`${Math.round(corriente.length/vendidos.length*100)}% · $${corriente.reduce((a,d)=>a+d.cuota,0).toLocaleString()}`;
   document.getElementById('rMorosos').textContent=morosos.length;
-  document.getElementById('rMorososPct').textContent=`${Math.round(morosos.length/vendidos.length*100)}% · $${morosos.reduce((a,l)=>a+l.cuota*2,0).toLocaleString()} adeudado`;
+  document.getElementById('rMorososPct').textContent=`${Math.round(morosos.length/vendidos.length*100)}% · $${morosos.reduce((a,d)=>a+d.saldo,0).toLocaleString()} adeudado`;
   document.getElementById('rAbonando').textContent=abonando.length;
   document.getElementById('rAbonadoPct').textContent=`${Math.round(abonando.length/vendidos.length*100)}%`;
 
+  let filtered=withSD;
+  if(estadoFil) filtered=withSD.filter(d=>d.sd.estado===estadoFil);
+
+  const totCOF=filtered.reduce((a,d)=>a+d.cuota,0);
+  const totCOV=filtered.reduce((a,d)=>a+d.cov,0);
+  const totCargado=filtered.reduce((a,d)=>a+d.cargado,0);
+  const totPagado=filtered.reduce((a,d)=>a+d.pagado,0);
+  const totSaldo=filtered.reduce((a,d)=>a+d.saldo,0);
+
+  const rTotCOF=document.getElementById('rTotCOF');
+  const rTotCOV=document.getElementById('rTotCOV');
+  const rTotCargado=document.getElementById('rTotCargado');
+  const rTotPagado=document.getElementById('rTotPagado');
+  const rTotSaldo=document.getElementById('rTotSaldo');
+  if(rTotCOF) rTotCOF.textContent='$'+totCOF.toLocaleString();
+  if(rTotCOV) rTotCOV.textContent=totCOV>0?'$'+totCOV.toLocaleString('es-MX',{minimumFractionDigits:2}):'—';
+  if(rTotCargado) rTotCargado.textContent='$'+totCargado.toLocaleString();
+  if(rTotPagado) rTotPagado.textContent='$'+totPagado.toLocaleString();
+  if(rTotSaldo) rTotSaldo.textContent='$'+totSaldo.toLocaleString();
+
   const tbody=document.getElementById('reporteBody');
-  const meses5=5;
-  tbody.innerHTML=vendidos.map((l,i)=>{
-    const key=`${l.mza}-${l.lote}`;
-    const sd=SALDO_ESTADO[key]||{estado:'corriente',saldo:0,pagado:l.cuota};
-    const cargado=l.cuota*meses5;
-    const pagado=sd.estado==='corriente'?cargado:sd.estado==='abonando'?Math.round(cargado*0.8):Math.round(cargado*0.3);
-    const saldo=cargado-pagado;
-    const bdg=sd.estado==='corriente'?'badge-green':sd.estado==='moroso'?'badge-red':'badge-gold';
-    const lbl=sd.estado==='corriente'?'Al corriente':sd.estado==='moroso'?'Moroso':'Abonando';
+  tbody.innerHTML=filtered.map(d=>{
+    const bdg=d.sd.estado==='corriente'?'badge-green':d.sd.estado==='moroso'?'badge-red':'badge-orange';
+    const lbl=d.sd.estado==='corriente'?'Al corriente':d.sd.estado==='moroso'?'Moroso':'Abonando';
     return `<tr>
-      <td><strong>${l.mza}</strong></td>
-      <td><strong>${l.lote}</strong></td>
-      <td>${l.propietario}</td>
-      <td style="font-size:12px;color:var(--muted)">${l.m2.toFixed(0)}</td>
-      <td class="td-monto">$${l.cuota.toLocaleString()}</td>
-      <td class="td-monto">$${cargado.toLocaleString()}</td>
-      <td class="td-monto ok">$${pagado.toLocaleString()}</td>
-      <td class="td-monto ${saldo>0?'deuda':'ok'}">$${saldo.toLocaleString()}</td>
+      <td><strong>${d.mza}</strong></td>
+      <td><strong>${d.lote}</strong></td>
+      <td>${d.propietario}</td>
+      <td style="font-size:12px;color:var(--muted)">${d.m2.toFixed(0)}</td>
+      <td class="td-monto">$${d.cuota.toLocaleString()}</td>
+      <td class="td-monto" style="color:var(--teal)">${d.cov>0?'$'+d.cov.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
+      <td class="td-monto">$${d.cargado.toLocaleString()}</td>
+      <td class="td-monto ok">$${d.pagado.toLocaleString()}</td>
+      <td class="td-monto ${d.saldo>0?'deuda':'ok'}">$${d.saldo.toLocaleString()}</td>
       <td><span class="badge ${bdg}">${lbl}</span></td>
     </tr>`;
   }).join('');
@@ -2333,7 +2498,7 @@ function renderMiCuenta(){
       </div>
       <div style="display:flex;justify-content:space-between;padding:10px 0">
         <span style="color:var(--muted);font-size:13px">Estado</span>
-        <span class="badge ${sd.estado==='corriente'?'badge-green':sd.estado==='moroso'?'badge-red':'badge-gold'}">${sd.estado==='corriente'?'✓ Al corriente':sd.estado==='moroso'?'Moroso':'Abonando a saldo vencido'}</span>
+        <span class="badge ${sd.estado==='corriente'?'badge-green':sd.estado==='moroso'?'badge-red':'badge-orange'}">${sd.estado==='corriente'?'✓ Al corriente':sd.estado==='moroso'?'Moroso':'Abonando a saldo vencido'}</span>
       </div>
     </div>
     <div style="background:#EFF6FF;border-radius:8px;padding:14px;margin-top:16px;font-size:13px;color:#1E40AF">
@@ -2531,7 +2696,7 @@ function renderExportList(){
   document.getElementById('exportListBody').innerHTML=vendidos.map((l,i)=>{
     const key=`${l.mza}-${l.lote}`;
     const sd=SALDO_ESTADO[key]||{estado:'corriente',saldo:0};
-    const bdg=sd.estado==='corriente'?'badge-green':sd.estado==='moroso'?'badge-red':'badge-gold';
+    const bdg=sd.estado==='corriente'?'badge-green':sd.estado==='moroso'?'badge-red':'badge-orange';
     const lbl=sd.estado==='corriente'?'Al corriente':sd.estado==='moroso'?'Moroso':'Abonando';
     return `<tr>
       <td><strong>${l.mza}</strong></td>
@@ -2632,34 +2797,69 @@ function _exportGeneralExcelDo(){
   const totalCargado=datos.reduce((a,d)=>a+d.totalCargado,0);
   const totalPagado=datos.reduce((a,d)=>a+d.totalPagado,0);
   const totalSaldo=datos.reduce((a,d)=>a+d.saldo,0);
-  const wb=XLSX.utils.book_new();
-
-  // Hoja concentrado
-  const header=[['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],['Concentrado de Cobranza — '+mesLabel],[''],
-    ['Mza.','Lote','Propietario','m²','Cuota COF','Total Cargado','Total Pagado','Saldo','Estado']];
-  const rows=datos.map(d=>[d.mza,d.lote,d.propietario,parseFloat(d.m2),d.cuota,d.totalCargado,d.totalPagado,d.saldo,d.estado==='corriente'?'Al corriente':d.estado==='moroso'?'Moroso':'Abonando']);
-  const footer=[['','','TOTALES','','',totalCargado,totalPagado,totalSaldo,'']];
-  const ws=XLSX.utils.aoa_to_sheet([...header,...rows,...footer]);
-  ws['!cols']=[{wch:8},{wch:8},{wch:40},{wch:10},{wch:14},{wch:16},{wch:16},{wch:14},{wch:16}];
-  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:8}},{s:{r:1,c:0},e:{r:1,c:8}}];
-  XLSX.utils.book_append_sheet(wb,ws,'Concentrado');
-
-  // Hoja estadísticas
   const vendidos=datos.length;
   const corriente=datos.filter(d=>d.estado==='corriente').length;
   const morosos=datos.filter(d=>d.estado==='moroso').length;
-  const wsStats=XLSX.utils.aoa_to_sheet([
-    ['Indicador','Cantidad','Porcentaje','Monto'],
-    ['Total asociados',vendidos,'100%','$'+totalCargado.toLocaleString()],
+  const abonando=vendidos-corriente-morosos;
+  const wb=XLSX.utils.book_new();
+
+  // ── Hoja 1: Concentrado ────────────────────────────────────
+  const aoa=[
+    ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],
+    ['Concentrado de Cobranza — '+mesLabel],
+    ['Generado: '+new Date().toLocaleDateString('es-MX')+'  |  Total lotes: '+vendidos],
+    [],
+    ['Estadísticas de cobranza'],
     ['Al corriente',corriente,Math.round(corriente/vendidos*100)+'%','$'+datos.filter(d=>d.estado==='corriente').reduce((a,d)=>a+d.totalPagado,0).toLocaleString()],
-    ['Morosos',morosos,Math.round(morosos/vendidos*100)+'%','$'+datos.filter(d=>d.estado==='moroso').reduce((a,d)=>a+d.saldo,0).toLocaleString()],
-    ['Abonando',vendidos-corriente-morosos,Math.round((vendidos-corriente-morosos)/vendidos*100)+'%','—'],
-  ]);
-  wsStats['!cols']=[{wch:20},{wch:12},{wch:14},{wch:20}];
-  XLSX.utils.book_append_sheet(wb,wsStats,'Estadísticas');
+    ['Morosos',morosos,Math.round(morosos/vendidos*100)+'%','$'+datos.filter(d=>d.estado==='moroso').reduce((a,d)=>a+d.saldo,0).toLocaleString()+' adeudado'],
+    ['Abonando',abonando,Math.round(abonando/vendidos*100)+'%','—'],
+    [],
+    ['Mza.','Lote','Propietario','m²','Cuota COF','COV','Total Cargado','Total Pagado','Saldo','Estado'],
+    ...datos.map(d=>{
+      const cov=COV_DATA[`${d.mza}-${d.lote}`]||0;
+      return [d.mza,d.lote,d.propietario,parseFloat(d.m2),d.cuota,cov||'',d.totalCargado,d.totalPagado,d.saldo,d.estado==='corriente'?'Al corriente':d.estado==='moroso'?'Moroso':'Abonando'];
+    }),
+    ['','','TOTALES','','',''  ,totalCargado,totalPagado,totalSaldo,'']
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:8},{wch:8},{wch:42},{wch:10},{wch:14},{wch:14},{wch:16},{wch:16},{wch:14},{wch:16}];
+  ws['!merges']=[
+    {s:{r:0,c:0},e:{r:0,c:9}},
+    {s:{r:1,c:0},e:{r:1,c:9}},
+    {s:{r:2,c:0},e:{r:2,c:9}},
+    {s:{r:4,c:0},e:{r:4,c:3}},
+  ];
+  ws['!rows']=[{hpt:18},{hpt:15},{hpt:13},{hpt:8},{hpt:13}];
+  XLSX.utils.book_append_sheet(wb,ws,'Concentrado');
+
+  // ── Hoja 2: Morosos ────────────────────────────────────────
+  const morososData=datos.filter(d=>d.estado==='moroso');
+  const aoaMorosos=[
+    ['MOROSOS — '+mesLabel],
+    ['Mza.','Lote','Propietario','m²','Cuota COF','Saldo pendiente'],
+    ...morososData.map(d=>[d.mza,d.lote,d.propietario,parseFloat(d.m2),d.cuota,d.saldo]),
+    ['','','TOTAL','','','$'+morososData.reduce((a,d)=>a+d.saldo,0).toLocaleString()]
+  ];
+  const wsMorosos=XLSX.utils.aoa_to_sheet(aoaMorosos);
+  wsMorosos['!cols']=[{wch:8},{wch:8},{wch:42},{wch:10},{wch:14},{wch:18}];
+  wsMorosos['!merges']=[{s:{r:0,c:0},e:{r:0,c:5}}];
+  XLSX.utils.book_append_sheet(wb,wsMorosos,'Morosos');
+
+  // ── Hoja 3: Al corriente ───────────────────────────────────
+  const corrienteData=datos.filter(d=>d.estado==='corriente');
+  const aoaCorriente=[
+    ['AL CORRIENTE — '+mesLabel],
+    ['Mza.','Lote','Propietario','m²','Cuota COF','Total Pagado'],
+    ...corrienteData.map(d=>[d.mza,d.lote,d.propietario,parseFloat(d.m2),d.cuota,d.totalPagado]),
+    ['','','TOTAL','','','$'+corrienteData.reduce((a,d)=>a+d.totalPagado,0).toLocaleString()]
+  ];
+  const wsCorriente=XLSX.utils.aoa_to_sheet(aoaCorriente);
+  wsCorriente['!cols']=[{wch:8},{wch:8},{wch:42},{wch:10},{wch:14},{wch:18}];
+  wsCorriente['!merges']=[{s:{r:0,c:0},e:{r:0,c:5}}];
+  XLSX.utils.book_append_sheet(wb,wsCorriente,'Al Corriente');
 
   XLSX.writeFile(wb,`Silvestra_Concentrado_${mes}.xlsx`);
-  showToast('Excel general generado');
+  showToast('Excel general generado (3 hojas)');
 }
 
 // ============================================================
@@ -3079,18 +3279,47 @@ async function loadProrrateo(){
       <td style="font-family:'DM Mono',monospace;font-size:12px">${(l.m2||0).toFixed(0)}</td>
       <td class="td-monto ok">$${(l.total||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
     </tr>`).join('');
-    // Tab campestre
+    // Tab campestre (Monto del mes)
     const campestre=lotesPr.filter(l=>l.es_campestre);
     const totalDicka=campestre.reduce((a,l)=>a+(l.total||0),0);
-    document.getElementById('deudaDickaTotal').textContent='$'+Math.round(totalDicka).toLocaleString();
+    const campestreTotalLabel=document.getElementById('campestreTotalLabel');
+    if(campestreTotalLabel) campestreTotalLabel.textContent='$'+Math.round(totalDicka).toLocaleString('es-MX');
     document.getElementById('campestreBody').innerHTML=campestre.map(l=>`<tr>
       <td><strong>${l.manzana}</strong></td><td><strong>${l.numero}</strong></td>
       <td style="font-family:'DM Mono',monospace;font-size:12px">${(l.m2||0).toFixed(0)}</td>
       <td class="td-monto" style="color:var(--gold-dark)">$${(l.total||0).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
     </tr>`).join('');
+
+    // Tab deuda a campestre — load saved value
+    const token=sessionStorage.getItem('auth_token');
+    if(token){
+      fetch('/api/config/deuda-campestre',{headers:{Authorization:'Bearer '+token}})
+        .then(r=>r.json()).then(d=>{
+          const el=document.getElementById('deudaCampestre');
+          const lbl=document.getElementById('deudaDickaTotal');
+          if(el) el.value=d.valor||'';
+          if(lbl) lbl.textContent='$'+(parseFloat(d.valor)||0).toLocaleString('es-MX',{minimumFractionDigits:2});
+        }).catch(()=>{});
+    }
   } else {
     document.getElementById('prorrateoStats').innerHTML='<div style="padding:16px;color:var(--muted);font-size:13px">Captura los gastos reales y presiona "Calcular prorrateo" para ver la distribución.</div>';
   }
+}
+
+async function guardarDeudaCampestre(){
+  const val=parseFloat(document.getElementById('deudaCampestre').value)||0;
+  const token=sessionStorage.getItem('auth_token');
+  try{
+    const r=await fetch('/api/config/deuda-campestre',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({valor:val})
+    }).then(r=>r.json());
+    if(r.ok){
+      document.getElementById('deudaDickaTotal').textContent='$'+val.toLocaleString('es-MX',{minimumFractionDigits:2});
+      showToast('✅ Deuda a Campestre guardada');
+    }
+  }catch(e){showToast('Error al guardar');}
 }
 
 async function guardarGastosReales(){
@@ -3117,7 +3346,7 @@ async function calcularProrrateo(){
 function switchProrrateoTab(tab,el){
   el.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['Captura','Conceptos','Lotes','Campestre'].forEach(t=>{
+  ['Captura','Conceptos','Lotes','Campestre','Deuda'].forEach(t=>{
     const el2=document.getElementById('prorrateoTab'+t);
     if(el2) el2.style.display=(t.toLowerCase()===tab?'block':'none');
   });

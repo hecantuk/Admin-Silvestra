@@ -1974,22 +1974,25 @@ function renderIngresosByTab(tab){
 // ============================================================
 async function loadIngresos(){
   const token=sessionStorage.getItem('auth_token');
-  if(!token){renderIngresos();return;}
+  if(!token){renderIngresosByTab('aprobar');return;}
   try{
     const data=await fetch('/api/pagos/lista',{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
-    INGRESOS_DATA.length=0;
-    data.forEach(p=>{
-      INGRESOS_DATA.push({
-        id:p.id,
-        fecha:p.fecha_pago,
-        lote:`Mza ${p.manzana} L${p.lote_num}`,
-        propietario:p.propietario,
-        concepto:p.concepto,
-        importe:p.importe,
-        ref:p.referencia||`ID-${p.id}`,
-        estado:p.estado,
+    // Solo reemplazar si la API tiene datos reales; si está vacío conservar datos existentes
+    if(data&&data.length>0){
+      INGRESOS_DATA.length=0;
+      data.forEach(p=>{
+        INGRESOS_DATA.push({
+          id:p.id,
+          fecha:p.fecha_pago,
+          lote:`Mza ${p.manzana} L${p.lote_num}`,
+          propietario:p.propietario,
+          concepto:p.concepto,
+          importe:p.importe,
+          ref:p.referencia||`ID-${p.id}`,
+          estado:p.estado,
+        });
       });
-    });
+    }
   }catch(e){}
   renderIngresosByTab('aprobar');
 }

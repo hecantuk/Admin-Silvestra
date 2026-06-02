@@ -59,9 +59,10 @@ class Usuario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(unique=True)
     hashed_password: str
-    rol: str = "residente"   # admin | residente
+    rol: str = "residente"   # admin | residente | visor
     lote_id: Optional[int] = Field(default=None, foreign_key="lote.id")
     activo: bool = True
+    debe_cambiar_password: bool = False
 
 
 class Proveedor(SQLModel, table=True):

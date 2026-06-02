@@ -51,6 +51,8 @@ input,select,textarea{font-family:inherit;outline:none}
 .btn-login:hover{background:var(--gold-dark)}
 .login-hint{color:#475569;font-size:12px;text-align:center;margin-top:20px}
 .login-hint span{color:var(--gold);font-weight:500}
+.forgot-link{display:block;text-align:center;margin-top:14px;font-size:12px;color:#64748B;cursor:pointer;text-decoration:none}
+.forgot-link:hover{color:var(--gold)}
 
 /* APP SHELL */
 .app-shell{display:flex;min-height:100vh}
@@ -285,7 +287,17 @@ tr:last-child td{border-bottom:none}
       </div>
       <button class="btn-login" onclick="doLogin()">Iniciar sesión</button>
     </div>
+    <a class="forgot-link" onclick="showForgotModal()">¿Olvidaste tu contraseña?</a>
     <p class="login-hint" id="loginHint"></p>
+  </div>
+</div>
+
+<!-- FORGOT PASSWORD MODAL -->
+<div id="forgotModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:none;align-items:center;justify-content:center">
+  <div style="background:#1F3B1D;border-radius:16px;padding:32px 28px;width:380px;max-width:90vw;border:1px solid rgba(255,255,255,.1);position:relative">
+    <button onclick="closeForgotModal()" style="position:absolute;top:14px;right:14px;background:none;color:#94A3B8;font-size:20px;line-height:1">×</button>
+    <h3 style="color:#F8FAFC;font-size:16px;margin-bottom:8px">🔑 Recuperar contraseña</h3>
+    <div id="forgotBody"></div>
   </div>
 </div>
 
@@ -1428,6 +1440,35 @@ function setRole(role,btn){
     document.getElementById('loginHint').textContent='';
   }
 }
+
+function showForgotModal(){
+  const modal=document.getElementById('forgotModal');
+  const body=document.getElementById('forgotBody');
+  modal.style.display='flex';
+  if(currentRole==='residente'){
+    body.innerHTML=`
+      <p style="color:#94A3B8;font-size:13px;line-height:1.6;margin-bottom:16px">
+        Tu usuario tiene el formato <strong style="color:#F8FAFC">M{manzana}L{lote}</strong><br>
+        Por ejemplo: <strong style="color:var(--gold)">M24L1</strong> para Manzana 24, Lote 1.
+      </p>
+      <p style="color:#94A3B8;font-size:13px;line-height:1.6;margin-bottom:16px">
+        La contraseña temporal es <strong style="color:#F8FAFC">silv</strong> + número de manzana + número de lote.<br>
+        Ejemplo: <strong style="color:var(--gold)">silv241</strong> para M24L1.
+      </p>
+      <p style="color:#94A3B8;font-size:13px;line-height:1.6">
+        Si cambiaste la contraseña y no la recuerdas, contacta a la administración para restablecerla.
+      </p>`;
+  } else {
+    body.innerHTML=`
+      <p style="color:#94A3B8;font-size:13px;line-height:1.6">
+        Para restablecer tu contraseña de administrador, contacta al administrador del sistema.
+      </p>`;
+  }
+}
+function closeForgotModal(){
+  document.getElementById('forgotModal').style.display='none';
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape') closeForgotModal();});
 
 function doLogin(){
   const user=document.getElementById('loginUser').value.trim();

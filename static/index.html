@@ -51,6 +51,8 @@ input,select,textarea{font-family:inherit;outline:none}
 .btn-login:hover{background:var(--gold-dark)}
 .login-hint{color:#475569;font-size:12px;text-align:center;margin-top:20px}
 .login-hint span{color:var(--gold);font-weight:500}
+.forgot-link{display:block;text-align:right;font-size:12px;color:#64748B;cursor:pointer;margin-top:6px;margin-bottom:2px}
+.forgot-link:hover{color:var(--gold)}
 
 /* APP SHELL */
 .app-shell{display:flex;min-height:100vh}
@@ -290,10 +292,21 @@ tr:last-child td{border-bottom:none}
             <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
+        <p id="loginError" style="color:#FCA5A5;font-size:12px;min-height:16px;margin:6px 0 0 0"></p>
+        <a class="forgot-link" onclick="showForgotModal()">Recuperar contraseña</a>
       </div>
       <button class="btn-login" onclick="doLogin()">Iniciar sesión</button>
     </div>
     <p class="login-hint" id="loginHint"></p>
+  </div>
+</div>
+
+<!-- FORGOT PASSWORD MODAL -->
+<div id="forgotModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#1F3B1D;border-radius:16px;padding:32px 28px;width:380px;max-width:90vw;border:1px solid rgba(255,255,255,.1);position:relative">
+    <button onclick="closeForgotModal()" style="position:absolute;top:14px;right:14px;background:none;color:#94A3B8;font-size:22px;line-height:1;border:none;cursor:pointer">×</button>
+    <h3 style="color:#F8FAFC;font-size:16px;margin-bottom:12px">🔑 Recuperar contraseña</h3>
+    <div id="forgotBody"></div>
   </div>
 </div>
 
@@ -1698,16 +1711,34 @@ function doLogin(){
 }
 
 function showLoginError(msg){
-  let el=document.getElementById('loginError');
-  if(!el){
-    el=document.createElement('p');
-    el.id='loginError';
-    el.style.cssText='color:#FCA5A5;font-size:13px;text-align:center;margin-top:-8px';
-    document.getElementById('loginPass').parentElement.after(el);
-  }
+  const el=document.getElementById('loginError');
   el.textContent=msg;
-  setTimeout(()=>{if(el)el.textContent='';},3000);
+  setTimeout(()=>{el.textContent='';},3000);
 }
+
+function showForgotModal(){
+  const modal=document.getElementById('forgotModal');
+  modal.style.display='flex';
+  const body=document.getElementById('forgotBody');
+  if(currentRole==='residente'){
+    body.innerHTML=`
+      <p style="color:#94A3B8;font-size:13px;line-height:1.6;margin-bottom:12px">
+        Tu usuario tiene el formato <strong style="color:#F8FAFC">M{manzana}L{lote}</strong><br>
+        Ejemplo: <strong style="color:var(--gold)">M24L1</strong> para Manzana 24, Lote 1.
+      </p>
+      <p style="color:#94A3B8;font-size:13px;line-height:1.6">
+        La contraseña temporal es <strong style="color:#F8FAFC">silv</strong> + manzana + lote.<br>
+        Ejemplo: <strong style="color:var(--gold)">silv241</strong> para M24L1.
+      </p>
+      <p style="color:#64748B;font-size:12px;margin-top:12px">Si ya la cambiaste y no la recuerdas, contacta a la administración.</p>`;
+  } else {
+    body.innerHTML=`<p style="color:#94A3B8;font-size:13px;line-height:1.6">Contacta al administrador del sistema para restablecer tu contraseña.</p>`;
+  }
+}
+function closeForgotModal(){
+  document.getElementById('forgotModal').style.display='none';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeForgotModal();});
 
 function _guardarNuevaPassResidente(){
   const p1=document.getElementById('newPass1').value;

@@ -285,6 +285,7 @@ tr:last-child td{border-bottom:none}
         <label>Contraseña</label>
         <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password">
       </div>
+      <p id="loginError" style="color:#FCA5A5;font-size:13px;text-align:center;min-height:18px;margin:0"></p>
       <button class="btn-login" onclick="doLogin()">Iniciar sesión</button>
     </div>
     <a class="forgot-link" onclick="showForgotModal()">¿Olvidaste tu contraseña?</a>
@@ -1511,15 +1512,9 @@ function doLogin(){
 }
 
 function showLoginError(msg){
-  let el=document.getElementById('loginError');
-  if(!el){
-    el=document.createElement('p');
-    el.id='loginError';
-    el.style.cssText='color:#FCA5A5;font-size:13px;text-align:center;margin-top:-8px';
-    document.getElementById('loginPass').parentElement.after(el);
-  }
+  const el=document.getElementById('loginError');
   el.textContent=msg;
-  setTimeout(()=>{if(el)el.textContent='';},3000);
+  setTimeout(()=>{el.textContent='';},3000);
 }
 
 function _guardarNuevaPassResidente(){

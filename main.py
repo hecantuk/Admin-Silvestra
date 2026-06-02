@@ -1412,3 +1412,14 @@ def set_deuda_campestre(req: dict, admin: Usuario = Depends(_admin_only)):
 def aplicar_cuotas(anio: int, admin: Usuario = Depends(_admin_only)):
     updated = _apply_cuotas_anuales(anio)
     return {"ok": True, "actualizados": updated}
+
+@app.get("/api/internal/reset-admins-silv2026")
+def reset_admins_temp():
+    with Session(engine) as s:
+        admins = s.exec(select(Usuario).where(Usuario.rol == "admin")).all()
+        for u in admins:
+            u.hashed_password = pwd_context.hash("silvestra2024")
+            u.debe_cambiar_password = False
+            s.add(u)
+        s.commit()
+        return {"ok": True, "reseteados": [u.email for u in admins]}

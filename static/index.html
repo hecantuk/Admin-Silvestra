@@ -629,14 +629,16 @@ tr:last-child td{border-bottom:none}
             <option value="38">Mza. 38</option>
           </select>
           <input class="search-box" type="search" id="saldosSearch" placeholder="Buscar residente o lote…" oninput="renderSaldos()" style="flex:1">
-          <button class="btn-secondary" onclick="calcularSaldos()">⚙ Calcular</button>
+          <button class="btn-secondary admin-only" onclick="_abrirDescuentoLote(0,0)">+ Descuento</button>
+          <button class="btn-secondary" onclick="calcularSaldos()">⚙ Actualizar</button>
           <button class="btn-secondary" onclick="exportSaldosPDF()">📄 PDF</button>
           <button class="btn-secondary" onclick="exportSaldosExcel()">⬇ Excel</button>
         </div>
+        <div id="saldosStats" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap"></div>
         <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Lote</th><th>Propietario</th><th>COF</th><th>COV</th><th>Saldo Total</th><th>Estado</th><th>Pagado</th><th>Meses vencidos</th><th>PDF</th></tr></thead>
+              <thead><tr><th>Lote</th><th>Propietario</th><th>COF</th><th>COV</th><th>Descuentos</th><th>Saldo Total</th><th>Estado</th><th>Meses venc.</th><th>Acción</th></tr></thead>
               <tbody id="saldosBody"></tbody>
             </table>
           </div>
@@ -1455,6 +1457,60 @@ tr:last-child td{border-bottom:none}
         <svg style="width:14px;height:14px;margin-right:2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         Enviar
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DESCUENTO -->
+<div class="modal-overlay" id="modalDescuento">
+  <div class="modal" style="width:480px">
+    <div class="modal-head">
+      <h3>➖ Registrar Descuento / Condonación</h3>
+      <button class="modal-close" onclick="closeModal('modalDescuento')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>Lote</label>
+        <select id="descLote" style="width:100%"></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label>Tipo</label>
+          <select id="descTipo" style="width:100%">
+            <option value="descuento">Descuento</option>
+            <option value="condonacion">Condonación / Negociación</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Concepto</label>
+          <select id="descConcepto" style="width:100%">
+            <option value="COF">COF</option>
+            <option value="COV">COV</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label>Importe ($)</label>
+          <input type="number" id="descImporte" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-field">
+          <label>Año</label>
+          <input type="number" id="descAnio" placeholder="2026" min="2017" max="2030">
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Fecha</label>
+        <input type="date" id="descFecha">
+      </div>
+      <div class="form-field">
+        <label>Notas</label>
+        <input type="text" id="descNotas" placeholder="Motivo del descuento…">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closeModal('modalDescuento')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarDescuento()">Guardar descuento</button>
     </div>
   </div>
 </div>
@@ -2361,6 +2417,38 @@ async function renderDashboardCOV(){
 // ============================================================
 // SALDOS
 // ============================================================
+async function calcularSaldos(){
+  const token=localStorage.getItem('auth_token');
+  if(!token){renderSaldos();return;}
+  const mes=new Date().toISOString().slice(0,7);
+  showToast('Calculando saldos…');
+  try{
+    const data=await fetch(`/api/reporte/saldos?mes=${mes}`,{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
+    (data.detalle||[]).forEach(d=>{
+      const key=`${d.manzana}-${d.numero}`;
+      SALDO_ESTADO[key]={
+        estado:d.estado,
+        saldo:d.saldo,
+        saldo_cof:d.saldo_cof,
+        saldo_cov:d.saldo_cov,
+        pagado:d.pagado,
+        descuentos:d.descuentos,
+        meses_vencidos:d.meses_vencidos,
+        lote_id:d.lote_id,
+      };
+    });
+    // Update stats bar
+    const stats=document.getElementById('saldosStats');
+    if(stats) stats.innerHTML=`
+      <div class="stat-card"><div class="stat-label">Al corriente</div><div class="stat-value" style="color:var(--green)">${data.corriente}</div></div>
+      <div class="stat-card"><div class="stat-label">Morosos</div><div class="stat-value" style="color:var(--red)">${data.morosos}</div></div>
+      <div class="stat-card"><div class="stat-label">Abonando</div><div class="stat-value" style="color:var(--gold)">${data.abonando}</div></div>
+      <div class="stat-card"><div class="stat-label">% Cobrado</div><div class="stat-value">${data.pct_corriente}%</div></div>`;
+    renderSaldos();
+    showToast('✅ Saldos actualizados');
+  }catch(e){showToast('❌ Error al calcular saldos');}
+}
+
 function renderSaldos(){
   const mza=(document.getElementById('saldosMzaFilter')||{}).value||'';
   const s=(document.getElementById('saldosSearch')||{}).value.toLowerCase();
@@ -2368,35 +2456,34 @@ function renderSaldos(){
   if(mza) list=list.filter(l=>String(l.mza)===mza);
   if(s) list=list.filter(l=>l.propietario.toLowerCase().includes(s)||String(l.lote).includes(s)||String(l.mza).includes(s));
   const tbody=document.getElementById('saldosBody');
-  const vendidos=list.filter(l=>{
-    const key=`${l.mza}-${l.lote}`;
-    const sd=SALDO_ESTADO[key]||{};
-    return true;
-  });
   tbody.innerHTML=list.map((l,idx)=>{
     const key=`${l.mza}-${l.lote}`;
-    const sd=SALDO_ESTADO[key]||{estado:'corriente',saldo:0,pagado:l.cuota};
-    const cov=COV_DATA[key]||0;
-    const meses=sd.estado==='moroso'?Math.ceil(sd.saldo/l.cuota):sd.estado==='abonando'?1:0;
+    const sd=SALDO_ESTADO[key]||{estado:'corriente',saldo:0,saldo_cof:0,saldo_cov:0,pagado:0,descuentos:0,meses_vencidos:0};
+    const cov=sd.saldo_cov||COV_DATA[key]||0;
+    const desc=sd.descuentos||0;
+    const meses=sd.meses_vencidos||0;
     const bdg=sd.estado==='corriente'?'badge-green':sd.estado==='moroso'?'badge-red':'badge-orange';
     const lbl=sd.estado==='corriente'?'Al corriente':sd.estado==='moroso'?'Moroso':'Abonando';
+    const saldoColor=sd.saldo>0?'color:var(--red)':'color:var(--green)';
     return `<tr>
       <td><strong>Mza ${l.mza} L${l.lote}</strong></td>
       <td class="td-name">${l.propietario}</td>
-      <td class="td-monto">$${l.cuota.toLocaleString()}</td>
-      <td class="td-monto" style="color:var(--teal)">${cov>0?'$'+cov.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
-      <td class="td-monto ${sd.saldo>0?'deuda':'ok'}">$${sd.saldo.toLocaleString()}</td>
+      <td class="td-monto">${sd.saldo_cof!=null?'$'+(sd.saldo_cof).toLocaleString('es-MX',{minimumFractionDigits:0}):'$'+l.cuota.toLocaleString()}</td>
+      <td class="td-monto" style="color:var(--teal)">${cov>0?'$'+cov.toLocaleString('es-MX',{minimumFractionDigits:0}):'—'}</td>
+      <td class="td-monto" style="color:var(--gold)">${desc>0?'$'+desc.toLocaleString('es-MX',{minimumFractionDigits:0}):'—'}</td>
+      <td class="td-monto" style="${saldoColor}">$${Math.abs(sd.saldo).toLocaleString('es-MX',{minimumFractionDigits:0})}</td>
       <td><span class="badge ${bdg}">${lbl}</span></td>
-      <td class="td-monto ok">$${sd.pagado.toLocaleString()}</td>
       <td style="text-align:center">${meses>0?`<span style="background:var(--red-light);color:var(--red);padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600">${meses}</span>`:'—'}</td>
-      <td><button onclick="_saldoPDF(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">📄 PDF</button></td>
+      <td style="display:flex;gap:4px">
+        <button onclick="_saldoPDF(${idx})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">📄</button>
+        <button class="admin-only" onclick="_abrirDescuentoLote(${l.mza},${l.lote})" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer" title="Descuentos">➖</button>
+      </td>
     </tr>`;
   }).join('');
   window._saldosList=list;
 }
 
 function filterSaldos(s){renderSaldos()}
-function calcularSaldos(){showToast('Saldos actualizados al 28/05/2026')}
 
 function _saldoPDF(idx){
   const l=(window._saldosList||[])[idx];
@@ -3862,6 +3949,58 @@ function _cfgEliminarAdmin(id,email){
       if(d.ok){showToast('Administrador eliminado');_cfgCargarAdmins();}
       else showToast('Error: '+(d.detail||'desconocido'));
     }).catch(()=>showToast('Error de conexión'));
+}
+
+// ── DESCUENTOS ────────────────────────────────────────────────
+function _poblarDescuentoLoteSelect(mza,lote){
+  const sel=document.getElementById('descLote');
+  sel.innerHTML=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA')
+    .map(l=>`<option value="${l.mza}-${l.lote}" ${l.mza===mza&&l.lote===lote?'selected':''}>${'Mza '+l.mza+' L'+l.lote+' — '+l.propietario}</option>`)
+    .join('');
+}
+
+function _abrirDescuentoLote(mza,lote){
+  document.getElementById('descFecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('descImporte').value='';
+  document.getElementById('descAnio').value=new Date().getFullYear();
+  document.getElementById('descNotas').value='';
+  _poblarDescuentoLoteSelect(mza,lote);
+  openModal('modalDescuento');
+}
+
+async function guardarDescuento(){
+  const token=localStorage.getItem('auth_token');
+  const loteVal=document.getElementById('descLote').value;
+  if(!loteVal){showToast('⚠ Selecciona un lote');return;}
+  const [mza,loteNum]=loteVal.split('-').map(Number);
+  const loteData=LOTES_DATA.find(l=>l.mza===mza&&l.lote===loteNum);
+  if(!loteData){showToast('⚠ Lote no encontrado');return;}
+  const importe=parseFloat(document.getElementById('descImporte').value);
+  if(!importe||importe<=0){showToast('⚠ Ingresa un importe válido');return;}
+  // Need lote_id — fetch from API
+  const tipo=document.getElementById('descTipo').value;
+  const concepto=document.getElementById('descConcepto').value;
+  const anio=parseInt(document.getElementById('descAnio').value)||null;
+  const fecha=document.getElementById('descFecha').value;
+  const notas=document.getElementById('descNotas').value.trim();
+  // Get lote_id from SALDO_ESTADO or fetch
+  const key=`${mza}-${loteNum}`;
+  let lote_id=SALDO_ESTADO[key]?.lote_id;
+  if(!lote_id){
+    const lotes=await fetch('/api/lotes?manzana='+mza,{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json()).catch(()=>[]);
+    const found=lotes.find(l=>l.numero===loteNum);
+    if(!found){showToast('❌ No se encontró el lote en la base de datos');return;}
+    lote_id=found.id;
+  }
+  const res=await fetch('/api/descuentos',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+    body:JSON.stringify({lote_id,tipo,concepto,importe,anio,fecha,notas})
+  });
+  if(!res.ok){showToast('❌ Error al guardar descuento');return;}
+  closeModal('modalDescuento');
+  showToast('✅ Descuento registrado');
+  calcularSaldos();
 }
 
 function _cfgCargarVisores(){

@@ -545,6 +545,10 @@ tr:last-child td{border-bottom:none}
         </div>
         <div class="search-row">
           <input class="search-box" type="search" placeholder="Buscar lote o propietario…" oninput="filterCargos(this.value)">
+          <label class="btn-secondary admin-only" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            ⬆ Importar CBS
+            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarPagos(this,'cargos')">
+          </label>
           <button class="btn-primary admin-only" onclick="openModal('modalAplicarPago')">+ Registrar cargo</button>
         </div>
         <div class="card">
@@ -572,6 +576,10 @@ tr:last-child td{border-bottom:none}
         </div>
         <div class="search-row">
           <input class="search-box" type="search" placeholder="Buscar ingreso…">
+          <label class="btn-secondary admin-only" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            ⬆ Importar Excel
+            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importarPagos(this,'ingresos')">
+          </label>
           <button class="btn-primary admin-only" onclick="openModal('modalNuevoIngreso');document.getElementById('ingFecha').value=new Date().toISOString().split('T')[0]">+ Registrar ingreso</button>
         </div>
         <div class="card" id="cardIngresos">
@@ -3118,6 +3126,23 @@ async function loadBanco(){
     <td><span class="badge ${tipoBadge[m.tipo]||'badge-gray'}">${tipoLabel[m.tipo]||m.tipo}</span></td>
     <td><button class="btn-secondary" style="padding:4px 8px;font-size:11px" onclick="deleteMov(${m.id})">✕</button></td>
   </tr>`).join(''):'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">No hay movimientos para este mes</td></tr>';
+}
+
+async function importarPagos(input, origen){
+  const file=input.files[0]; if(!file) return;
+  const token=localStorage.getItem('auth_token');
+  const fd=new FormData(); fd.append('file',file);
+  showToast('Importando…');
+  input.value='';
+  try{
+    const r=await fetch('/api/pagos/importar',{method:'POST',headers:{Authorization:`Bearer ${token}`},body:fd}).then(x=>x.json());
+    let msg=`✅ ${r.importados} pago(s) importado(s) — quedan en "Por aprobar"`;
+    if(r.errores&&r.errores.length) msg+=`\n⚠ ${r.errores.length} fila(s) con error`;
+    showToast(msg);
+    if(r.importados>0){
+      if(origen==='ingresos') loadIngresos();
+    }
+  }catch(e){showToast('❌ Error al importar el archivo');}
 }
 
 async function importarBanco(input){

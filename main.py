@@ -1412,3 +1412,72 @@ def set_deuda_campestre(req: dict, admin: Usuario = Depends(_admin_only)):
 def aplicar_cuotas(anio: int, admin: Usuario = Depends(_admin_only)):
     updated = _apply_cuotas_anuales(anio)
     return {"ok": True, "actualizados": updated}
+
+@app.post("/api/pagos/importar")
+async def importar_pagos(file: UploadFile = File(...), admin: Usuario = Depends(_admin_only)):
+    import openpyxl
+    content = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+
+    # Detect header row
+    header_row = 0
+    for i, row in enumerate(rows[:10]):
+        vals = [str(v).lower() if v else "" for v in row]
+        if any("manzana" in v or "mza" in v for v in vals) and any("lote" in v for v in vals):
+            header_row = i
+            break
+    headers = [str(v).lower().strip() if v else "" for v in rows[header_row]]
+
+    col = {}
+    for i, h in enumerate(headers):
+        if "fecha" in h:                        col["fecha"] = i
+        elif "manzana" in h or h == "mza":      col["mza"] = i
+        elif h == "lote" or h == "lote_num":    col["lote"] = i
+        elif "concepto" in h or "tipo" in h:    col["concepto"] = i
+        elif "importe" in h or "monto" in h or "cuota" in h: col["importe"] = i
+        elif "referen" in h or "folio" in h or h == "ref":   col["ref"] = i
+
+    importados, errores = 0, []
+    with Session(engine) as s:
+        for idx, row in enumerate(rows[header_row + 1:], start=2):
+            if not row or not any(row): continue
+            try:
+                raw_fecha = row[col["fecha"]] if "fecha" in col else None
+                if not raw_fecha: continue
+                if hasattr(raw_fecha, "date"):
+                    fecha = raw_fecha.date()
+                else:
+                    fecha = date.fromisoformat(str(raw_fecha)[:10])
+
+                mza = int(row[col["mza"]]) if "mza" in col else None
+                lote_num = int(row[col["lote"]]) if "lote" in col else None
+                if not mza or not lote_num: continue
+
+                importe = float(row[col["importe"]]) if "importe" in col else 0
+                if importe <= 0: continue
+
+                concepto = str(row[col["concepto"]] or "COF").strip() if "concepto" in col else "COF"
+                ref = str(row[col["ref"]] or "").strip() if "ref" in col else None
+
+                lote = s.exec(select(Lote).where(Lote.manzana == mza, Lote.numero == lote_num)).first()
+                if not lote:
+                    errores.append(f"Fila {idx}: Mza {mza} L{lote_num} no encontrado")
+                    continue
+
+                s.add(Pago(
+                    lote_id=lote.id,
+                    fecha_pago=fecha,
+                    importe=importe,
+                    mes_aplicado=str(fecha)[:7],
+                    concepto=concepto,
+                    referencia=ref or None,
+                    estado="por_aprobar",
+                ))
+                importados += 1
+            except Exception as e:
+                errores.append(f"Fila {idx}: {e}")
+        s.commit()
+
+    return {"importados": importados, "errores": errores}

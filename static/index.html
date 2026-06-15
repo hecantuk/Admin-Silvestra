@@ -1007,6 +1007,7 @@ tr:last-child td{border-bottom:none}
           <div class="tab" id="cfgTabResidentes" onclick="switchCfgTab('residentes',this)">Residentes</div>
           <div class="tab" id="cfgTabCorreos" onclick="switchCfgTab('correos',this)">Correos</div>
           <div class="tab" id="cfgTabCuota" onclick="switchCfgTab('cuota',this)">Cuota</div>
+          <div class="tab" id="cfgTabHistorial" onclick="switchCfgTab('historial',this)">Historial</div>
         </div>
 
         <!-- General -->
@@ -1082,6 +1083,26 @@ tr:last-child td{border-bottom:none}
           </div>
 
         </div><!-- /cfgPanelGeneral -->
+
+        <!-- Importar historial -->
+        <div id="cfgPanelHistorial" style="display:none">
+          <div class="config-block">
+            <div class="config-block-header">
+              <span class="config-block-title">Importar historial (2017–2026)</span>
+            </div>
+            <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+              Carga el Excel de estados de cuenta para importar todos los pagos históricos y descuentos.
+              Los registros ya existentes no se duplican. Se actualiza también la fecha de escrituración de cada lote.
+            </p>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <label class="btn-primary" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px">
+                ⬆ Seleccionar Excel y cargar
+                <input type="file" accept=".xlsx,.xlsm" style="display:none" onchange="importarHistorial(this)">
+              </label>
+              <span id="historialStatus" style="font-size:13px;color:var(--muted)"></span>
+            </div>
+          </div>
+        </div>
 
         <!-- Residentes -->
         <div id="cfgPanelResidentes" style="display:none">
@@ -4187,10 +4208,30 @@ function _cfgGuardarAuto(){
 function switchCfgTab(panel, el){
   el.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['General','Residentes','Correos','Cuota'].forEach(p=>{
+  ['General','Residentes','Correos','Cuota','Historial'].forEach(p=>{
     const div=document.getElementById('cfgPanel'+p);
     if(div) div.style.display=p.toLowerCase()===panel?'':'none';
   });
+}
+
+async function importarHistorial(input){
+  const file=input.files[0]; if(!file) return;
+  const token=localStorage.getItem('auth_token');
+  const status=document.getElementById('historialStatus');
+  status.textContent='Importando… esto puede tardar unos minutos.';
+  input.value='';
+  const fd=new FormData(); fd.append('file',file);
+  try{
+    const r=await fetch('/api/historial/importar',{
+      method:'POST',
+      headers:{Authorization:`Bearer ${token}`},
+      body:fd
+    }).then(x=>x.json());
+    status.textContent=`✅ ${r.pagos_creados} pagos · ${r.descuentos_creados} descuentos · ${r.lotes_actualizados} lotes actualizados`;
+    if(r.errores&&r.errores.length) console.warn('Errores en importación:', r.errores);
+  }catch(e){
+    status.textContent='❌ Error al importar. Verifica el archivo.';
+  }
 }
 
 // Cuota mensual fija (COF) por año

@@ -1586,3 +1586,103 @@ async def importar_pagos(file: UploadFile = File(...), admin: Usuario = Depends(
         s.commit()
 
     return {"importados": importados, "errores": errores}
+
+
+@app.post("/api/historial/importar")
+async def importar_historial(file: UploadFile = File(...), admin: Usuario = Depends(_admin_only)):
+    """Lee todas las hojas Edo.Cta.M* del Excel y crea Pago + Descuento históricos."""
+    import openpyxl, re
+    content = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+
+    hoy = date.today()
+    pagos_creados = descuentos_creados = lotes_actualizados = 0
+    errores = []
+
+    patron = re.compile(r'Edo\.Cta\.M(\d+)\s+L(\d+)', re.IGNORECASE)
+
+    with Session(engine) as s:
+        for nombre_hoja in wb.sheetnames:
+            m = patron.match(nombre_hoja)
+            if not m:
+                continue
+            mza, lote_num = int(m.group(1)), int(m.group(2))
+            lote = s.exec(select(Lote).where(Lote.manzana == mza, Lote.numero == lote_num)).first()
+            if not lote:
+                continue
+
+            ws = wb[nombre_hoja]
+            rows = list(ws.iter_rows(values_only=True))
+
+            # Actualizar fecha_escrituracion desde Row 6 (idx 5), Col 2
+            try:
+                fecha_esc_raw = rows[5][2] if len(rows) > 5 else None
+                if fecha_esc_raw and hasattr(fecha_esc_raw, 'date'):
+                    lote.fecha_escrituracion = fecha_esc_raw.date()
+                    s.add(lote)
+                    lotes_actualizados += 1
+            except Exception:
+                pass
+
+            # Datos mensuales desde fila 19 (idx 18)
+            for row in rows[18:]:
+                if not row or len(row) < 7:
+                    continue
+                mes_val = row[0]
+                if not hasattr(mes_val, 'year'):
+                    continue
+                mes_date = date(mes_val.year, mes_val.month, 1)
+                if mes_date > hoy:
+                    continue
+                mes_str = mes_date.strftime('%Y-%m')
+
+                # COF payment
+                pago_cof = row[3] if len(row) > 3 else None
+                desc_cof  = row[4] if len(row) > 4 else None
+                fecha_cof  = row[5] if len(row) > 5 else None
+
+                if pago_cof and float(pago_cof) > 0:
+                    existe = s.exec(select(Pago).where(
+                        Pago.lote_id == lote.id, Pago.mes_aplicado == mes_str,
+                        Pago.concepto == "COF", Pago.estado == "aprobado",
+                    )).first()
+                    if not existe:
+                        fp = fecha_cof.date() if fecha_cof and hasattr(fecha_cof, 'date') else mes_date
+                        s.add(Pago(lote_id=lote.id, fecha_pago=fp, importe=float(pago_cof),
+                                   mes_aplicado=mes_str, concepto="COF", estado="aprobado",
+                                   notas="Histórico importado"))
+                        pagos_creados += 1
+
+                if desc_cof and float(desc_cof) > 0:
+                    existe_desc = s.exec(select(Descuento).where(
+                        Descuento.lote_id == lote.id, Descuento.concepto == "COF",
+                        Descuento.anio == mes_date.year,
+                    )).first()
+                    if not existe_desc:
+                        s.add(Descuento(lote_id=lote.id, tipo="descuento", concepto="COF",
+                                        importe=float(desc_cof), anio=mes_date.year,
+                                        fecha=mes_date, notas="Histórico importado"))
+                        descuentos_creados += 1
+
+                # COV payment
+                pago_cov  = row[12] if len(row) > 12 else None
+                fecha_cov  = row[13] if len(row) > 13 else None
+
+                if pago_cov and float(pago_cov) > 0:
+                    existe_cov = s.exec(select(Pago).where(
+                        Pago.lote_id == lote.id, Pago.mes_aplicado == mes_str,
+                        Pago.concepto == "COV", Pago.estado == "aprobado",
+                    )).first()
+                    if not existe_cov:
+                        fp = fecha_cov.date() if fecha_cov and hasattr(fecha_cov, 'date') else mes_date
+                        s.add(Pago(lote_id=lote.id, fecha_pago=fp, importe=float(pago_cov),
+                                   mes_aplicado=mes_str, concepto="COV", estado="aprobado",
+                                   notas="Histórico importado"))
+                        pagos_creados += 1
+
+        s.commit()
+
+    return {"ok": True, "pagos_creados": pagos_creados,
+            "descuentos_creados": descuentos_creados,
+            "lotes_actualizados": lotes_actualizados,
+            "errores": errores[:20]}

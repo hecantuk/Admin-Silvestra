@@ -390,6 +390,115 @@ def get_lote(lote_id: int):
             raise HTTPException(404, "Lote no encontrado")
         return lote
 
+@app.get("/api/lotes/{lote_id}/estado-cuenta")
+def get_estado_cuenta(lote_id: int, user: Usuario = Depends(_current_user)):
+    """Estado de cuenta completo: pagos y descuentos mensuales por lote."""
+    with Session(engine) as s:
+        lote = s.get(Lote, lote_id)
+        if not lote:
+            raise HTTPException(404, "Lote no encontrado")
+
+        pagos = s.exec(
+            select(Pago).where(Pago.lote_id == lote_id, Pago.estado == "aprobado")
+        ).all()
+        descuentos = s.exec(
+            select(Descuento).where(Descuento.lote_id == lote_id)
+        ).all()
+        lecturas = s.exec(
+            select(LecturaAgua).where(LecturaAgua.lote_id == lote_id)
+        ).all()
+
+        # Build monthly map
+        by_mes: dict = {}
+        for p in pagos:
+            m = p.mes_aplicado or ""
+            if m not in by_mes:
+                by_mes[m] = {"pagoCof": 0, "pagoCov": 0, "fpago": str(p.fecha) if p.fecha else ""}
+            if p.concepto == "COF":
+                by_mes[m]["pagoCof"] += p.importe
+                if p.fecha:
+                    by_mes[m]["fpago"] = str(p.fecha)
+            elif p.concepto == "COV":
+                by_mes[m]["pagoCov"] += p.importe
+
+        for d in descuentos:
+            if d.anio:
+                # Map annual discount to December of that year for display
+                key = f"{d.anio}-12"
+                if key not in by_mes:
+                    by_mes[key] = {"pagoCof": 0, "pagoCov": 0, "fpago": ""}
+                by_mes[key]["desc"] = by_mes[key].get("desc", 0) + d.importe
+
+        lec_map: dict = {}
+        for lec in lecturas:
+            lec_map[lec.mes] = lec
+
+        # Generate monthly rows from escrituracion to today
+        hoy = date.today()
+        inicio = lote.fecha_escrituracion or date(2020, 9, 1)
+        cur = date(inicio.year, inicio.month, 1)
+        meses_rows = []
+        saldo_acum_cof = 0.0
+        while cur <= date(hoy.year, hoy.month, 1):
+            key = cur.strftime("%Y-%m")
+            entry = by_mes.get(key, {})
+            cof = lote.cuota_cof
+            extra = 0.0
+            pago_cof = entry.get("pagoCof", 0)
+            desc = entry.get("desc", 0)
+            fpago = entry.get("fpago", "")
+            saldo_mes = extra + cof - pago_cof - desc
+            saldo_acum_cof += saldo_mes
+            lec = lec_map.get(key)
+            meses_rows.append({
+                "mes": key,
+                "extra": extra,
+                "cof": cof,
+                "pagoCof": pago_cof,
+                "desc": desc,
+                "fpago": fpago,
+                "saldoMes": round(saldo_mes, 2),
+                "vIni": lec.lectura_inicial if lec else None,
+                "vFin": lec.lectura_final if lec else None,
+                "consumo": round((lec.lectura_final - lec.lectura_inicial), 2) if lec and lec.lectura_final and lec.lectura_inicial else None,
+                "cov": round(lec.importe, 2) if lec else None,
+                "instal": 0,
+                "pagoCov": entry.get("pagoCov", 0),
+            })
+            cur = date(cur.year + (cur.month // 12), cur.month % 12 + 1, 1)
+
+        total_pagado_cof = sum(p.importe for p in pagos if p.concepto == "COF")
+        total_pagado_cov = sum(p.importe for p in pagos if p.concepto == "COV")
+        total_desc = sum(d.importe for d in descuentos)
+        total_cov_cargado = sum(lec.importe for lec in lecturas)
+        n_meses = len(meses_rows)
+        cargado_cof = lote.cuota_cof * n_meses
+        saldo_cof = cargado_cof - total_pagado_cof - total_desc
+        saldo_cov = total_cov_cargado - total_pagado_cov
+
+        return {
+            "lote_id": lote_id,
+            "manzana": lote.manzana,
+            "numero": lote.numero,
+            "propietario": lote.propietario,
+            "m2": lote.m2,
+            "escrituracion": str(lote.fecha_escrituracion) if lote.fecha_escrituracion else None,
+            "cuotaFija": lote.cuota_cof,
+            "tarifaCOV": 5,
+            "totales": {
+                "cof": cargado_cof,
+                "extra": 0,
+                "pagoCof": total_pagado_cof,
+                "desc": total_desc,
+                "saldoCof": round(saldo_cof, 2),
+                "cov": total_cov_cargado,
+                "instal": 0,
+                "pagoCov": total_pagado_cov,
+            },
+            "meses": meses_rows,
+            "tiene_datos": len(pagos) > 0 or len(lecturas) > 0,
+        }
+
 @app.put("/api/lotes/{lote_id}")
 def update_lote(lote_id: int, data: dict):
     with Session(engine) as s:
@@ -493,6 +602,82 @@ def reporte_saldos(mes: str = "2026-05"):
             "pct_morosos": round(morosos / total * 100, 1) if total else 0,
             "detalle": resultado,
         }
+
+
+
+# ─── DESCUENTOS ───────────────────────────────────────────────
+class DescuentoReq(SQLModel):
+    lote_id: int
+    tipo: str = "descuento"
+    concepto: str = "COF"
+    importe: float
+    anio: Optional[int] = None
+    notas: Optional[str] = None
+    fecha: Optional[str] = None
+
+@app.get("/api/descuentos/resumen")
+def get_descuentos_resumen(admin: Usuario = Depends(_admin_only)):
+    """KPI summary for Descuentos page."""
+    with Session(engine) as s:
+        rows = s.exec(select(Descuento)).all()
+        total = sum(d.importe for d in rows)
+        lotes_ids = set(d.lote_id for d in rows)
+        return {
+            "total_descuentos": round(total, 2),
+            "lotes_con_descuento": len(lotes_ids),
+            "promedio": round(total / len(lotes_ids), 2) if lotes_ids else 0,
+        }
+
+@app.get("/api/descuentos")
+def get_descuentos(lote_id: Optional[int] = None, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        q = select(Descuento, Lote).join(Lote, Descuento.lote_id == Lote.id)
+        if lote_id:
+            q = q.where(Descuento.lote_id == lote_id)
+        rows = s.exec(q).all()
+        return [{
+            "id": d.id,
+            "lote_id": d.lote_id,
+            "manzana": l.manzana,
+            "numero": l.numero,
+            "propietario": l.propietario or "",
+            "tipo": d.tipo,
+            "concepto": d.concepto,
+            "importe": d.importe,
+            "anio": d.anio,
+            "notas": d.notas,
+            "fecha": str(d.fecha),
+        } for d, l in rows]
+
+@app.post("/api/descuentos")
+def crear_descuento(req: DescuentoReq, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        lote = s.get(Lote, req.lote_id)
+        if not lote:
+            raise HTTPException(404, "Lote no encontrado")
+        d = Descuento(
+            lote_id=req.lote_id,
+            tipo=req.tipo,
+            concepto=req.concepto,
+            importe=req.importe,
+            anio=req.anio,
+            notas=req.notas or None,
+            fecha=date.fromisoformat(req.fecha) if req.fecha else date.today(),
+        )
+        s.add(d)
+        s.commit()
+        s.refresh(d)
+        return {"id": d.id, "ok": True}
+
+@app.delete("/api/descuentos/{did}")
+def eliminar_descuento(did: int, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        d = s.get(Descuento, did)
+        if not d:
+            raise HTTPException(404, "Descuento no encontrado")
+        s.delete(d)
+        s.commit()
+        return {"ok": True}
 
 
 # ─── STATS DASHBOARD ─────────────────────────────────────────

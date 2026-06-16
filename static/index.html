@@ -4237,7 +4237,7 @@ async function loadChequera(){
     showToast('Cargando movimientos…');
     const r=await fetch('/api/banco/movimientos').then(x=>x.json()).catch(()=>({movimientos:[]}));
     // sort oldest→newest for running balance
-    _chequeraData=(r.movimientos||[]).slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    _chequeraData=(r.movimientos||[]).slice().sort((a,b)=>b.fecha.localeCompare(a.fecha));
     // populate year selector from available data
     const years=[...new Set(_chequeraData.map(m=>m.fecha.slice(0,4)))].sort((a,b)=>b-a);
     const sel=document.getElementById('chequeraAnio');
@@ -4276,9 +4276,11 @@ async function loadChequera(){
   const tipoLabel={ingreso_colono:'Depósito',pago_proveedor:'Cargo',sin_clasificar:'Sin clas.'};
   const fmt2=(v)=>v>0?'$'+v.toLocaleString('es-MX',{minimumFractionDigits:2}):'—';
 
-  // Compute running balance for ALL filtered rows (needed for correct saldo on any page)
+  // Compute running balance oldest→newest for correctness, then reverse for newest-first display
+  const movsOldFirst=[...movs].reverse();
   let runSaldo=0;
-  const allSaldos=movs.map(m=>{ runSaldo+=m.abono-m.cargo; return runSaldo; });
+  const saldosOldFirst=movsOldFirst.map(m=>{ runSaldo+=m.abono-m.cargo; return runSaldo; });
+  const allSaldos=saldosOldFirst.slice().reverse();
 
   // Pagination
   const PER_PAGE=100;

@@ -286,6 +286,19 @@ if os.path.exists(STATIC_DIR):
 def on_startup():
     global _scheduler
     SQLModel.metadata.create_all(engine)
+    # Add new Chequera columns to existing table if they don't exist yet
+    from sqlalchemy import text as _text
+    for _col_sql in [
+        "ALTER TABLE movimientobancario ADD COLUMN nombre TEXT",
+        "ALTER TABLE movimientobancario ADD COLUMN concepto TEXT",
+        "ALTER TABLE movimientobancario ADD COLUMN importe DOUBLE PRECISION",
+    ]:
+        try:
+            with engine.connect() as _c:
+                _c.execute(_text(_col_sql))
+                _c.commit()
+        except Exception:
+            pass
     try:
         _scheduler = BackgroundScheduler(timezone="America/Monterrey")
         _scheduler.start()
@@ -1041,44 +1054,80 @@ async def importar_banco(file: UploadFile = File(...)):
     col = {}
     for i, h in enumerate(headers):
         if "fecha" in h: col["fecha"] = i
+        elif "nombre" in h: col["nombre"] = i
+        elif "concepto" in h: col["concepto"] = i
         elif "descripci" in h: col["desc"] = i
+        elif "importe" in h: col["importe"] = i
+        elif "ret" in h and "isr" in h: col["ret_isr"] = i
+        elif "ret" in h and "iva" in h: col["ret_iva"] = i
+        elif "iva" in h: col["iva"] = i
+        elif "debe" in h: col["debe"] = i
+        elif "haber" in h: col["haber"] = i
+        elif "cheque" in h: col["cheque"] = i
         elif "cargo" in h or "retiro" in h or "debito" in h: col["cargo"] = i
         elif "abono" in h or "deposito" in h or "credito" in h: col["abono"] = i
         elif "referen" in h or "folio" in h: col["ref"] = i
+
+    # Detect 12-column Chequera format (has NOMBRE and/or CONCEPTO columns)
+    is_chequera_fmt = "nombre" in col or "concepto" in col or "cheque" in col
 
     importados = 0
     with Session(engine) as s:
         proveedores = s.exec(select(Proveedor)).all()
         lotes = s.exec(select(Lote).where(Lote.propietario != None)).all()
         for row in rows[header_row + 1:]:
-            if not row or not row[col.get("fecha", 0)]: continue
-            raw_fecha = row[col.get("fecha", 0)]
-            if hasattr(raw_fecha, "date"):
-                fecha = raw_fecha.date()
+            if not row: continue
+            fecha_raw = row[col.get("fecha", 2 if is_chequera_fmt else 0)]
+            if not fecha_raw: continue
+            if hasattr(fecha_raw, "date"):
+                fecha = fecha_raw.date()
             else:
-                try: fecha = date.fromisoformat(str(raw_fecha)[:10])
-                except: continue
-            desc = str(row[col.get("desc", 1)] or "")
-            cargo = float(row[col.get("cargo", 2)] or 0)
-            abono = float(row[col.get("abono", 3)] or 0)
-            ref = str(row[col.get("ref", 4)] or "") if "ref" in col else None
-            # Clasificar
-            tipo = "sin_clasificar"
-            lote_id = None
-            prov_id = None
-            desc_lower = desc.lower()
+                try: fecha = date.fromisoformat(str(fecha_raw)[:10])
+                except:
+                    # Try Excel serial date
+                    try:
+                        from datetime import date as _date, timedelta as _td
+                        fecha = _date(1899, 12, 30) + _td(days=int(float(str(fecha_raw))))
+                    except: continue
+
+            if is_chequera_fmt:
+                nombre_v = str(row[col["nombre"]] or "") if "nombre" in col else ""
+                concepto_v = str(row[col["concepto"]] or "") if "concepto" in col else ""
+                desc = nombre_v or concepto_v or "Sin descripción"
+                importe_v = float(row[col["importe"]] or 0) if "importe" in col and row[col["importe"]] else None
+                iva_v = float(row[col["iva"]] or 0) if "iva" in col and row[col["iva"]] else 0.0
+                ret_isr_v = float(row[col["ret_isr"]] or 0) if "ret_isr" in col and row[col["ret_isr"]] else 0.0
+                ret_iva_v = float(row[col["ret_iva"]] or 0) if "ret_iva" in col and row[col["ret_iva"]] else 0.0
+                cargo = float(row[col["debe"]] or 0) if "debe" in col and row[col["debe"]] else 0.0
+                abono = float(row[col["haber"]] or 0) if "haber" in col and row[col["haber"]] else 0.0
+                ref = str(row[col["cheque"]] or "") if "cheque" in col and row[col["cheque"]] else None
+            else:
+                nombre_v = None; concepto_v = None; importe_v = None
+                iva_v = 0.0; ret_isr_v = 0.0; ret_iva_v = 0.0
+                desc = str(row[col.get("desc", 1)] or "")
+                cargo = float(row[col.get("cargo", 2)] or 0)
+                abono = float(row[col.get("abono", 3)] or 0)
+                ref = str(row[col.get("ref", 4)] or "") if "ref" in col else None
+
+            # Clasificar automáticamente
+            tipo = "sin_clasificar"; lote_id = None; prov_id = None
+            search_text = (nombre_v or desc).lower()
             for lote in lotes:
                 if lote.propietario:
                     apellido = lote.propietario.split()[-1].lower()
-                    if len(apellido) > 3 and apellido in desc_lower:
+                    if len(apellido) > 3 and apellido in search_text:
                         tipo = "ingreso_colono"; lote_id = lote.id; break
             if tipo == "sin_clasificar":
                 for prov in proveedores:
-                    if prov.nombre.split()[0].lower() in desc_lower:
+                    if prov.nombre.split()[0].lower() in search_text:
                         tipo = "pago_proveedor"; prov_id = prov.id; break
+
             mov = MovimientoBancario(
-                fecha=fecha, descripcion=desc, cargo=cargo, abono=abono,
+                fecha=fecha, descripcion=desc, nombre=nombre_v, concepto=concepto_v,
+                importe=importe_v, cargo=cargo, abono=abono,
                 referencia=ref, tipo=tipo, lote_id=lote_id, proveedor_id=prov_id,
+                iva_ret=iva_v or ret_iva_v, isr_ret=ret_isr_v,
+                tiene_iva_ret=bool(iva_v or ret_iva_v), tiene_isr_ret=bool(ret_isr_v),
             )
             s.add(mov)
             importados += 1

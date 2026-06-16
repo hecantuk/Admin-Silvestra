@@ -1147,26 +1147,30 @@ tr:last-child td{border-bottom:none}
             <span id="chequeraTotalesInfo" style="font-size:12px;color:var(--muted)"></span>
           </div>
           <div class="table-wrap">
-            <table>
+            <table style="font-size:12px">
               <thead>
                 <tr>
-                  <th style="width:96px">Fecha</th>
-                  <th>Concepto</th>
-                  <th style="width:130px">Referencia</th>
-                  <th style="width:120px;text-align:right">Cargo</th>
-                  <th style="width:120px;text-align:right">Abono</th>
-                  <th style="width:130px;text-align:right">Saldo</th>
-                  <th style="width:90px">Tipo</th>
+                  <th style="min-width:100px">Cheque / Tipo</th>
+                  <th style="min-width:90px">Fecha</th>
+                  <th style="min-width:180px">Nombre</th>
+                  <th style="min-width:200px">Concepto</th>
+                  <th style="text-align:right;min-width:100px">Importe</th>
+                  <th style="text-align:right;min-width:70px">IVA</th>
+                  <th style="text-align:right;min-width:80px">Ret. ISR</th>
+                  <th style="text-align:right;min-width:80px">Ret. IVA</th>
+                  <th style="text-align:right;min-width:100px">Total</th>
+                  <th style="text-align:right;min-width:110px;color:var(--red)">Debe</th>
+                  <th style="text-align:right;min-width:110px;color:var(--green)">Haber</th>
+                  <th style="text-align:right;min-width:120px;font-weight:700">Saldo</th>
                 </tr>
               </thead>
               <tbody id="chequeraBody"></tbody>
               <tfoot>
-                <tr style="background:var(--bg);font-size:13px">
-                  <td colspan="3" style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:10px 12px">TOTALES</td>
-                  <td style="text-align:right;font-weight:700;color:var(--red);padding:10px 12px" id="chequeraTotCargo"></td>
-                  <td style="text-align:right;font-weight:700;color:var(--green);padding:10px 12px" id="chequeraTotAbono"></td>
-                  <td style="text-align:right;font-weight:700;padding:10px 12px" id="chequeraTotSaldo"></td>
-                  <td></td>
+                <tr style="background:var(--bg);font-size:12px;font-weight:700">
+                  <td colspan="9" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:10px 12px">TOTALES</td>
+                  <td style="text-align:right;color:var(--red);padding:10px 12px" id="chequeraTotCargo"></td>
+                  <td style="text-align:right;color:var(--green);padding:10px 12px" id="chequeraTotAbono"></td>
+                  <td style="text-align:right;padding:10px 12px" id="chequeraTotSaldo"></td>
                 </tr>
               </tfoot>
             </table>
@@ -4031,10 +4035,14 @@ async function loadChequera(){
   if(tipo==='abono') movs=movs.filter(m=>m.abono>0);
   else if(tipo==='cargo') movs=movs.filter(m=>m.cargo>0);
   else if(tipo) movs=movs.filter(m=>m.tipo===tipo);
-  if(q) movs=movs.filter(m=>(m.descripcion||'').toLowerCase().includes(q)||(m.referencia||'').toLowerCase().includes(q));
+  if(q) movs=movs.filter(m=>
+    (m.descripcion||'').toLowerCase().includes(q)||
+    (m.nombre||'').toLowerCase().includes(q)||
+    (m.concepto||'').toLowerCase().includes(q)||
+    (m.referencia||'').toLowerCase().includes(q));
 
-  const tipoBadge={ingreso_colono:'badge-green',pago_proveedor:'badge-teal',sin_clasificar:'badge-gold'};
-  const tipoLabel={ingreso_colono:'Colono',pago_proveedor:'Proveedor',sin_clasificar:'Sin clas.'};
+  const tipoLabel={ingreso_colono:'Depósito',pago_proveedor:'Cargo',sin_clasificar:'Sin clas.'};
+  const fmt2=(v)=>v>0?'$'+v.toLocaleString('es-MX',{minimumFractionDigits:2}):'—';
 
   // compute running balance on the filtered, date-sorted set
   let saldoCorr=0;
@@ -4042,16 +4050,26 @@ async function loadChequera(){
     saldoCorr+=m.abono-m.cargo;
     const sc=saldoCorr>=0?'var(--green)':'var(--red)';
     const signo=saldoCorr<0?'−':'';
+    const nombre=m.nombre||m.descripcion||'—';
+    const concepto=m.concepto||(m.nombre?m.descripcion:'')||'—';
+    const total=m.cargo>0?m.cargo:m.abono;
+    const cheque=m.referencia||(tipoLabel[m.tipo]||m.tipo);
+    const importe=m.importe!=null?m.importe:(m.cargo>0?m.cargo:null);
     return `<tr>
-      <td style="color:var(--muted);font-size:12px;white-space:nowrap">${m.fecha}</td>
-      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.descripcion||'—'}</td>
-      <td style="font-size:11px;color:var(--muted)">${m.referencia||'—'}</td>
-      <td style="text-align:right;color:var(--red)">${m.cargo>0?'$'+m.cargo.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
-      <td style="text-align:right;color:var(--green)">${m.abono>0?'$'+m.abono.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
+      <td style="white-space:nowrap;color:var(--muted)">${cheque||'—'}</td>
+      <td style="white-space:nowrap;color:var(--muted)">${m.fecha}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nombre}</td>
+      <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${concepto}</td>
+      <td style="text-align:right">${importe!=null?fmt2(importe):'—'}</td>
+      <td style="text-align:right;color:var(--muted)">${m.iva_ret>0&&m.tiene_iva_ret?fmt2(m.iva_ret):'—'}</td>
+      <td style="text-align:right;color:var(--muted)">${m.isr_ret>0&&m.tiene_isr_ret?fmt2(m.isr_ret):'—'}</td>
+      <td style="text-align:right;color:var(--muted)">—</td>
+      <td style="text-align:right">${fmt2(total)}</td>
+      <td style="text-align:right;color:var(--red)">${m.cargo>0?fmt2(m.cargo):'—'}</td>
+      <td style="text-align:right;color:var(--green)">${m.abono>0?fmt2(m.abono):'—'}</td>
       <td style="text-align:right;font-weight:600;color:${sc}">${signo}$${Math.abs(saldoCorr).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
-      <td><span class="badge ${tipoBadge[m.tipo]||'badge-gray'}" style="font-size:10px">${tipoLabel[m.tipo]||m.tipo}</span></td>
     </tr>`;
-  }).join(''):'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Sin movimientos para este filtro</td></tr>';
+  }).join(''):'<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--muted)">Sin movimientos para este filtro</td></tr>';
 
   const totC=movs.reduce((a,m)=>a+m.cargo,0);
   const totA=movs.reduce((a,m)=>a+m.abono,0);
@@ -4081,35 +4099,53 @@ function _chequeraExportExcel(){
     if(tipo==='abono') movs=movs.filter(m=>m.abono>0);
     else if(tipo==='cargo') movs=movs.filter(m=>m.cargo>0);
     else if(tipo) movs=movs.filter(m=>m.tipo===tipo);
-    if(q) movs=movs.filter(m=>(m.descripcion||'').toLowerCase().includes(q)||(m.referencia||'').toLowerCase().includes(q));
+    if(q) movs=movs.filter(m=>
+      (m.descripcion||'').toLowerCase().includes(q)||
+      (m.nombre||'').toLowerCase().includes(q)||
+      (m.concepto||'').toLowerCase().includes(q)||
+      (m.referencia||'').toLowerCase().includes(q));
 
     const wb=XLSX.utils.book_new();
-    const tipoLabel={ingreso_colono:'Colono',pago_proveedor:'Proveedor',sin_clasificar:'Sin clasificar'};
+    const tipoLabel={ingreso_colono:'Depósito',pago_proveedor:'Cargo',sin_clasificar:'Sin clasificar'};
     const aoa=[
       ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],
-      ['LIBRO DE CHEQUERA'+(anio?' — '+anio:'')],
+      ['RELACION DE LA CUENTA DE CHEQUERA — BANREGIO'+(anio?' ('+anio+')':'')],
       [''],
-      ['Tipo','Fecha','Nombre / Concepto','Debe','Haber','Saldo','Referencia'],
+      ['CHEQUE','FECHA','NOMBRE','CONCEPTO','IMPORTE','IVA','RET. ISR','RET. IVA','TOTAL','DEBE','HABER','SALDO'],
     ];
     let saldo=0;
     movs.forEach(m=>{
       saldo+=m.abono-m.cargo;
-      aoa.push([tipoLabel[m.tipo]||m.tipo, m.fecha, m.descripcion||'', m.cargo||0, m.abono||0,
-        parseFloat(saldo.toFixed(2)), m.referencia||'']);
+      const nombre=m.nombre||m.descripcion||'';
+      const concepto=m.concepto||(m.nombre?m.descripcion:'')||'';
+      const cheque=m.referencia||(tipoLabel[m.tipo]||m.tipo);
+      const importe=m.importe!=null?m.importe:(m.cargo>0?m.cargo:null);
+      const iva=m.tiene_iva_ret?m.iva_ret:0;
+      const retIsr=m.tiene_isr_ret?m.isr_ret:0;
+      const total=m.cargo>0?m.cargo:m.abono;
+      aoa.push([
+        cheque, m.fecha, nombre, concepto,
+        importe||0, iva||0, retIsr||0, 0,
+        total||0, m.cargo||0, m.abono||0,
+        parseFloat(saldo.toFixed(2))
+      ]);
     });
     const totC=movs.reduce((a,m)=>a+m.cargo,0);
     const totA=movs.reduce((a,m)=>a+m.abono,0);
-    aoa.push(['TOTALES','','',totC,totA,parseFloat((totA-totC).toFixed(2)),'']);
+    aoa.push(['TOTALES','','','','','','','','',totC,totA,parseFloat((totA-totC).toFixed(2))]);
 
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:14},{wch:12},{wch:40},{wch:14},{wch:14},{wch:14},{wch:16}];
-    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:6}},{s:{r:1,c:0},e:{r:1,c:6}}];
+    ws['!cols']=[{wch:14},{wch:12},{wch:28},{wch:30},{wch:12},{wch:10},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:14}];
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:11}},{s:{r:1,c:0},e:{r:1,c:11}}];
     const moneyFmt='#,##0.00';
+    const dateFmt='dd/mm/yyyy';
     for(let ri=4;ri<aoa.length;ri++){
-      [3,4,5].forEach(ci=>{
+      [4,5,6,7,8,9,10,11].forEach(ci=>{
         const ref=XLSX.utils.encode_cell({r:ri,c:ci});
         if(ws[ref]) ws[ref].z=moneyFmt;
       });
+      const fRef=XLSX.utils.encode_cell({r:ri,c:1});
+      if(ws[fRef]) ws[fRef].z=dateFmt;
     }
     XLSX.utils.book_append_sheet(wb,ws,'Chequera');
     XLSX.writeFile(wb,`Chequera_Silvestra${anio?'_'+anio:''}.xlsx`);

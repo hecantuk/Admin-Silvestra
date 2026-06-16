@@ -87,6 +87,11 @@ class MovimientoBancario(SQLModel, table=True):
     iva_ret: float = 0.0
     isr_ret: float = 0.0
     importado_en: datetime = Field(default_factory=datetime.utcnow)
+    # Chequera columns (12-column Excel format)
+    nombre: Optional[str] = None     # D/NOMBRE column
+    concepto: Optional[str] = None   # E/CONCEPTO column
+    importe: Optional[float] = None  # F/IMPORTE column (gross before retentions)
+
 
 
 class LecturaAgua(SQLModel, table=True):

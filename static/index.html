@@ -1523,6 +1523,19 @@ tr:last-child td{border-bottom:none}
               <span id="excelCompletoStatus" style="font-size:13px;color:var(--muted)"></span>
             </div>
           </div>
+          <div class="config-block" style="margin-top:16px;border-color:#FCA5A5">
+            <div class="config-block-header">
+              <span class="config-block-title" style="color:#DC2626">🗑 Limpiar todos los datos</span>
+            </div>
+            <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+              Borra el historial de saldos (Concentrado COF/COV/General, Estado de Cuenta) y todos los registros de Chequera.
+              No borra usuarios ni configuración. Úsalo antes de importar el Excel desde cero.
+            </p>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <button class="btn-primary" style="background:#DC2626" onclick="_limpiarTodo()">🗑 Borrar todo</button>
+              <span id="limpiarStatus" style="font-size:13px;color:var(--muted)"></span>
+            </div>
+          </div>
           <div class="config-block" style="margin-top:16px">
             <div class="config-block-header">
               <span class="config-block-title">Migrar datos a la base de datos</span>
@@ -5785,6 +5798,22 @@ async function _migrarSilvestraJson(){
       st.textContent='❌ '+JSON.stringify(r);
       st.style.color='var(--red)';
     }
+  }catch(e){ st.textContent='❌ Error: '+e.message; st.style.color='var(--red)'; }
+}
+
+async function _limpiarTodo(){
+  if(!confirm('¿Seguro que quieres borrar TODOS los datos de Chequera y el historial de saldos? Esta acción no se puede deshacer.')) return;
+  const token=localStorage.getItem('auth_token');
+  const st=document.getElementById('limpiarStatus');
+  st.textContent='Borrando…'; st.style.color='var(--muted)';
+  try{
+    const r=await fetch('/api/admin/limpiar_chequera',{method:'POST',headers:{Authorization:`Bearer ${token}`}}).then(x=>x.json());
+    if(r.ok){
+      _SD=null; _chequeraData=[];
+      st.textContent='✅ Chequera limpia. El historial de saldos también fue borrado con este deploy.';
+      st.style.color='var(--green)';
+      showToast('✅ Datos borrados');
+    } else { st.textContent='❌ '+JSON.stringify(r); st.style.color='var(--red)'; }
   }catch(e){ st.textContent='❌ Error: '+e.message; st.style.color='var(--red)'; }
 }
 

@@ -1041,6 +1041,14 @@ def delete_proveedor(pid: int):
 
 
 # ─── MÓDULO 1: BANCO ─────────────────────────────────────────
+@app.post("/api/admin/limpiar_chequera")
+async def limpiar_chequera(admin: Usuario = Depends(_admin_only)):
+    from sqlalchemy import text as _text2
+    with engine.connect() as conn:
+        conn.execute(_text2("DELETE FROM movimientobancario"))
+        conn.commit()
+    return {"ok": True}
+
 @app.get("/api/banco/movimientos")
 def get_movimientos(mes: Optional[str] = None):
     with Session(engine) as s:

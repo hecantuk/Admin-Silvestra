@@ -59,10 +59,10 @@ class Usuario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(unique=True)
     hashed_password: str
-    rol: str = "residente"   # admin | residente
+    rol: str = "residente"   # admin | residente | visor
     lote_id: Optional[int] = Field(default=None, foreign_key="lote.id")
     activo: bool = True
-    debe_cambiar_password: bool = True
+    debe_cambiar_password: bool = False
 
 
 class Proveedor(SQLModel, table=True):
@@ -121,32 +121,3 @@ class Config(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     clave: str = Field(unique=True)
     valor: str = ""
-
-
-class Descuento(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    lote_id: int = Field(foreign_key="lote.id")
-    tipo: str = "descuento"      # "descuento" | "condonacion"
-    concepto: str = "COF"        # COF | COV
-    importe: float
-    anio: Optional[int] = None
-    notas: Optional[str] = None
-    fecha: date = Field(default_factory=date.today)
-    creado_en: datetime = Field(default_factory=datetime.utcnow)
-
-
-class CuotaAnual(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    anio: int
-    min_m2: float
-    max_m2: Optional[float] = None   # None = sin límite superior
-    importe: float
-
-
-class GastoArchivo(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    gasto_id: int = Field(foreign_key="gasto.id")
-    nombre: str
-    tipo_mime: str = "application/octet-stream"
-    contenido_b64: str   # base64-encoded file content
-    subido_en: datetime = Field(default_factory=datetime.utcnow)

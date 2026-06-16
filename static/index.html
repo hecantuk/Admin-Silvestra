@@ -399,6 +399,14 @@ tr:last-child td{border-bottom:none}
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         Concentrado
       </div>
+      <div class="nav-item" onclick="showPage('concentradoCOF',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Concentrado COF
+      </div>
+      <div class="nav-item" onclick="showPage('concentradoCOV',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M15 21V9"/></svg>
+        Concentrado COV
+      </div>
       <div class="nav-item" onclick="showPage('estadoCuenta',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Estado de Cuenta
@@ -746,6 +754,92 @@ tr:last-child td{border-bottom:none}
                 <td id="rTotSaldo" style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--red);text-align:right"></td>
                 <td id="rTotCOV" style="padding:10px 14px;font-family:'DM Mono',monospace;text-align:right"></td>
                 <td colspan="3"></td>
+              </tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONCENTRADO COF -->
+      <div class="page" id="pageConcentradoCOF">
+        <div class="kpi-grid" id="ccofKpis"></div>
+        <div class="search-row" style="margin-bottom:16px">
+          <select class="search-box" id="ccofAnio" onchange="loadConcentradoCOF()" style="width:110px">
+            <option value="">Todos los años</option>
+          </select>
+          <select class="search-box" id="ccofMes" onchange="loadConcentradoCOF()" style="width:140px">
+            <option value="">Todos los meses</option>
+            <option value="01">Enero</option><option value="02">Febrero</option>
+            <option value="03">Marzo</option><option value="04">Abril</option>
+            <option value="05">Mayo</option><option value="06">Junio</option>
+            <option value="07">Julio</option><option value="08">Agosto</option>
+            <option value="09">Septiembre</option><option value="10">Octubre</option>
+            <option value="11">Noviembre</option><option value="12">Diciembre</option>
+          </select>
+          <input class="search-box" id="ccofSearch" placeholder="Buscar propietario…" oninput="loadConcentradoCOF()" style="flex:1;min-width:160px">
+          <button class="btn-secondary" onclick="_ccofExportExcel()">⬇ Excel</button>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Mza</th><th>Lote</th><th style="min-width:180px">Propietario</th>
+                <th style="text-align:right">M²</th><th style="text-align:right">Cuota</th>
+                <th style="text-align:right">COF Cargado</th><th style="text-align:right">Extraord.</th>
+                <th style="text-align:right">Pagado</th><th style="text-align:right">Descuento</th>
+                <th style="text-align:right">Saldo</th>
+              </tr></thead>
+              <tbody id="ccofBody"></tbody>
+              <tfoot><tr style="font-weight:700;background:var(--bg)">
+                <td colspan="5" style="text-align:right;padding:10px 12px">TOTALES</td>
+                <td style="text-align:right;padding:10px 12px" id="ccofTotCof"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccofTotExtra"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccofTotPago"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccofTotDesc"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccofTotSaldo"></td>
+              </tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONCENTRADO COV -->
+      <div class="page" id="pageConcentradoCOV">
+        <div class="kpi-grid" id="ccovKpis"></div>
+        <div class="search-row" style="margin-bottom:16px">
+          <select class="search-box" id="ccovAnio" onchange="loadConcentradoCOV()" style="width:110px">
+            <option value="">Todos los años</option>
+          </select>
+          <select class="search-box" id="ccovMes" onchange="loadConcentradoCOV()" style="width:140px">
+            <option value="">Todos los meses</option>
+            <option value="01">Enero</option><option value="02">Febrero</option>
+            <option value="03">Marzo</option><option value="04">Abril</option>
+            <option value="05">Mayo</option><option value="06">Junio</option>
+            <option value="07">Julio</option><option value="08">Agosto</option>
+            <option value="09">Septiembre</option><option value="10">Octubre</option>
+            <option value="11">Noviembre</option><option value="12">Diciembre</option>
+          </select>
+          <input class="search-box" id="ccovSearch" placeholder="Buscar propietario…" oninput="loadConcentradoCOV()" style="flex:1;min-width:160px">
+          <button class="btn-secondary" onclick="_ccovExportExcel()">⬇ Excel</button>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Mza</th><th>Lote</th><th style="min-width:180px">Propietario</th>
+                <th style="text-align:right">M²</th>
+                <th style="text-align:right">Consumo m³</th><th style="text-align:right">COV</th>
+                <th style="text-align:right">Instalación</th><th style="text-align:right">Pagado</th>
+                <th style="text-align:right">Saldo COV</th>
+              </tr></thead>
+              <tbody id="ccovBody"></tbody>
+              <tfoot><tr style="font-weight:700;background:var(--bg)">
+                <td colspan="4" style="text-align:right;padding:10px 12px">TOTALES</td>
+                <td style="text-align:right;padding:10px 12px" id="ccovTotConsumo"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccovTotCov"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccovTotInstal"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccovTotPago"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccovTotSaldo"></td>
               </tr></tfoot>
             </table>
           </div>
@@ -2324,112 +2418,144 @@ function ecExportExcel(){
 function _ecExportExcelDo(l){
   const wb=XLSX.utils.book_new();
   const tarifa=l.tarifaCOV||5;
-  // FIX #9: include pagoCov-only months (payment with no new charge that month)
   const meses=l.meses.filter(m=>m.cof>0||m.cov>0||m.pagoCof>0||m.extra>0||m.pagoCov>0||m.instal>0);
 
-  // Columns: A=Mes B=Extra C=COF D=PagoCOF E=Desc F=FechaPago
-  //          G=SaldoMes H=LectIni I=LectFin J=Consumo K=COV L=Instal M=PagoCOV
-  const dataStartRow=18;   // Excel row 18 (1-based) = aoa index 17
-  // FIX #1: guard empty meses (would produce reversed SUM(B18:B17) range)
+  // 15 columns A-O matching the original Excel layout:
+  // A=Mes B=Extra C=COF D=PagosCOF E=Desc F=FechaPagoCOF G=SaldoCOF
+  // H=VolIni I=VolFin J=Consumo K=COV L=Instal M=PagosCOV N=FechaPagoCOV O=SaldoCOV
+  // Tarifa COV stored in N7 → formula references $N$7
+  const dataStartRow=19;   // Excel row 19 = aoa index 18
   const hasData=meses.length>0;
   const lastDataR=hasData?dataStartRow+meses.length-1:dataStartRow;
-  // FIX #6: single sumF helper (removed dead sumR duplicate)
+
+  const mkRow=()=>new Array(15).fill(null);
+
+  // ── Header rows (aoa[0..17] = Excel rows 1-18) ──
+  const r1=mkRow(); r1[0]='Asociación de Colonos Silvestra - Canoas, A.C.';
+  const r2=mkRow(); r2[0]='Dicka Campestre, S.A. de C.V.';
+  const r4=mkRow(); r4[0]='Estado de cuenta';
+  const r5=mkRow(); r5[9]='Información generada a la fecha de hoy:'; r5[13]=new Date();
+  // Row 6: Asociado (C6), Escrituración (J6), Cuota Fija (N6)
+  const r6=mkRow(); r6[0]='Asociado:'; r6[2]=l.nombre; r6[6]='Fecha de escrituración:'; r6[9]=l.escrituracion||'—'; r6[11]='Cuota Fija:'; r6[13]=l.cuotaFija;
+  // Row 7: Manzana (C7), M2 (J7), Tarifa COV (N7) ← $N$7 is the tarifa reference
+  const r7=mkRow(); r7[0]='Manzana:'; r7[2]=parseInt(l.mza); r7[6]='M2:'; r7[9]=parseFloat(l.m2); r7[11]='Valor cuota ordinaria variable:'; r7[13]=tarifa;
+  // Row 8: Lote (C8)
+  const r8=mkRow(); r8[0]='Lote:'; r8[2]=parseInt(l.lote);
+  // Row 10: section headers
+  const r10=mkRow(); r10[0]='Conceptos'; r10[5]='Cuota Ordinaria Fija de mantenimiento (COF)'; r10[9]='Administración y mantenimiento de equipo y redes de agua: Cuota Ordinaria Variable (COV)'; r10[13]='Totales';
+  // Row 11: Monto total cuotas — G=Extra+COF cargado, L=COV+Instal, N=total
+  const r11=mkRow(); r11[0]='Monto total de cuotas';
+  r11[6]=hasData?{f:`SUM(B${dataStartRow}:B${lastDataR})+SUM(C${dataStartRow}:C${lastDataR})`}:((l.totales.extra||0)+(l.totales.cof||0));
+  r11[11]=hasData?{f:`SUM(K${dataStartRow}:K${lastDataR})+SUM(L${dataStartRow}:L${lastDataR})`}:((l.totales.cov||0)+(l.totales.instal||0));
+  r11[13]=hasData?{f:'G11+L11'}:((l.totales.extra||0)+(l.totales.cof||0)+(l.totales.cov||0)+(l.totales.instal||0));
+  // Row 12: Monto total pagos
+  const r12=mkRow(); r12[0]='Monto total de pagos';
+  r12[6]=hasData?{f:`SUM(D${dataStartRow}:D${lastDataR})`}:(l.totales.pagoCof||0);
+  r12[11]=hasData?{f:`SUM(M${dataStartRow}:M${lastDataR})`}:(l.totales.pagoCov||0);
+  r12[13]=hasData?{f:'G12+L12'}:((l.totales.pagoCof||0)+(l.totales.pagoCov||0));
+  // Row 13: Descuentos
+  const r13=mkRow(); r13[0]='Descuentos';
+  r13[6]=hasData?{f:`SUM(E${dataStartRow}:E${lastDataR})`}:(l.totales.desc||0);
+  // Row 14: Saldo pendiente — G=COF balance, L=COV balance, N=total
+  const r14=mkRow(); r14[0]='Saldo pendiente de liquidar';
+  r14[6]=hasData?{f:`SUM(G${dataStartRow}:G${lastDataR})`}:(l.totales.saldoCof||0);
+  r14[11]=hasData?{f:'L11-L12'}:((l.totales.cov||0)+(l.totales.instal||0)-(l.totales.pagoCov||0));
+  r14[13]=hasData?{f:'G14+L14'}:((l.totales.saldoCof||0)+(l.totales.cov||0)+(l.totales.instal||0)-(l.totales.pagoCov||0));
+  // Row 16: Detalle label
+  const r16=mkRow(); r16[0]='Detalle';
+  // Row 17: section span labels
+  const r17=mkRow(); r17[0]='Cuota Ordinaria Fija de mantenimiento (COF)'; r17[7]='Administración y mantenimiento de equipo y redes de agua: Cuota Ordinaria Variable (COV)';
+  // Row 18: column headers
+  const r18=['Mes','Cuota extraordinaria única','COF','Pagos','Descuento','Fecha de pago','Saldo',
+             'Vol. Inicial','Vol. Final','Consumo (m3)','COV','Instalación de medidor volumétrico.','Pagos','Fecha de pago','Saldo'];
 
   const aoa=[
-    ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],
-    ['ESTADO DE CUENTA INDIVIDUAL'],
-    [''],
-    ['Propietario:', l.nombre],
-    ['Lote:', `Manzana ${l.mza} · Lote ${l.lote}`],
-    ['Superficie:', parseFloat(l.m2), 'm²'],
-    ['Fecha de escrituración:', l.escrituracion||'—'],
-    ['Cuota mensual COF:', l.cuotaFija],
-    ['Tarifa COV:', tarifa, '$/m³'],   // FIX #2+#4: raw number in B9 so $B$9 ref works
-    [''],
-    ['COF — Resumen:','','','COV — Resumen:'],
-    // FIX #1+#3: hasData fallback to l.* prevents reversed SUM range and preserves carry-forward
-    ['Total cargado:',
-     hasData?{f:`SUM(B${dataStartRow}:B${lastDataR})+SUM(C${dataStartRow}:C${lastDataR})`}:(l.cargadoCof||0),
-     '','Consumo+instalación:',
-     hasData?{f:`SUM(K${dataStartRow}:K${lastDataR})+SUM(L${dataStartRow}:L${lastDataR})`}:((l.totales.cov||0)+(l.totales.instal||0))],
-    ['Total pagado:',
-     hasData?{f:`SUM(D${dataStartRow}:D${lastDataR})`}:(l.pagadoCof||0),
-     '','Total pagado COV:',
-     hasData?{f:`SUM(M${dataStartRow}:M${lastDataR})`}:(l.totales.pagoCov||0)],
-    ['Descuentos:',
-     hasData?{f:`SUM(E${dataStartRow}:E${lastDataR})`}:(l.descCof||0),
-     '','Saldo COV:',
-     hasData?{f:`SUM(K${dataStartRow}:K${lastDataR})+SUM(L${dataStartRow}:L${lastDataR})-SUM(M${dataStartRow}:M${lastDataR})`}:(l.saldoCov||0)],
-    ['Saldo COF pendiente:',
-     hasData?{f:`SUM(G${dataStartRow}:G${lastDataR})`}:(l.saldoCof||0),'','',''],
-    [''],
-    ['Mes','Extraord.','COF','Pago COF','Descuento','Fecha pago','Saldo mes',
-     'Lect. ini','Lect. fin','Consumo m³','COV','Instalación','Pago COV'],
+    r1,r2,mkRow(),r4,r5,r6,r7,r8,mkRow(),r10,
+    r11,r12,r13,r14,mkRow(),r16,r17,r18,
+    // aoa[18] onward = Excel row 19 onward (data rows)
   ];
 
   meses.forEach((m,i)=>{
     const r=dataStartRow+i;
-    // FIX #10: both readings required — missing vIni would make I-H subtract empty cell (#VALUE!)
     const hasLect=(m.vFin!=null&&m.vFin!=='')&&(m.vIni!=null&&m.vIni!=='');
-    aoa.push([
-      _mlabel(m.mes),
-      m.extra||0,
-      m.cof||0,
-      m.pagoCof||0,
-      m.desc||0,
-      m.fpago||'',
-      {f:`B${r}+C${r}-D${r}-E${r}`},        // Saldo = Extra+COF-Pago-Desc
-      hasLect?m.vIni:'',
-      hasLect?m.vFin:'',
-      hasLect?{f:`I${r}-H${r}`}:0,           // Consumo = LectFin(I) - LectIni(H)
-      hasLect?{f:`J${r}*$B$9`}:(m.cov||0),       // FIX #2+#4: COV = Consumo × $B$9 (editable tarifa cell)
-      m.instal||0,
-      m.pagoCov||0,
-    ]);
+    const dr=mkRow();
+    dr[0]=_mlabel(m.mes);
+    dr[1]=m.extra||0;
+    dr[2]=m.cof||0;
+    dr[3]=m.pagoCof||0;
+    dr[4]=m.desc||0;
+    dr[5]=m.fpago||'';
+    dr[6]={f:`B${r}+C${r}-D${r}-E${r}`};          // Saldo COF
+    dr[7]=hasLect?m.vIni:'';
+    dr[8]=hasLect?m.vFin:'';
+    dr[9]=hasLect?{f:`I${r}-H${r}`}:0;             // Consumo = VolFin-VolIni
+    dr[10]=hasLect?{f:`J${r}*$N$7`}:(m.cov||0);   // COV = Consumo × tarifa ($N$7)
+    dr[11]=m.instal||0;
+    dr[12]=m.pagoCov||0;
+    dr[13]='';                                      // Fecha pago COV (not in data)
+    dr[14]=hasLect?{f:`K${r}+L${r}-M${r}`}:((m.cov||0)+(m.instal||0)-(m.pagoCov||0)); // Saldo COV
+    aoa.push(dr);
   });
 
-  // FIX #1: skip TOTALES row when there are no data rows
   if(hasData){
     const sumCol=(col)=>({f:`SUM(${col}${dataStartRow}:${col}${lastDataR})`});
-    aoa.push([
-      'TOTALES',
-      sumCol('B'),sumCol('C'),sumCol('D'),sumCol('E'),'',
-      sumCol('G'),
-      '','',sumCol('J'),sumCol('K'),sumCol('L'),sumCol('M'),
-    ]);
+    const totR=mkRow();
+    totR[0]='Totales';
+    totR[1]=sumCol('B'); totR[2]=sumCol('C'); totR[3]=sumCol('D'); totR[4]=sumCol('E');
+    totR[6]=sumCol('G');
+    totR[10]=sumCol('K'); totR[11]=sumCol('L'); totR[12]=sumCol('M');
+    totR[14]=sumCol('O');
+    aoa.push(totR);
   }
+
+  // Footer contact info
+  aoa.push(mkRow());
+  const fc1=mkRow(); fc1[0]='Para cualquier duda y/o aclaración al respecto, puede comunicarse al teléfono: (81) 8865-7770 ext. 7741 con Ana Sena, correo electrónico: sena.ana@dicka.com.mx'; aoa.push(fc1);
+  const fc2=mkRow(); fc2[0]='Los pagos se pueden realizar mediante transferencia electrónica o depósito, a la cuenta:'; aoa.push(fc2);
+  const fc3=mkRow(); fc3[0]='Banco:'; fc3[4]='Banregio'; aoa.push(fc3);
+  const fc4=mkRow(); fc4[0]='Beneficiario:'; fc4[4]='Asociación de Colonos Silvestra-Canoas AC'; aoa.push(fc4);
+  const fc5=mkRow(); fc5[0]='Cuenta:'; fc5[4]='001166030010'; aoa.push(fc5);
 
   const ws=XLSX.utils.aoa_to_sheet(aoa);
 
-  ws['!cols']=[{wch:16},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},
-               {wch:10},{wch:10},{wch:11},{wch:11},{wch:11},{wch:11}];
+  ws['!cols']=[
+    {wch:16},{wch:20},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},
+    {wch:10},{wch:10},{wch:11},{wch:11},{wch:24},{wch:12},{wch:14},{wch:12}
+  ];
   ws['!merges']=[
-    {s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}},
+    {s:{r:0,c:0},e:{r:0,c:14}}, // Row 1 A:O
+    {s:{r:1,c:0},e:{r:1,c:14}}, // Row 2 A:O
+    {s:{r:3,c:0},e:{r:3,c:14}}, // Row 4 A:O
   ];
 
   const moneyFmt='#,##0.00';
-  const intFmt='#,##0';   // FIX #7: integer format for meter readings (H, I)
   const dateFmt='dd/mm/yyyy';
-  const moneyCols=[1,2,3,4,6,10,11,12]; // B,C,D,E,G,K,L,M
-  const intCols=[7,8];                   // H=LectIni, I=LectFin
-  // FIX #1: empty loop when no data (lastFmtRi < dataStartRow-1)
-  // Also now includes TOTALES row (ri reaches dataStartRow+meses.length-1 = totals aoa index)
-  const lastFmtRi=hasData?dataStartRow+meses.length-1:dataStartRow-2;
-  for(let ri=dataStartRow-1;ri<=lastFmtRi;ri++){
+  // B,C,D,E,G,K,L,M,O = indices 1,2,3,4,6,10,11,12,14
+  const moneyCols=[1,2,3,4,6,10,11,12,14];
+  const intCols=[7,8];   // H=VolIni, I=VolFin
+  const dateCols=[5,13]; // F=FechaPagoCOF, N=FechaPagoCOV
+  // Format data rows + totals row (aoa index 18 onward)
+  const fmtEndRi=hasData?18+meses.length:17; // inclusive, includes totals row
+  for(let ri=18;ri<=fmtEndRi;ri++){
     moneyCols.forEach(ci=>{
       const ref=XLSX.utils.encode_cell({r:ri,c:ci});
       if(ws[ref]&&!ws[ref].z) ws[ref].z=moneyFmt;
     });
     intCols.forEach(ci=>{
       const ref=XLSX.utils.encode_cell({r:ri,c:ci});
-      if(ws[ref]&&!ws[ref].z) ws[ref].z=intFmt;
+      if(ws[ref]&&!ws[ref].z) ws[ref].z='#,##0';
     });
-    const fRef=XLSX.utils.encode_cell({r:ri,c:5});
-    if(ws[fRef]) ws[fRef].z=dateFmt;
+    dateCols.forEach(ci=>{
+      const ref=XLSX.utils.encode_cell({r:ri,c:ci});
+      if(ws[ref]) ws[ref].z=dateFmt;
+    });
   }
-  // Apply number format to tarifa cell ($B$9) so decimals display correctly
-  const tarifaCell=XLSX.utils.encode_cell({r:8,c:1});
+  // N7 tarifa cell format
+  const tarifaCell=XLSX.utils.encode_cell({r:6,c:13});
   if(ws[tarifaCell]) ws[tarifaCell].z='0.##';
+  // N5 generated-date cell format
+  const genDateCell=XLSX.utils.encode_cell({r:4,c:13});
+  if(ws[genDateCell]) ws[genDateCell].z=dateFmt;
 
   XLSX.utils.book_append_sheet(wb,ws,'Estado de Cuenta');
 
@@ -2508,6 +2634,7 @@ const PAGE_TITLES={
   reporte:'Concentrado de Cobranza',exportar:'Exportar estados de cuenta',
   estadoCuenta:'Estado de Cuenta Individual',descuentos:'Descuentos',
   banco:'Movimientos Banco',chequera:'Chequera',
+  concentradoCOF:'Concentrado COF',concentradoCOV:'Concentrado COV',
   miCuenta:'Mi Estado de Cuenta',misPagos:'Mis Pagos',
   configuracion:'Configuración'
 };
@@ -2532,6 +2659,8 @@ function showPage(id,navEl){
     else if(id==='descuentos') loadDescuentos();
     else if(id==='banco') loadBanco();
     else if(id==='chequera') loadChequera();
+    else if(id==='concentradoCOF') loadConcentradoCOF();
+    else if(id==='concentradoCOV') loadConcentradoCOV();
     else if(id==='diot') loadDiot();
     else if(id==='agua') loadAgua();
     else if(id==='prorrateo') loadProrrateo();
@@ -2541,6 +2670,8 @@ function showPage(id,navEl){
     // Estas siempre recargan datos frescos del servidor
     if(id==='banco') loadBanco();
     else if(id==='chequera') loadChequera();
+    else if(id==='concentradoCOF') loadConcentradoCOF();
+    else if(id==='concentradoCOV') loadConcentradoCOV();
     else if(id==='diot') loadDiot();
     else if(id==='ingresos') loadIngresos();
     else if(id==='agua') loadAgua();
@@ -3958,20 +4089,20 @@ function _chequeraExportExcel(){
       ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],
       ['LIBRO DE CHEQUERA'+(anio?' — '+anio:'')],
       [''],
-      ['Fecha','Concepto','Referencia','Cargo','Abono','Saldo','Tipo'],
+      ['Tipo','Fecha','Nombre / Concepto','Debe','Haber','Saldo','Referencia'],
     ];
     let saldo=0;
     movs.forEach(m=>{
       saldo+=m.abono-m.cargo;
-      aoa.push([m.fecha,m.descripcion||'',m.referencia||'',m.cargo||0,m.abono||0,
-        parseFloat(saldo.toFixed(2)),tipoLabel[m.tipo]||m.tipo]);
+      aoa.push([tipoLabel[m.tipo]||m.tipo, m.fecha, m.descripcion||'', m.cargo||0, m.abono||0,
+        parseFloat(saldo.toFixed(2)), m.referencia||'']);
     });
     const totC=movs.reduce((a,m)=>a+m.cargo,0);
     const totA=movs.reduce((a,m)=>a+m.abono,0);
     aoa.push(['TOTALES','','',totC,totA,parseFloat((totA-totC).toFixed(2)),'']);
 
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:12},{wch:40},{wch:16},{wch:14},{wch:14},{wch:14},{wch:14}];
+    ws['!cols']=[{wch:14},{wch:12},{wch:40},{wch:14},{wch:14},{wch:14},{wch:16}];
     ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:6}},{s:{r:1,c:0},e:{r:1,c:6}}];
     const moneyFmt='#,##0.00';
     for(let ri=4;ri<aoa.length;ri++){
@@ -3983,6 +4114,239 @@ function _chequeraExportExcel(){
     XLSX.utils.book_append_sheet(wb,ws,'Chequera');
     XLSX.writeFile(wb,`Chequera_Silvestra${anio?'_'+anio:''}.xlsx`);
     showToast('Excel de chequera exportado');
+  });
+}
+
+// ============================================================
+// CONCENTRADO COF
+// ============================================================
+const _MES_NAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+async function loadConcentradoCOF(){
+  await _loadSD();
+  // Populate year selector once
+  const anioSel=document.getElementById('ccofAnio');
+  if(anioSel.children.length<=1){
+    const years=[...new Set((_SD||[]).flatMap(l=>l.meses.map(m=>m.mes.slice(0,4))))].sort((a,b)=>b-a);
+    years.forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; anioSel.appendChild(o); });
+  }
+  const anio=anioSel.value;
+  const mes=document.getElementById('ccofMes').value;
+  const q=(document.getElementById('ccofSearch').value||'').toLowerCase();
+
+  const rows=(_SD||[]).filter(l=>l.nombre&&!l.nombre.toUpperCase().includes('CASA MUESTRA')).map(l=>{
+    const mFilt=l.meses.filter(m=>{
+      if(anio&&mes) return m.mes===`${anio}-${mes}`;
+      if(anio) return m.mes.startsWith(anio);
+      return true;
+    }).filter(m=>m.cof>0||m.extra>0||m.pagoCof>0||m.desc>0);
+    const cof=mFilt.reduce((a,m)=>a+(m.cof||0),0);
+    const extra=mFilt.reduce((a,m)=>a+(m.extra||0),0);
+    const pagoCof=mFilt.reduce((a,m)=>a+(m.pagoCof||0),0);
+    const desc=mFilt.reduce((a,m)=>a+(m.desc||0),0);
+    const saldo=parseFloat((cof+extra-pagoCof-desc).toFixed(2));
+    return {l,cof,extra,pagoCof,desc,saldo,hasActivity:mFilt.length>0};
+  }).filter(r=>r.hasActivity||(r.saldo!==0));
+
+  const filt=q?rows.filter(r=>r.l.nombre.toLowerCase().includes(q)):rows;
+  filt.sort((a,b)=>a.l.mza-b.l.mza||a.l.lote-b.l.lote);
+
+  const totCof=filt.reduce((a,r)=>a+r.cof,0);
+  const totExtra=filt.reduce((a,r)=>a+r.extra,0);
+  const totPago=filt.reduce((a,r)=>a+r.pagoCof,0);
+  const totDesc=filt.reduce((a,r)=>a+r.desc,0);
+  const totSaldo=filt.reduce((a,r)=>a+r.saldo,0);
+
+  const fmt=(v)=>'$'+v.toLocaleString('es-MX',{minimumFractionDigits:2});
+  const morosos=filt.filter(r=>r.saldo>0.01).length;
+  const periodLabel=anio?(mes?`${_MES_NAMES[+mes-1]} ${anio}`:anio):'Todo el historial';
+  document.getElementById('ccofKpis').innerHTML=`
+    <div class="kpi"><div class="lab">Lotes</div><div class="val">${filt.length}</div><div class="sub">${periodLabel}</div></div>
+    <div class="kpi"><div class="lab">COF cargado</div><div class="val" style="font-size:18px">${fmt(totCof+totExtra)}</div></div>
+    <div class="kpi"><div class="lab">Total pagado</div><div class="val" style="font-size:18px;color:var(--green)">${fmt(totPago)}</div></div>
+    <div class="kpi"><div class="lab">Saldo pendiente</div><div class="val" style="font-size:18px;color:var(--red)">${fmt(totSaldo)}</div><div class="sub">${morosos} lotes con adeudo</div></div>`;
+
+  document.getElementById('ccofBody').innerHTML=filt.length?filt.map(r=>{
+    const sc=r.saldo>0.01?'color:var(--red);font-weight:600':r.saldo<-0.01?'color:var(--green);font-weight:600':'';
+    return `<tr>
+      <td style="text-align:center">${r.l.mza}</td>
+      <td style="text-align:center">${r.l.lote}</td>
+      <td class="td-name">${r.l.nombre}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${parseFloat(r.l.m2).toLocaleString('es-MX',{maximumFractionDigits:1})}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${(r.l.cuotaFija||0).toLocaleString()}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.cof>0?fmt(r.cof):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.extra>0?fmt(r.extra):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--green)">${r.pagoCof>0?fmt(r.pagoCof):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--green)">${r.desc>0?fmt(r.desc):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;${sc}">${fmt(r.saldo)}</td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--muted)">Sin datos para el período seleccionado</td></tr>`;
+
+  document.getElementById('ccofTotCof').textContent=fmt(totCof);
+  document.getElementById('ccofTotExtra').textContent=fmt(totExtra);
+  document.getElementById('ccofTotPago').textContent=fmt(totPago);
+  document.getElementById('ccofTotDesc').textContent=fmt(totDesc);
+  const sEl=document.getElementById('ccofTotSaldo');
+  sEl.textContent=fmt(totSaldo); sEl.style.color=totSaldo>0?'var(--red)':'var(--green)';
+}
+
+function _ccofExportExcel(){
+  _loadXLSX(()=>{
+    const anio=document.getElementById('ccofAnio').value;
+    const mes=document.getElementById('ccofMes').value;
+    const periodLabel=anio?(mes?`${_MES_NAMES[+mes-1]} ${anio}`:anio):'Historial completo';
+    const wb=XLSX.utils.book_new();
+    const rows=(_SD||[]).filter(l=>l.nombre&&!l.nombre.toUpperCase().includes('CASA MUESTRA')).map(l=>{
+      const mFilt=l.meses.filter(m=>{
+        if(anio&&mes) return m.mes===`${anio}-${mes}`;
+        if(anio) return m.mes.startsWith(anio);
+        return true;
+      }).filter(m=>m.cof>0||m.extra>0||m.pagoCof>0||m.desc>0);
+      const cof=mFilt.reduce((a,m)=>a+(m.cof||0),0);
+      const extra=mFilt.reduce((a,m)=>a+(m.extra||0),0);
+      const pagoCof=mFilt.reduce((a,m)=>a+(m.pagoCof||0),0);
+      const desc=mFilt.reduce((a,m)=>a+(m.desc||0),0);
+      return {l,cof,extra,pagoCof,desc,saldo:parseFloat((cof+extra-pagoCof-desc).toFixed(2)),hasActivity:mFilt.length>0};
+    }).filter(r=>r.hasActivity).sort((a,b)=>a.l.mza-b.l.mza||a.l.lote-b.l.lote);
+
+    const aoa=[
+      ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],
+      ['CONCENTRADO COF — '+periodLabel],[''],
+      ['Mza','Lote','Propietario','M²','Cuota','COF Cargado','Extraord.','Pagado','Descuento','Saldo'],
+    ];
+    rows.forEach(r=>aoa.push([r.l.mza,r.l.lote,r.l.nombre,parseFloat(r.l.m2),r.l.cuotaFija||0,r.cof,r.extra,r.pagoCof,r.desc,r.saldo]));
+    const totCof=rows.reduce((a,r)=>a+r.cof,0);
+    const totExtra=rows.reduce((a,r)=>a+r.extra,0);
+    const totPago=rows.reduce((a,r)=>a+r.pagoCof,0);
+    const totDesc=rows.reduce((a,r)=>a+r.desc,0);
+    const totSaldo=rows.reduce((a,r)=>a+r.saldo,0);
+    aoa.push(['','','TOTALES','','',totCof,totExtra,totPago,totDesc,parseFloat(totSaldo.toFixed(2))]);
+
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:6},{wch:6},{wch:28},{wch:10},{wch:10},{wch:14},{wch:12},{wch:12},{wch:12},{wch:14}];
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
+    const moneyFmt='#,##0.00';
+    for(let ri=4;ri<aoa.length;ri++){
+      [4,5,6,7,8,9].forEach(ci=>{ const ref=XLSX.utils.encode_cell({r:ri,c:ci}); if(ws[ref]) ws[ref].z=moneyFmt; });
+    }
+    XLSX.utils.book_append_sheet(wb,ws,'Concentrado COF');
+    XLSX.writeFile(wb,`Concentrado_COF_${periodLabel.replace(/\s/g,'_')}.xlsx`);
+    showToast('Concentrado COF exportado');
+  });
+}
+
+// ============================================================
+// CONCENTRADO COV
+// ============================================================
+async function loadConcentradoCOV(){
+  await _loadSD();
+  // Populate year selector once
+  const anioSel=document.getElementById('ccovAnio');
+  if(anioSel.children.length<=1){
+    const years=[...new Set((_SD||[]).flatMap(l=>l.meses.map(m=>m.mes.slice(0,4))))].sort((a,b)=>b-a);
+    years.forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; anioSel.appendChild(o); });
+  }
+  const anio=anioSel.value;
+  const mes=document.getElementById('ccovMes').value;
+  const q=(document.getElementById('ccovSearch').value||'').toLowerCase();
+
+  const rows=(_SD||[]).filter(l=>l.nombre&&!l.nombre.toUpperCase().includes('CASA MUESTRA')).map(l=>{
+    const mFilt=l.meses.filter(m=>{
+      if(anio&&mes) return m.mes===`${anio}-${mes}`;
+      if(anio) return m.mes.startsWith(anio);
+      return true;
+    }).filter(m=>m.cov>0||m.instal>0||m.pagoCov>0);
+    const consumo=mFilt.reduce((a,m)=>a+(m.consumo||0),0);
+    const cov=mFilt.reduce((a,m)=>a+(m.cov||0),0);
+    const instal=mFilt.reduce((a,m)=>a+(m.instal||0),0);
+    const pagoCov=mFilt.reduce((a,m)=>a+(m.pagoCov||0),0);
+    const saldo=parseFloat((cov+instal-pagoCov).toFixed(2));
+    return {l,consumo,cov,instal,pagoCov,saldo,hasActivity:mFilt.length>0};
+  }).filter(r=>r.hasActivity||(r.saldo!==0));
+
+  const filt=q?rows.filter(r=>r.l.nombre.toLowerCase().includes(q)):rows;
+  filt.sort((a,b)=>a.l.mza-b.l.mza||a.l.lote-b.l.lote);
+
+  const totConsumo=filt.reduce((a,r)=>a+r.consumo,0);
+  const totCov=filt.reduce((a,r)=>a+r.cov,0);
+  const totInstal=filt.reduce((a,r)=>a+r.instal,0);
+  const totPago=filt.reduce((a,r)=>a+r.pagoCov,0);
+  const totSaldo=filt.reduce((a,r)=>a+r.saldo,0);
+
+  const fmt=(v)=>'$'+v.toLocaleString('es-MX',{minimumFractionDigits:2});
+  const morosos=filt.filter(r=>r.saldo>0.01).length;
+  const periodLabel=anio?(mes?`${_MES_NAMES[+mes-1]} ${anio}`:anio):'Todo el historial';
+  document.getElementById('ccovKpis').innerHTML=`
+    <div class="kpi"><div class="lab">Lotes con COV</div><div class="val">${filt.length}</div><div class="sub">${periodLabel}</div></div>
+    <div class="kpi"><div class="lab">Consumo total</div><div class="val" style="font-size:18px">${totConsumo.toLocaleString('es-MX',{maximumFractionDigits:1})} m³</div></div>
+    <div class="kpi"><div class="lab">COV cargado</div><div class="val" style="font-size:18px">${fmt(totCov+totInstal)}</div></div>
+    <div class="kpi"><div class="lab">Saldo COV</div><div class="val" style="font-size:18px;color:var(--red)">${fmt(totSaldo)}</div><div class="sub">${morosos} lotes con adeudo</div></div>`;
+
+  document.getElementById('ccovBody').innerHTML=filt.length?filt.map(r=>{
+    const sc=r.saldo>0.01?'color:var(--red);font-weight:600':r.saldo<-0.01?'color:var(--green);font-weight:600':'';
+    return `<tr>
+      <td style="text-align:center">${r.l.mza}</td>
+      <td style="text-align:center">${r.l.lote}</td>
+      <td class="td-name">${r.l.nombre}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${parseFloat(r.l.m2).toLocaleString('es-MX',{maximumFractionDigits:1})}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.consumo>0?r.consumo.toLocaleString('es-MX',{maximumFractionDigits:2}):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.cov>0?fmt(r.cov):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.instal>0?fmt(r.instal):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--green)">${r.pagoCov>0?fmt(r.pagoCov):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;${sc}">${fmt(r.saldo)}</td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Sin datos para el período seleccionado</td></tr>`;
+
+  document.getElementById('ccovTotConsumo').textContent=totConsumo.toLocaleString('es-MX',{maximumFractionDigits:1})+' m³';
+  document.getElementById('ccovTotCov').textContent=fmt(totCov);
+  document.getElementById('ccovTotInstal').textContent=fmt(totInstal);
+  document.getElementById('ccovTotPago').textContent=fmt(totPago);
+  const sEl=document.getElementById('ccovTotSaldo');
+  sEl.textContent=fmt(totSaldo); sEl.style.color=totSaldo>0?'var(--red)':'var(--green)';
+}
+
+function _ccovExportExcel(){
+  _loadXLSX(()=>{
+    const anio=document.getElementById('ccovAnio').value;
+    const mes=document.getElementById('ccovMes').value;
+    const periodLabel=anio?(mes?`${_MES_NAMES[+mes-1]} ${anio}`:anio):'Historial completo';
+    const wb=XLSX.utils.book_new();
+    const rows=(_SD||[]).filter(l=>l.nombre&&!l.nombre.toUpperCase().includes('CASA MUESTRA')).map(l=>{
+      const mFilt=l.meses.filter(m=>{
+        if(anio&&mes) return m.mes===`${anio}-${mes}`;
+        if(anio) return m.mes.startsWith(anio);
+        return true;
+      }).filter(m=>m.cov>0||m.instal>0||m.pagoCov>0);
+      const consumo=mFilt.reduce((a,m)=>a+(m.consumo||0),0);
+      const cov=mFilt.reduce((a,m)=>a+(m.cov||0),0);
+      const instal=mFilt.reduce((a,m)=>a+(m.instal||0),0);
+      const pagoCov=mFilt.reduce((a,m)=>a+(m.pagoCov||0),0);
+      return {l,consumo,cov,instal,pagoCov,saldo:parseFloat((cov+instal-pagoCov).toFixed(2)),hasActivity:mFilt.length>0};
+    }).filter(r=>r.hasActivity).sort((a,b)=>a.l.mza-b.l.mza||a.l.lote-b.l.lote);
+
+    const aoa=[
+      ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],
+      ['CONCENTRADO COV — '+periodLabel],[''],
+      ['Mza','Lote','Propietario','M²','Consumo m³','COV','Instalación','Pagado','Saldo COV'],
+    ];
+    rows.forEach(r=>aoa.push([r.l.mza,r.l.lote,r.l.nombre,parseFloat(r.l.m2),
+      parseFloat(r.consumo.toFixed(2)),r.cov,r.instal,r.pagoCov,r.saldo]));
+    const totConsumo=rows.reduce((a,r)=>a+r.consumo,0);
+    aoa.push(['','','TOTALES','',parseFloat(totConsumo.toFixed(2)),
+      rows.reduce((a,r)=>a+r.cov,0),rows.reduce((a,r)=>a+r.instal,0),
+      rows.reduce((a,r)=>a+r.pagoCov,0),parseFloat(rows.reduce((a,r)=>a+r.saldo,0).toFixed(2))]);
+
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:6},{wch:6},{wch:28},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12}];
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:8}},{s:{r:1,c:0},e:{r:1,c:8}}];
+    const moneyFmt='#,##0.00';
+    for(let ri=4;ri<aoa.length;ri++){
+      [5,6,7,8].forEach(ci=>{ const ref=XLSX.utils.encode_cell({r:ri,c:ci}); if(ws[ref]) ws[ref].z=moneyFmt; });
+      const cRef=XLSX.utils.encode_cell({r:ri,c:4}); if(ws[cRef]) ws[cRef].z='#,##0.##';
+    }
+    XLSX.utils.book_append_sheet(wb,ws,'Concentrado COV');
+    XLSX.writeFile(wb,`Concentrado_COV_${periodLabel.replace(/\s/g,'_')}.xlsx`);
+    showToast('Concentrado COV exportado');
   });
 }
 

@@ -2197,7 +2197,7 @@ function switchEcTab(tab, el){
 }
 
 function _ecRenderMensual(l){
-  const meses=l.meses.filter(m=>m.cof>0||m.cov>0||m.pagoCof>0||m.extra>0||m.pagoCov>0);
+  const meses=l.meses.filter(m=>m.cof>0||m.cov>0||m.pagoCof>0||m.extra>0||m.pagoCov>0||m.instal>0);
   document.getElementById('ecBodyMensual').innerHTML=meses.map(m=>{
     const saldoCls=m.saldoMes>0?'money-red':m.saldoMes<0?'money-ok':'money-zero';
     return `<tr>
@@ -2266,7 +2266,7 @@ function _ecExportExcelDo(l){
   const wb=XLSX.utils.book_new();
   const tarifa=l.tarifaCOV||5;
   // FIX #9: include pagoCov-only months (payment with no new charge that month)
-  const meses=l.meses.filter(m=>m.cof>0||m.cov>0||m.pagoCof>0||m.extra>0||m.pagoCov>0);
+  const meses=l.meses.filter(m=>m.cof>0||m.cov>0||m.pagoCof>0||m.extra>0||m.pagoCov>0||m.instal>0);
 
   // Columns: A=Mes B=Extra C=COF D=PagoCOF E=Desc F=FechaPago
   //          G=SaldoMes H=LectIni I=LectFin J=Consumo K=COV L=Instal M=PagoCOV
@@ -2368,6 +2368,9 @@ function _ecExportExcelDo(l){
     const fRef=XLSX.utils.encode_cell({r:ri,c:5});
     if(ws[fRef]) ws[fRef].z=dateFmt;
   }
+  // Apply number format to tarifa cell ($B$9) so decimals display correctly
+  const tarifaCell=XLSX.utils.encode_cell({r:8,c:1});
+  if(ws[tarifaCell]) ws[tarifaCell].z='0.##';
 
   XLSX.utils.book_append_sheet(wb,ws,'Estado de Cuenta');
 

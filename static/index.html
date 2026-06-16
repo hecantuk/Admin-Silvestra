@@ -83,6 +83,25 @@ input,select,textarea{font-family:inherit;outline:none}
 .topbar{background:white;border-bottom:1px solid var(--border);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
 .topbar h1{font-size:17px;font-weight:600;color:var(--navy)}
 .topbar-actions{display:flex;align-items:center;gap:10px}
+.profile-menu-wrap{position:relative}
+.profile-btn{display:flex;align-items:center;gap:8px;background:none;border:1px solid var(--border);border-radius:24px;padding:4px 10px 4px 4px;cursor:pointer;transition:.15s;font-family:inherit}
+.profile-btn:hover{background:var(--bg)}
+.profile-btn .pavatar{width:30px;height:30px;border-radius:50%;background:var(--navy);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+.profile-btn .pname{font-size:13px;font-weight:500;color:var(--navy);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-btn .pchevron{width:16px;height:16px;color:var(--muted);transition:transform .15s;flex-shrink:0}
+.profile-btn.open .pchevron{transform:rotate(180deg)}
+.profile-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:white;border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.12);min-width:220px;padding:6px;z-index:60;display:none}
+.profile-dropdown.show{display:block}
+.profile-dropdown .pd-head{padding:10px 12px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.profile-dropdown .pd-head .n{font-size:13px;font-weight:600;color:var(--navy);word-break:break-word}
+.profile-dropdown .pd-head .r{font-size:11px;color:var(--muted)}
+.profile-dropdown .pd-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--navy);transition:.12s}
+.profile-dropdown .pd-item:hover{background:var(--bg)}
+.profile-dropdown .pd-item svg{width:16px;height:16px;color:var(--muted);flex-shrink:0}
+.profile-dropdown .pd-item.danger{color:#DC2626}
+.profile-dropdown .pd-item.danger svg{color:#DC2626}
+.profile-dropdown .pd-sep{height:1px;background:var(--border);margin:6px 0}
+@media(max-width:680px){.profile-btn .pname{display:none}}
 .btn-primary{background:var(--gold);color:#0F172A;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:.15s}
 .btn-primary:hover{background:var(--gold-dark)}
 .btn-secondary{background:white;border:1px solid var(--border);color:var(--slate);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;transition:.15s}
@@ -474,7 +493,34 @@ tr:last-child td{border-bottom:none}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <h1 id="pageTitle">Dashboard</h1>
-      <div class="topbar-actions" id="topbarActions"></div>
+      <div class="topbar-actions" id="topbarActions">
+        <div class="profile-menu-wrap">
+          <button class="profile-btn" id="profileBtn" onclick="_toggleProfileMenu(event)">
+            <span class="pavatar" id="topbarAvatar">AD</span>
+            <span class="pname" id="topbarName">Administradora</span>
+            <svg class="pchevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="profile-dropdown" id="profileDropdown">
+            <div class="pd-head">
+              <div class="n" id="topbarMenuName">Administradora</div>
+              <div class="r" id="topbarMenuRole">Admin · Silvestra AC</div>
+            </div>
+            <div class="pd-item" onclick="_profileGo('perfil')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Tu perfil
+            </div>
+            <div class="pd-item admin-only" id="pdConfig" onclick="_profileGo('config')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+              Configuración
+            </div>
+            <div class="pd-sep"></div>
+            <div class="pd-item danger" onclick="_profileGo('logout')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Cerrar sesión
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="content">
 
@@ -2254,6 +2300,53 @@ function doLogout(motivo){
   }
 }
 
+// Menú de perfil (header)
+function _toggleProfileMenu(e){
+  e.stopPropagation();
+  const dd=document.getElementById('profileDropdown');
+  const btn=document.getElementById('profileBtn');
+  const open=dd.classList.toggle('show');
+  btn.classList.toggle('open',open);
+  if(open) setTimeout(()=>document.addEventListener('click',_closeProfileMenu),0);
+}
+function _closeProfileMenu(e){
+  const wrap=document.querySelector('.profile-menu-wrap');
+  if(wrap&&wrap.contains(e.target)) return;
+  const dd=document.getElementById('profileDropdown');
+  const btn=document.getElementById('profileBtn');
+  if(dd) dd.classList.remove('show');
+  if(btn) btn.classList.remove('open');
+  document.removeEventListener('click',_closeProfileMenu);
+}
+function _profileGo(what){
+  const dd=document.getElementById('profileDropdown');
+  const btn=document.getElementById('profileBtn');
+  if(dd) dd.classList.remove('show');
+  if(btn) btn.classList.remove('open');
+  if(what==='logout'){ doLogout(); return; }
+  if(what==='config'){ showPage('configuracion',null); return; }
+  if(what==='perfil'){
+    if(currentRole==='admin'){
+      showPage('configuracion',null);
+      const t=document.getElementById('cfgTabGeneral');
+      if(t) switchCfgTab('general',t);
+    } else {
+      showPage('miCuenta',null);
+    }
+  }
+}
+// Sincroniza el botón de perfil del header con los datos de la barra lateral
+function _syncTopbarProfile(){
+  const get=id=>(document.getElementById(id)||{}).textContent||'';
+  const set=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
+  set('topbarAvatar',get('sidebarAvatar'));
+  set('topbarName',get('sidebarName'));
+  set('topbarMenuName',get('sidebarName'));
+  set('topbarMenuRole',get('sidebarRole'));
+  const cfg=document.getElementById('pdConfig');
+  if(cfg) cfg.style.display=(currentRole==='admin')?'':'none';
+}
+
 // Vigila la expiración del token y saca al usuario automáticamente
 let _sessionTimer=null;
 function _startSessionWatch(){
@@ -2303,6 +2396,7 @@ function initAdmin(){
   document.getElementById('sidebarRole').textContent='Admin · Silvestra AC';
   document.getElementById('sidebarAvatar').textContent='AD';
   document.body.classList.remove('visor-mode');
+  _syncTopbarProfile();
   renderDashboard();
   _rendered.add('dashboard');
   populateSelects();
@@ -2317,6 +2411,7 @@ function initVisor(email){
   document.getElementById('sidebarRole').textContent='Visor · Solo lectura';
   document.getElementById('sidebarAvatar').textContent=(name[0]||'V').toUpperCase();
   document.body.classList.add('visor-mode');
+  _syncTopbarProfile();
   renderDashboard();
   _rendered.add('dashboard');
   populateSelects();
@@ -2331,6 +2426,7 @@ function initResidente(){
   document.getElementById('sidebarName').textContent=r.propietario.split(' ').slice(0,2).join(' ');
   document.getElementById('sidebarRole').textContent=`Mza ${r.mza} · L${r.lote}`;
   document.getElementById('sidebarAvatar').textContent=r.propietario[0];
+  _syncTopbarProfile();
   renderMiCuenta();
   renderMisPagos();
   // Arrancar en Mi Estado de Cuenta, no en pageDashboard
@@ -5354,8 +5450,12 @@ function _cfgCargarAdmins(){
         <tr>
           <td style="font-size:13px">${a.email}</td>
           <td><span class="badge badge-gold">Admin</span></td>
-          <td>${a.id==me.sub?'<span style="color:var(--muted);font-size:12px">Tú</span>'
-            :`<button onclick="_cfgEliminarAdmin(${a.id},'${a.email}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">Eliminar</button>`}
+          <td>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <button onclick="_cfgResetAdmin(${a.id},'${a.email}')" style="background:var(--bg);color:var(--navy);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">Restablecer contraseña</button>
+              ${a.id==me.sub?'<span style="color:var(--muted);font-size:12px">Tú</span>'
+                :`<button onclick="_cfgEliminarAdmin(${a.id},'${a.email}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">Eliminar</button>`}
+            </div>
           </td>
         </tr>`).join('');
     }).catch(()=>{});
@@ -5378,6 +5478,21 @@ function _cfgAgregarAdmin(){
       document.getElementById('cfgNewAdminPass').value='';
       _cfgCargarAdmins();
     } else showToast('Error: '+(d.detail||'desconocido'));
+  }).catch(()=>showToast('Error de conexión'));
+}
+
+function _cfgResetAdmin(id,email){
+  const nueva=prompt(`Nueva contraseña para "${email}" (mínimo 6 caracteres):`);
+  if(nueva===null) return;
+  if(nueva.length<6){showToast('La contraseña debe tener al menos 6 caracteres');return;}
+  const token=localStorage.getItem('auth_token');
+  fetch(`/api/auth/admins/${id}/reset-password`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({nueva})
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok) showToast('✅ Contraseña restablecida para '+email);
+    else showToast('Error: '+(d.detail||'desconocido'));
   }).catch(()=>showToast('Error de conexión'));
 }
 

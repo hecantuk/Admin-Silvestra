@@ -460,6 +460,22 @@ def eliminar_admin(uid: int,
     session.commit()
     return {"ok": True}
 
+@app.post("/api/auth/admins/{uid}/reset-password")
+def reset_admin_password(uid: int, req: CambiarPassReq,
+                         admin: Usuario = Depends(_admin_only),
+                         session: Session = Depends(get_session)):
+    if len(req.nueva) < 6:
+        raise HTTPException(400, "Mínimo 6 caracteres")
+    u = session.get(Usuario, uid)
+    if not u or u.rol != "admin":
+        raise HTTPException(404, "Admin no encontrado")
+    u.hashed_password = pwd_context.hash(req.nueva)
+    u.debe_cambiar_password = False
+    u.activo = True
+    session.add(u)
+    session.commit()
+    return {"ok": True}
+
 @app.get("/api/auth/visores")
 def get_visores(admin: Usuario = Depends(_admin_only),
                 session: Session = Depends(get_session)):

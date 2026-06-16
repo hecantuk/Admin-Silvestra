@@ -1858,3 +1858,77 @@ async def importar_historial(file: UploadFile = File(...), admin: Usuario = Depe
             "descuentos_creados": descuentos_creados,
             "lotes_actualizados": lotes_actualizados,
             "errores": errores[:20]}
+
+@app.post("/api/admin/importar_silvestra_json")
+async def importar_silvestra_json(admin: Usuario = Depends(_admin_only)):
+    """Migración: importa silvestra_data.json completo a tablas Pago, Descuento y LecturaAgua."""
+    import json as _json
+    json_path = os.path.join(os.path.dirname(__file__), "static", "silvestra_data.json")
+    if not os.path.exists(json_path):
+        raise HTTPException(404, "silvestra_data.json no encontrado")
+    with open(json_path) as f:
+        sd = _json.load(f)
+
+    pagos_creados = descuentos_creados = lotes_actualizados = lecturas_creadas = 0
+
+    with Session(engine) as s:
+        lotes_db = {(l.manzana, l.numero): l for l in s.exec(select(Lote)).all()}
+
+        for ld in sd:
+            lote = lotes_db.get((ld.get("mza"), ld.get("lote")))
+            if not lote:
+                continue
+
+            # Actualizar fecha de escrituración
+            if ld.get("escrituracion"):
+                try:
+                    lote.fecha_escrituracion = date.fromisoformat(ld["escrituracion"])
+                    s.add(lote); lotes_actualizados += 1
+                except: pass
+
+            for m in ld.get("meses", []):
+                mes_str = (m.get("mes") or "")[:7]   # "2020-10-01" → "2020-10"
+                if not mes_str or len(mes_str) < 7:
+                    continue
+                try:
+                    mes_date = date.fromisoformat(mes_str + "-01")
+                except:
+                    continue
+
+                def _fp(m_dict):
+                    raw = m_dict.get("fpago")
+                    if raw:
+                        try: return date.fromisoformat(str(raw)[:10])
+                        except: pass
+                    return mes_date
+
+                pago_cof = float(m.get("pagoCof") or 0)
+                if pago_cof > 0:
+                    if not s.exec(select(Pago).where(Pago.lote_id==lote.id,Pago.mes_aplicado==mes_str,Pago.concepto=="COF",Pago.estado=="aprobado")).first():
+                        s.add(Pago(lote_id=lote.id,fecha_pago=_fp(m),importe=pago_cof,mes_aplicado=mes_str,concepto="COF",estado="aprobado",notas="silvestra_json"))
+                        pagos_creados += 1
+
+                desc_cof = float(m.get("desc") or 0)
+                if desc_cof > 0:
+                    if not s.exec(select(Descuento).where(Descuento.lote_id==lote.id,Descuento.concepto=="COF",Descuento.anio==mes_date.year)).first():
+                        s.add(Descuento(lote_id=lote.id,tipo="descuento",concepto="COF",importe=desc_cof,anio=mes_date.year,fecha=mes_date,notas="silvestra_json"))
+                        descuentos_creados += 1
+
+                pago_cov = float(m.get("pagoCov") or 0)
+                if pago_cov > 0:
+                    if not s.exec(select(Pago).where(Pago.lote_id==lote.id,Pago.mes_aplicado==mes_str,Pago.concepto=="COV",Pago.estado=="aprobado")).first():
+                        s.add(Pago(lote_id=lote.id,fecha_pago=_fp(m),importe=pago_cov,mes_aplicado=mes_str,concepto="COV",estado="aprobado",notas="silvestra_json"))
+                        pagos_creados += 1
+
+                if float(m.get("consumo") or 0) > 0 or float(m.get("cov") or 0) > 0:
+                    if not s.exec(select(LecturaAgua).where(LecturaAgua.lote_id==lote.id,LecturaAgua.mes==mes_str)).first():
+                        s.add(LecturaAgua(lote_id=lote.id,mes=mes_str,
+                            lectura_anterior=float(m.get("vIni") or 0),lectura_actual=float(m.get("vFin") or 0),
+                            consumo_m3=float(m.get("consumo") or 0),tarifa_por_m3=float(ld.get("tarifaCOV") or 15.0),
+                            importe=float(m.get("cov") or 0)))
+                        lecturas_creadas += 1
+
+        s.commit()
+
+    return {"ok": True, "pagos_creados": pagos_creados, "descuentos_creados": descuentos_creados,
+            "lotes_actualizados": lotes_actualizados, "lecturas_creadas": lecturas_creadas}

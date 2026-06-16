@@ -137,6 +137,9 @@ input,select,textarea{font-family:inherit;outline:none}
 .backlink{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;cursor:pointer;margin-bottom:16px;padding:6px 12px;border-radius:8px;background:white;border:1px solid var(--border)}
 .backlink:hover{background:var(--bg)}
 .tag-period{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:10.5px;padding:1px 6px;margin:1px;color:var(--muted)}
+.more-periods-btn{display:inline-block;cursor:pointer;color:var(--green);font-weight:600;font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 7px;margin:1px;transition:background .15s}
+.more-periods-btn:hover{background:#e8f5ee}
+.desc-pop{position:fixed;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.18);z-index:9999;max-width:340px;display:flex;flex-wrap:wrap;gap:4px}
 /* GRID */
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
 .card{background:white;border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden}
@@ -1171,10 +1174,10 @@ tr:last-child td{border-bottom:none}
       <div class="page" id="pageChequera">
         <div class="kpi-grid" id="chequeraKpis"></div>
         <div class="search-row">
-          <select class="search-box" id="chequeraAnio" onchange="loadChequera()" style="width:110px">
+          <select class="search-box" id="chequeraAnio" onchange="_chequeraPage=0;loadChequera()" style="width:110px">
             <option value="">Todos los años</option>
           </select>
-          <select class="search-box" id="chequeraTipo" onchange="loadChequera()" style="width:170px">
+          <select class="search-box" id="chequeraTipo" onchange="_chequeraPage=0;loadChequera()" style="width:170px">
             <option value="">Todos los tipos</option>
             <option value="abono">Entradas (abonos)</option>
             <option value="cargo">Salidas (cargos)</option>
@@ -1182,7 +1185,7 @@ tr:last-child td{border-bottom:none}
             <option value="pago_proveedor">Proveedores</option>
             <option value="sin_clasificar">Sin clasificar</option>
           </select>
-          <input class="search-box" id="chequeraSearch" placeholder="Buscar concepto o referencia…" oninput="loadChequera()" style="flex:1;min-width:160px">
+          <input class="search-box" id="chequeraSearch" placeholder="Buscar concepto o referencia…" oninput="_chequeraPage=0;loadChequera()" style="flex:1;min-width:160px">
           <label class="btn-primary admin-only" style="cursor:pointer">
             ⬆ Importar
             <input type="file" accept=".xlsx" style="display:none" onchange="importarBancoChequera(this)">
@@ -1215,7 +1218,7 @@ tr:last-child td{border-bottom:none}
               <tbody id="chequeraBody"></tbody>
               <tfoot>
                 <tr style="background:var(--bg);font-size:12px;font-weight:700">
-                  <td colspan="9" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:10px 12px">TOTALES</td>
+                  <td colspan="9" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:10px 12px">TOTALES (página completa)</td>
                   <td style="text-align:right;color:var(--red);padding:10px 12px" id="chequeraTotCargo"></td>
                   <td style="text-align:right;color:var(--green);padding:10px 12px" id="chequeraTotAbono"></td>
                   <td style="text-align:right;padding:10px 12px" id="chequeraTotSaldo"></td>
@@ -1223,6 +1226,7 @@ tr:last-child td{border-bottom:none}
               </tfoot>
             </table>
           </div>
+          <div id="chequeraPagNav" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-top:1px solid var(--border)"></div>
         </div>
       </div>
 
@@ -1461,6 +1465,19 @@ tr:last-child td{border-bottom:none}
                 <input type="file" accept=".xlsx,.xlsm" style="display:none" onchange="importarHistorial(this)">
               </label>
               <span id="historialStatus" style="font-size:13px;color:var(--muted)"></span>
+            </div>
+          </div>
+          <div class="config-block" style="margin-top:16px">
+            <div class="config-block-header">
+              <span class="config-block-title">Migrar datos a la base de datos</span>
+            </div>
+            <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+              Importa el historial completo del archivo <code>silvestra_data.json</code> directamente a la base de datos
+              (Pagos COF/COV, Descuentos, Lecturas de agua). Seguro: no duplica registros existentes.
+            </p>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <button class="btn-primary" onclick="_migrarSilvestraJson()">⚡ Migrar silvestra_data.json → BD</button>
+              <span id="migracionStatus" style="font-size:13px;color:var(--muted)"></span>
             </div>
           </div>
         </div>
@@ -2664,7 +2681,8 @@ async function loadDescuentos(){
     const saldoCls=l.saldoCof>0?'style="color:var(--red);font-weight:600"':'style="color:var(--green);font-weight:600"';
     const mesesConDesc=l.meses.filter(m=>m.desc>0);
     const periodos=mesesConDesc.slice(0,6).map(m=>`<span class="tag-period">${_mlabel(m.mes)}</span>`).join('');
-    const more=mesesConDesc.length>6?`<span style="color:var(--muted);font-size:11px">+${mesesConDesc.length-6} más</span>`:'';
+    const allMesesJson=JSON.stringify(mesesConDesc.map(m=>m.mes)).replace(/'/g,'&#39;');
+    const more=mesesConDesc.length>6?`<span class="more-periods-btn" onclick="_toggleDescPop(this)" data-meses='${allMesesJson}'>+${mesesConDesc.length-6} más</span>`:'';
     return `<tr>
       <td><strong>${l.mza}</strong></td>
       <td>${l.lote}</td>
@@ -2675,6 +2693,26 @@ async function loadDescuentos(){
       <td style="font-size:12px">${periodos}${more}</td>
     </tr>`;
   }).join('');
+}
+
+let _descPopEl=null;
+function _toggleDescPop(btn){
+  if(_descPopEl){_descPopEl.remove();_descPopEl=null;}
+  const meses=JSON.parse(btn.dataset.meses.replace(/&#39;/g,"'"));
+  const pop=document.createElement('div');
+  pop.className='desc-pop';
+  pop.innerHTML='<div style="width:100%;font-size:10.5px;color:var(--muted);font-weight:600;margin-bottom:8px;letter-spacing:.04em">TODOS LOS PERIODOS CON DESCUENTO</div>'+
+    meses.map(m=>`<span class="tag-period">${_mlabel(m)}</span>`).join('');
+  document.body.appendChild(pop);
+  const rect=btn.getBoundingClientRect();
+  const popW=Math.min(340,window.innerWidth-20);
+  let left=rect.left;
+  if(left+popW>window.innerWidth-10) left=window.innerWidth-popW-10;
+  pop.style.cssText+=`;top:${rect.bottom+window.scrollY+6}px;left:${left}px;width:${popW}px`;
+  _descPopEl=pop;
+  setTimeout(()=>document.addEventListener('click',function _cp(e){
+    if(!pop.contains(e.target)&&e.target!==btn){pop.remove();_descPopEl=null;document.removeEventListener('click',_cp);}
+  }),0);
 }
 
 // ============================================================
@@ -4064,6 +4102,7 @@ Object.assign(PAGE_TITLES,{banco:'Movimientos Bancarios',diot:'DIOT Fiscal',agua
 // CHEQUERA
 // ============================================================
 let _chequeraData=[];   // all movements cached; cleared on import
+let _chequeraPage=0;
 
 async function loadChequera(){
   if(!_chequeraData.length){
@@ -4109,10 +4148,19 @@ async function loadChequera(){
   const tipoLabel={ingreso_colono:'Depósito',pago_proveedor:'Cargo',sin_clasificar:'Sin clas.'};
   const fmt2=(v)=>v>0?'$'+v.toLocaleString('es-MX',{minimumFractionDigits:2}):'—';
 
-  // compute running balance on the filtered, date-sorted set
-  let saldoCorr=0;
-  document.getElementById('chequeraBody').innerHTML=movs.length?movs.map(m=>{
-    saldoCorr+=m.abono-m.cargo;
+  // Compute running balance for ALL filtered rows (needed for correct saldo on any page)
+  let runSaldo=0;
+  const allSaldos=movs.map(m=>{ runSaldo+=m.abono-m.cargo; return runSaldo; });
+
+  // Pagination
+  const PER_PAGE=100;
+  const totalPages=Math.max(1,Math.ceil(movs.length/PER_PAGE));
+  if(_chequeraPage>=totalPages) _chequeraPage=totalPages-1;
+  const pageStart=_chequeraPage*PER_PAGE;
+  const pageMovs=movs.slice(pageStart,pageStart+PER_PAGE);
+
+  document.getElementById('chequeraBody').innerHTML=pageMovs.length?pageMovs.map((m,i)=>{
+    const saldoCorr=allSaldos[pageStart+i];
     const sc=saldoCorr>=0?'var(--green)':'var(--red)';
     const signo=saldoCorr<0?'−':'';
     const nombre=m.nombre||m.descripcion||'—';
@@ -4136,8 +4184,9 @@ async function loadChequera(){
     </tr>`;
   }).join(''):'<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--muted)">Sin movimientos para este filtro</td></tr>';
 
-  const totC=movs.reduce((a,m)=>a+m.cargo,0);
-  const totA=movs.reduce((a,m)=>a+m.abono,0);
+  // Page totals (debe/haber for this page only)
+  const totC=pageMovs.reduce((a,m)=>a+m.cargo,0);
+  const totA=pageMovs.reduce((a,m)=>a+m.abono,0);
   const totS=totA-totC;
   const fmtTot=(v)=>'$'+v.toLocaleString('es-MX',{minimumFractionDigits:2});
   document.getElementById('chequeraTotCargo').textContent=fmtTot(totC);
@@ -4145,7 +4194,20 @@ async function loadChequera(){
   const sEl=document.getElementById('chequeraTotSaldo');
   sEl.textContent=(totS<0?'−':'')+'$'+Math.abs(totS).toLocaleString('es-MX',{minimumFractionDigits:2});
   sEl.style.color=totS>=0?'var(--green)':'var(--red)';
-  document.getElementById('chequeraTotalesInfo').textContent=`${movs.length} movimientos mostrados`;
+  document.getElementById('chequeraTotalesInfo').textContent=
+    `${movs.length} movimientos${movs.length!==_chequeraData.length?' (filtrado)':''} · página ${_chequeraPage+1}/${totalPages}`;
+
+  // Pagination nav
+  const nav=document.getElementById('chequeraPagNav');
+  if(totalPages<=1){nav.innerHTML='';return;}
+  const cp=_chequeraPage;
+  nav.innerHTML=`
+    <span style="font-size:12px;color:var(--muted)">${pageStart+1}–${Math.min(pageStart+PER_PAGE,movs.length)} de ${movs.length}</span>
+    <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="_chequeraPage=0;loadChequera()" ${cp===0?'disabled':''}>«</button>
+    <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="_chequeraPage--;loadChequera()" ${cp===0?'disabled':''}>‹</button>
+    <span style="font-size:12px;padding:4px 10px;background:var(--bg);border-radius:6px">${cp+1} / ${totalPages}</span>
+    <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="_chequeraPage++;loadChequera()" ${cp>=totalPages-1?'disabled':''}>›</button>
+    <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="_chequeraPage=${totalPages-1};loadChequera()" ${cp>=totalPages-1?'disabled':''}>»</button>`;
 }
 
 function importarBancoChequera(input){
@@ -4240,7 +4302,7 @@ async function loadConcentradoCOF(){
 
   const rows=base.map(l=>{
     const mFilt=l.meses.filter(m=>{
-      if(anio&&mes) return m.mes===`${anio}-${mes}`;
+      if(anio&&mes) return m.mes.startsWith(`${anio}-${mes}`);
       if(anio) return m.mes.startsWith(anio);
       return true;
     });
@@ -4331,7 +4393,7 @@ function _ccofExportExcel(){
     if(mzaFil) base=base.filter(l=>l.mza===mzaFil);
     const rows=base.map(l=>{
       const mFilt=l.meses.filter(m=>{
-        if(anio&&mes) return m.mes===`${anio}-${mes}`;
+        if(anio&&mes) return m.mes.startsWith(`${anio}-${mes}`);
         if(anio) return m.mes.startsWith(anio);
         return true;
       });
@@ -4397,7 +4459,7 @@ async function loadConcentradoCOV(){
 
   const rows=base.map(l=>{
     const mFilt=l.meses.filter(m=>{
-      if(anio&&mes) return m.mes===`${anio}-${mes}`;
+      if(anio&&mes) return m.mes.startsWith(`${anio}-${mes}`);
       if(anio) return m.mes.startsWith(anio);
       return true;
     });
@@ -4488,7 +4550,7 @@ function _ccovExportExcel(){
     if(mzaFil) base=base.filter(l=>l.mza===mzaFil);
     const rows=base.map(l=>{
       const mFilt=l.meses.filter(m=>{
-        if(anio&&mes) return m.mes===`${anio}-${mes}`;
+        if(anio&&mes) return m.mes.startsWith(`${anio}-${mes}`);
         if(anio) return m.mes.startsWith(anio);
         return true;
       });
@@ -5557,6 +5619,24 @@ async function importarHistorial(input){
   }catch(e){
     status.textContent='❌ Error al importar. Verifica el archivo.';
   }
+}
+
+async function _migrarSilvestraJson(){
+  const token=localStorage.getItem('auth_token');
+  const st=document.getElementById('migracionStatus');
+  st.textContent='Migrando… puede tardar 1-2 minutos.';
+  try{
+    const r=await fetch('/api/admin/importar_silvestra_json',{
+      method:'POST', headers:{Authorization:`Bearer ${token}`}
+    }).then(x=>x.json());
+    if(r.ok){
+      st.textContent=`✅ ${r.pagos_creados} pagos · ${r.descuentos_creados} descuentos · ${r.lecturas_creadas} lecturas agua · ${r.lotes_actualizados} lotes actualizados`;
+      st.style.color='var(--green)';
+    } else {
+      st.textContent='❌ '+JSON.stringify(r);
+      st.style.color='var(--red)';
+    }
+  }catch(e){ st.textContent='❌ Error: '+e.message; st.style.color='var(--red)'; }
 }
 
 // Cuota mensual fija (COF) por año

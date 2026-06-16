@@ -2197,7 +2197,7 @@ function switchEcTab(tab, el){
 }
 
 function _ecRenderMensual(l){
-  const meses=l.meses.filter(m=>m.cof>0||m.cov>0||m.pagoCof>0||m.extra>0);
+  const meses=l.meses.filter(m=>m.cof>0||m.cov>0||m.pagoCof>0||m.extra>0||m.pagoCov>0);
   document.getElementById('ecBodyMensual').innerHTML=meses.map(m=>{
     const saldoCls=m.saldoMes>0?'money-red':m.saldoMes<0?'money-ok':'money-zero';
     return `<tr>
@@ -2221,7 +2221,7 @@ function _ecRenderMensual(l){
 function _ecRenderAnual(l){
   const byYear={};
   l.meses.forEach(m=>{
-    if(!m.cof&&!m.cov&&!m.pagoCof&&!m.extra) return;
+    if(!m.cof&&!m.cov&&!m.pagoCof&&!m.extra&&!m.pagoCov&&!m.instal) return;
     const y=m.mes.slice(0,4);
     if(!byYear[y]) byYear[y]={y,cof:0,extra:0,pagoCof:0,desc:0,saldoCof:0,cov:0,instal:0,pagoCov:0};
     byYear[y].cof+=m.cof||0; byYear[y].extra+=m.extra||0;
@@ -2320,8 +2320,8 @@ function _ecExportExcelDo(l){
       m.desc||0,
       m.fpago||'',
       {f:`B${r}+C${r}-D${r}-E${r}`},        // Saldo = Extra+COF-Pago-Desc
-      hasLect?(m.vIni!=null?m.vIni:''):'',
-      hasLect?(m.vFin!=null?m.vFin:''):'',
+      hasLect?m.vIni:'',
+      hasLect?m.vFin:'',
       hasLect?{f:`I${r}-H${r}`}:0,           // Consumo = LectFin(I) - LectIni(H)
       hasLect?{f:`J${r}*$B$9`}:(m.cov||0),       // FIX #2+#4: COV = Consumo × $B$9 (editable tarifa cell)
       m.instal||0,

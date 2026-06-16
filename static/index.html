@@ -308,6 +308,7 @@ tr:last-child td{border-bottom:none}
     </div>
     <h2>Bienvenido</h2>
     <p>Ingresa a tu cuenta para continuar</p>
+    <div id="loginAviso" style="display:none;background:rgba(230,168,23,.15);border:1px solid rgba(230,168,23,.4);color:#E6A817;font-size:12.5px;padding:10px 12px;border-radius:8px;margin-bottom:14px;line-height:1.4"></div>
     <div class="tabs-login">
       <button class="tab-l active" onclick="setRole('admin',this)">🏢 Administradora</button>
       <button class="tab-l" onclick="setRole('residente',this)">🏡 Residente</button>
@@ -2158,6 +2159,8 @@ function doLogin(){
     currentRole=data.rol;
     document.getElementById('loginWrap').style.display='none';
     document.getElementById('appShell').style.display='flex';
+    const _av=document.getElementById('loginAviso'); if(_av) _av.style.display='none';
+    _startSessionWatch();
     if(data.rol==='admin'){
       _preloadEmailConfig(data.token);
       initAdmin();
@@ -2232,8 +2235,9 @@ function _guardarNuevaPassResidente(){
   }).catch(()=>showToast('Error al guardar contraseña'));
 }
 
-function doLogout(){
+function doLogout(motivo){
   closeSidebar();
+  if(_sessionTimer){ clearInterval(_sessionTimer); _sessionTimer=null; }
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_rol');
   localStorage.removeItem('auth_user');
@@ -2243,6 +2247,25 @@ function doLogout(){
   _rendered.clear();
   document.getElementById('loginWrap').style.display='flex';
   document.getElementById('appShell').style.display='none';
+  const av=document.getElementById('loginAviso');
+  if(av){
+    if(motivo){ av.textContent=motivo; av.style.display='block'; }
+    else { av.style.display='none'; }
+  }
+}
+
+// Vigila la expiración del token y saca al usuario automáticamente
+let _sessionTimer=null;
+function _startSessionWatch(){
+  if(_sessionTimer) clearInterval(_sessionTimer);
+  _sessionTimer=setInterval(()=>{
+    const tok=localStorage.getItem('auth_token');
+    if(!tok){ clearInterval(_sessionTimer); _sessionTimer=null; return; }
+    const pl=_decodeJwt(tok);
+    if(!pl||typeof pl.exp!=='number'||pl.exp*1000<=Date.now()){
+      doLogout('Tu sesión expiró por seguridad. Por favor, vuelve a iniciar sesión.');
+    }
+  },30000); // revisa cada 30 s
 }
 
 // Carga XLSX solo cuando se necesita exportar (~1.5MB)
@@ -5813,6 +5836,7 @@ function _restoreSession(tok,rol,usr){
   currentRole=rol;
   document.getElementById('loginWrap').style.display='none';
   document.getElementById('appShell').style.display='flex';
+  _startSessionWatch();
   if(rol==='admin'){
     _preloadEmailConfig(tok);
     initAdmin();

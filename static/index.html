@@ -2264,14 +2264,14 @@ function ecExportExcel(){
 
 function _ecExportExcelDo(l){
   const wb=XLSX.utils.book_new();
+  const tarifa=l.tarifaCOV||5;
   const meses=l.meses.filter(m=>m.cof>0||m.cov>0||m.pagoCof>0||m.extra>0);
-  const saldoCof=l.saldoCof||0;
-  const saldoCov=l.saldoCov||0;
 
-  // ── Hoja 1: Estado de Cuenta completo ──
-  // aoa rows 0-15 = metadata, row 16 = col headers, row 17+ = data
-  // Excel rows (1-based): data starts at row 18
-  const dataStartRow=18;
+  // Columns: A=Mes B=Extra C=COF D=PagoCOF E=Desc F=FechaPago
+  //          G=SaldoMes H=LectIni I=LectFin J=Consumo K=COV L=Instal M=PagoCOV
+  const dataStartRow=18;  // Excel row 18 (1-based) where data rows begin
+  const lastDataR=dataStartRow+meses.length-1;
+  const sumR=(col)=>({f:`SUM(${col}${dataStartRow}:${col}${lastDataR})`});
 
   const aoa=[
     ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],
@@ -2282,26 +2282,25 @@ function _ecExportExcelDo(l){
     ['Superficie:', parseFloat(l.m2), 'm²'],
     ['Fecha de escrituración:', l.escrituracion||'—'],
     ['Cuota mensual COF:', l.cuotaFija],
-    ['Tarifa COV:', `$${l.tarifaCOV||5} / m³`],
+    ['Tarifa COV:', `$${tarifa} / m³`],
     [''],
     ['COF — Resumen:','','','COV — Resumen:'],
-    ['Total cargado:', l.cargadoCof,'','Consumo+instalación:', (l.totales.cov||0)+(l.totales.instal||0)],
-    ['Total pagado:', l.pagadoCof,'','Total pagado:', l.totales.pagoCov||0],
-    ['Descuentos:', l.descCof,'','Saldo COV:', saldoCov],
-    ['Saldo COF pendiente:', saldoCof,'','',''],
+    // Header summaries linked via SUM formulas to the data range below
+    ['Total cargado:',{f:`SUM(B${dataStartRow}:B${lastDataR})+SUM(C${dataStartRow}:C${lastDataR})`},
+     '','Consumo+instalación:',{f:`SUM(K${dataStartRow}:K${lastDataR})+SUM(L${dataStartRow}:L${lastDataR})`}],
+    ['Total pagado:',{f:`SUM(D${dataStartRow}:D${lastDataR})`},
+     '','Total pagado COV:',{f:`SUM(M${dataStartRow}:M${lastDataR})`}],
+    ['Descuentos:',{f:`SUM(E${dataStartRow}:E${lastDataR})`},
+     '','Saldo COV:',{f:`SUM(K${dataStartRow}:K${lastDataR})+SUM(L${dataStartRow}:L${lastDataR})-SUM(M${dataStartRow}:M${lastDataR})`}],
+    ['Saldo COF pendiente:',{f:`SUM(G${dataStartRow}:G${lastDataR})`},'','',''],
     [''],
     ['Mes','Extraord.','COF','Pago COF','Descuento','Fecha pago','Saldo mes',
      'Lect. ini','Lect. fin','Consumo m³','COV','Instalación','Pago COV'],
   ];
 
   meses.forEach((m,i)=>{
-    const r=dataStartRow+i;  // Excel row for this data row (1-based)
-    const colB=XLSX.utils.encode_col(1); // B
-    const colC=XLSX.utils.encode_col(2); // C
-    const colD=XLSX.utils.encode_col(3); // D
-    const colE=XLSX.utils.encode_col(4); // E
-    const colI=XLSX.utils.encode_col(8); // I
-    const colJ=XLSX.utils.encode_col(9); // J
+    const r=dataStartRow+i;
+    const hasLect=(m.vFin!=null&&m.vFin!=='');
     aoa.push([
       _mlabel(m.mes),
       m.extra||0,
@@ -2309,20 +2308,17 @@ function _ecExportExcelDo(l){
       m.pagoCof||0,
       m.desc||0,
       m.fpago||'',
-      {f:`${colB}${r}+${colC}${r}-${colD}${r}-${colE}${r}`},  // =Extra+COF-Pago-Desc
-      m.vIni||'',
-      m.vFin||'',
-      m.vFin?{f:`${colJ}${r}-${colI}${r}`}:0,  // =LectFin-LectIni
-      m.cov||0,
+      {f:`B${r}+C${r}-D${r}-E${r}`},        // Saldo = Extra+COF-Pago-Desc
+      hasLect?(m.vIni!=null?m.vIni:''):'',
+      hasLect?(m.vFin!=null?m.vFin:''):'',
+      hasLect?{f:`I${r}-H${r}`}:0,           // Consumo = LectFin(I) - LectIni(H)
+      hasLect?{f:`J${r}*${tarifa}`}:(m.cov||0), // COV = Consumo × tarifa
       m.instal||0,
       m.pagoCov||0,
     ]);
   });
 
-  // Totals row
-  const firstDataR=dataStartRow;
-  const lastDataR=dataStartRow+meses.length-1;
-  const sumCol=(col)=>({f:`SUM(${col}${firstDataR}:${col}${lastDataR})`});
+  const sumCol=(col)=>({f:`SUM(${col}${dataStartRow}:${col}${lastDataR})`});
   aoa.push([
     'TOTALES',
     sumCol('B'),sumCol('C'),sumCol('D'),sumCol('E'),'',
@@ -2332,17 +2328,13 @@ function _ecExportExcelDo(l){
 
   const ws=XLSX.utils.aoa_to_sheet(aoa);
 
-  // Column widths
   ws['!cols']=[{wch:16},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14},{wch:12},
                {wch:10},{wch:10},{wch:11},{wch:11},{wch:11},{wch:11}];
-  // Merges for header
   ws['!merges']=[
     {s:{r:0,c:0},e:{r:0,c:12}},{s:{r:1,c:0},e:{r:1,c:12}},
   ];
 
-  // Number formats
   const moneyFmt='#,##0.00';
-  const intFmt='#,##0';
   const dateFmt='dd/mm/yyyy';
   const numCols=[1,2,3,4,6,10,11,12]; // B,C,D,E,G,K,L,M = money
   for(let ri=dataStartRow-1;ri<=dataStartRow+meses.length-1;ri++){
@@ -2351,7 +2343,6 @@ function _ecExportExcelDo(l){
       if(!ws[cellRef]) return;
       if(!ws[cellRef].z) ws[cellRef].z=moneyFmt;
     });
-    // Fecha pago column (F = col 5)
     const fRef=XLSX.utils.encode_cell({r:ri,c:5});
     if(ws[fRef]) ws[fRef].z=dateFmt;
   }

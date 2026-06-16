@@ -1047,7 +1047,7 @@ async def importar_banco(file: UploadFile = File(...)):
     header_row = 0
     for i, row in enumerate(rows[:10]):
         vals = [str(v).lower() if v else "" for v in row]
-        if any("fecha" in v for v in vals) and any("descripci" in v for v in vals):
+        if any("fecha" in v for v in vals) and (any("descripci" in v for v in vals) or any("nombre" in v or "cheque" in v for v in vals)):
             header_row = i
             break
     headers = [str(v).lower().strip() if v else "" for v in rows[header_row]]

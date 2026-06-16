@@ -687,45 +687,61 @@ tr:last-child td{border-bottom:none}
 
       <!-- REPORTE CONCENTRADO -->
       <div class="page" id="pageReporte">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
           <div>
             <h2 style="font-size:18px;font-weight:600">Concentrado de cobranza</h2>
-            <p style="color:var(--muted);font-size:13px;margin-top:2px">Asociación de Colonos Silvestra-Canoas AC · Al 30 de abril 2026</p>
+            <p style="color:var(--muted);font-size:13px;margin-top:2px">Asociación de Colonos Silvestra-Canoas AC · Al 31 de mayo 2026</p>
           </div>
-          <div style="display:flex;gap:10px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn-secondary" onclick="printReport()">🖨 Imprimir</button>
             <button class="btn-secondary" onclick="exportGeneralPDF()">📄 PDF</button>
             <button class="btn-secondary" onclick="exportGeneralExcel()">⬇ Excel</button>
           </div>
         </div>
-        <div class="stat-grid">
-          <div class="stat-card"><div class="stat-label">🏡 Total lotes vendidos</div><div class="stat-value">62</div></div>
-          <div class="stat-card"><div class="stat-label">✅ Pagan al corriente</div><div class="stat-value" id="rCorriente">—</div><div class="stat-sub" id="rCorrientePct"></div></div>
-          <div class="stat-card"><div class="stat-label">🔴 Morosos</div><div class="stat-value" id="rMorosos">—</div><div class="stat-sub" id="rMorososPct"></div></div>
-          <div class="stat-card"><div class="stat-label">🟠 Abonando a vencido</div><div class="stat-value" id="rAbonando">—</div><div class="stat-sub" id="rAbonadoPct"></div></div>
+        <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:20px">
+          <div class="kpi"><div class="lab">Total lotes</div><div class="val" id="rTotal">—</div></div>
+          <div class="kpi"><div class="lab">✅ Al corriente</div><div class="val" style="color:var(--green)" id="rCorriente">—</div><div class="sub" id="rCorrientePct"></div></div>
+          <div class="kpi"><div class="lab">🔴 Morosos</div><div class="val" style="color:var(--red)" id="rMorosos">—</div><div class="sub" id="rMorososPct"></div></div>
+          <div class="kpi"><div class="lab">🟠 Abonando</div><div class="val" style="color:#D97706" id="rAbonando">—</div><div class="sub" id="rAbonadoPct"></div></div>
+          <div class="kpi"><div class="lab">Deuda COF</div><div class="val" style="color:var(--red);font-size:20px" id="rDeudaCof">—</div></div>
+          <div class="kpi"><div class="lab">Recaudación</div><div class="val" style="color:var(--green);font-size:20px" id="rRecaudacion">—</div></div>
         </div>
-        <div class="card" style="margin-top:20px">
-          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
-            <span class="card-title">Detalle individual — Cuota Ordinaria Fija</span>
-            <select id="reporteEstadoFilter" onchange="renderReporte()" style="background:white;border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--navy)">
-              <option value="">— Todos los estados —</option>
-              <option value="corriente">Al corriente</option>
-              <option value="moroso">Moroso</option>
-              <option value="abonando">Abonando</option>
-            </select>
-          </div>
+        <div class="search-row" style="margin-bottom:16px">
+          <select id="reporteMzaFilter" onchange="renderReporte()" class="filter-select">
+            <option value="">— Todas las manzanas —</option>
+            <option value="24">Mza. 24</option><option value="29">Mza. 29</option>
+            <option value="30">Mza. 30</option><option value="34">Mza. 34</option>
+            <option value="35">Mza. 35</option><option value="37">Mza. 37</option>
+            <option value="38">Mza. 38</option>
+          </select>
+          <select id="reporteEstadoFilter" onchange="renderReporte()" class="filter-select">
+            <option value="">— Todos los estados —</option>
+            <option value="corriente">Al corriente</option>
+            <option value="moroso">Moroso</option>
+            <option value="abonando">Abonando</option>
+          </select>
+          <input class="search-box" type="search" id="reporteSearch" placeholder="Buscar residente o lote…" oninput="renderReporte()" style="flex:1">
+        </div>
+        <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Mza.</th><th>Lote</th><th>Propietario</th><th>m²</th><th>Cuota COF</th><th>COV</th><th>Total cargado</th><th>Total pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
+              <thead><tr>
+                <th>Mza.</th><th>Lote</th><th>m²</th><th>Propietario</th>
+                <th>Escrituración</th><th style="text-align:right">Cuota COF</th>
+                <th style="text-align:right">Total cargado</th><th style="text-align:right">Total pagado</th>
+                <th style="text-align:right">Descuento</th><th style="text-align:right">Saldo COF</th>
+                <th style="text-align:right">Saldo COV</th><th style="text-align:center">Meses venc.</th>
+                <th>Estado</th><th></th>
+              </tr></thead>
               <tbody id="reporteBody"></tbody>
               <tfoot><tr style="background:var(--bg);font-weight:700;font-size:12px">
-                <td colspan="4" style="padding:10px 14px">TOTALES</td>
-                <td id="rTotCOF" style="padding:10px 14px;font-family:'DM Mono',monospace"></td>
-                <td id="rTotCOV" style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--teal)"></td>
-                <td id="rTotCargado" style="padding:10px 14px;font-family:'DM Mono',monospace"></td>
-                <td id="rTotPagado" style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--green)"></td>
-                <td id="rTotSaldo" style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--red)"></td>
-                <td></td>
+                <td colspan="6" style="padding:10px 14px">TOTALES</td>
+                <td id="rTotCargado" style="padding:10px 14px;font-family:'DM Mono',monospace;text-align:right"></td>
+                <td id="rTotPagado" style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--green);text-align:right"></td>
+                <td id="rTotDesc" style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--muted);text-align:right"></td>
+                <td id="rTotSaldo" style="padding:10px 14px;font-family:'DM Mono',monospace;color:var(--red);text-align:right"></td>
+                <td id="rTotCOV" style="padding:10px 14px;font-family:'DM Mono',monospace;text-align:right"></td>
+                <td colspan="3"></td>
               </tr></tfoot>
             </table>
           </div>
@@ -2456,52 +2472,64 @@ function switchTab(section,tab,el){
 // ============================================================
 // DASHBOARD
 // ============================================================
-function renderDashboard(){
-  const vendidos=LOTES_DATA.filter(l=>l.propietario&&l.propietario!='CASA MUESTRA');
-  const corriente=vendidos.filter((_,i)=>i%5>2).length;
-  const morosos=vendidos.filter((_,i)=>i%5<=1).length;
-  const abonando=vendidos.length-corriente-morosos;
-  const totalMes=vendidos.reduce((a,l)=>a+l.cuota,0);
-  const cobrado=INGRESOS_DATA.filter(i=>i.estado==='aprobado').reduce((a,i)=>a+i.importe,0);
-  const pct=Math.round(cobrado/totalMes*100);
+async function renderDashboard(){
+  // Load silvestra_data.json for real KPIs
+  await _loadSD();
+  const todos=(_SD||[]).filter(l=>l.nombre&&!l.nombre.toUpperCase().includes('CASA MUESTRA'));
+  const corriente=todos.filter(l=>l.estado==='corriente').length;
+  const morosos=todos.filter(l=>l.estado==='moroso').length;
+  const abonando=todos.filter(l=>l.estado==='abonando').length;
+  const n=todos.length||1;
+  const deudaCof=todos.reduce((a,l)=>a+(l.saldoCof>0?l.saldoCof:0),0);
+  const recaudacion=todos.reduce((a,l)=>a+(l.pagadoCof||0),0);
+  const descuentos=todos.reduce((a,l)=>a+(l.descCof||0),0);
+  const totalCuotaMes=todos.reduce((a,l)=>a+(l.cuotaFija||0),0);
 
   document.getElementById('statsGrid').innerHTML=`
     <div class="stat-card">
-      <div class="stat-label">🏡 Lotes vendidos</div>
-      <div class="stat-value">${vendidos.length}</div>
-      <div class="stat-sub">de 100+ totales</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">💰 Cuota total mayo</div>
-      <div class="stat-value">$${totalMes.toLocaleString()}</div>
-      <div class="stat-sub">${vendidos.length} asociados</div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:var(--teal)"></div></div>
-      <div style="font-size:11px;color:var(--muted)">${pct}% recaudado</div>
+      <div class="stat-label">🏡 Lotes escriturados</div>
+      <div class="stat-value">${todos.length}</div>
+      <div class="stat-sub">Asociación de Colonos Silvestra-Canoas AC</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">✅ Al corriente</div>
       <div class="stat-value" style="color:var(--green)">${corriente}</div>
-      <div class="stat-pill pill-green">${Math.round(corriente/vendidos.length*100)}% del total</div>
+      <div class="stat-pill pill-green">${Math.round(corriente/n*100)}% del total</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">🔴 Morosos</div>
       <div class="stat-value" style="color:var(--red)">${morosos}</div>
-      <div class="stat-pill pill-red">${Math.round(morosos/vendidos.length*100)}% del total</div>
+      <div class="stat-pill pill-red">${Math.round(morosos/n*100)}% · $${Math.round(deudaCof/1000)}k adeudado</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">🟡 Abonando a vencido</div>
       <div class="stat-value" style="color:var(--gold-dark)">${abonando}</div>
-      <div class="stat-pill pill-gold">${Math.round(abonando/vendidos.length*100)}% del total</div>
+      <div class="stat-pill pill-gold">${Math.round(abonando/n*100)}% del total</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">📊 Recaudado mayo</div>
-      <div class="stat-value">$${cobrado.toLocaleString()}</div>
-      <div class="stat-sub" style="color:var(--red)">Pendiente: $${(totalMes-cobrado).toLocaleString()}</div>
+      <div class="stat-label">📉 Deuda COF histórica</div>
+      <div class="stat-value" style="color:var(--red);font-size:22px">$${Math.round(deudaCof/1000).toLocaleString()}k</div>
+      <div class="stat-sub">Saldo acumulado desde escrituración</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">📈 Recaudación COF total</div>
+      <div class="stat-value" style="color:var(--green);font-size:22px">$${Math.round(recaudacion/1000).toLocaleString()}k</div>
+      <div class="stat-sub">Histórico de pagos aplicados</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">🏷 Descuentos otorgados</div>
+      <div class="stat-value" style="font-size:22px">$${Math.round(descuentos/1000).toLocaleString()}k</div>
+      <div class="stat-sub">${todos.filter(l=>l.descCof>0).length} lotes con descuento</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">💰 Cuota mensual total</div>
+      <div class="stat-value" style="font-size:22px">$${Math.round(totalCuotaMes/1000).toLocaleString()}k</div>
+      <div class="stat-sub">${todos.length} asociados activos</div>
     </div>
   `;
 
   // Donut chart
-  const vendidosCount=vendidos.length;
+  const vendidosCount=n;
   new Chart(document.getElementById('donutChart'),{
     type:'doughnut',
     data:{
@@ -2516,6 +2544,41 @@ function renderDashboard(){
     <div class="legend-item"><div class="legend-dot" style="background:#DC2626"></div><span class="legend-label">Morosos</span><span class="legend-val">${morosos}</span><span class="legend-pct">${Math.round(morosos/vendidosCount*100)}%</span></div>
     <div class="legend-item"><div class="legend-dot" style="background:#8FAF6A"></div><span class="legend-label">Abonando a vencido</span><span class="legend-val">${abonando}</span><span class="legend-pct">${Math.round(abonando/vendidosCount*100)}%</span></div>
   `;
+
+  // Resumen por manzana (debajo del donut)
+  const mzas=[24,29,30,34,35,37,38];
+  const byMza=mzas.map(m=>{
+    const ls=todos.filter(l=>l.mza===m);
+    return {mza:m,n:ls.length,morosos:ls.filter(l=>l.estado==='moroso').length,
+      deuda:ls.reduce((a,l)=>a+(l.saldoCof>0?l.saldoCof:0),0),
+      recaudacion:ls.reduce((a,l)=>a+(l.pagadoCof||0),0)};
+  }).filter(r=>r.n>0);
+
+  // Append manzana summary to donut card
+  const donutCard=document.getElementById('donutChart').closest('.card');
+  let mzaTable=donutCard.querySelector('#mzaResumen');
+  if(!mzaTable){
+    mzaTable=document.createElement('div');
+    mzaTable.id='mzaResumen';
+    mzaTable.style.cssText='padding:0 20px 16px;overflow-x:auto';
+    donutCard.appendChild(mzaTable);
+  }
+  mzaTable.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">
+    <thead><tr>
+      <th style="text-align:left;padding:6px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">Manzana</th>
+      <th style="text-align:center;padding:6px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">Lotes</th>
+      <th style="text-align:center;padding:6px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">Morosos</th>
+      <th style="text-align:right;padding:6px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">Deuda COF</th>
+      <th style="text-align:right;padding:6px 8px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">Recaudado</th>
+    </tr></thead>
+    <tbody>${byMza.map(r=>`<tr>
+      <td style="padding:5px 8px;border-bottom:1px solid #F8FAF8"><strong>Mza. ${r.mza}</strong></td>
+      <td style="padding:5px 8px;border-bottom:1px solid #F8FAF8;text-align:center">${r.n}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #F8FAF8;text-align:center;color:${r.morosos>0?'var(--red)':'var(--muted)'}">${r.morosos||'—'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #F8FAF8;text-align:right;font-variant-numeric:tabular-nums;color:${r.deuda>0?'var(--red)':'var(--muted)'}">${r.deuda>0?'$'+Math.round(r.deuda).toLocaleString():'—'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #F8FAF8;text-align:right;font-variant-numeric:tabular-nums;color:var(--green)">$${Math.round(r.recaudacion).toLocaleString()}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
 
   // Bar chart
   new Chart(document.getElementById('barChart'),{
@@ -3066,69 +3129,99 @@ function _exportSaldosExcelDo(){
 // ============================================================
 // REPORTE
 // ============================================================
-function renderReporte(){
-  const vendidos=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
+async function renderReporte(){
+  await _loadSD();
+  const todos=(_SD||[]).filter(l=>l.nombre&&!l.nombre.toUpperCase().includes('CASA MUESTRA'));
   const estadoFil=(document.getElementById('reporteEstadoFilter')||{}).value||'';
+  const mzaFil=parseInt((document.getElementById('reporteMzaFilter')||{}).value)||0;
+  const q=((document.getElementById('reporteSearch')||{}).value||'').toLowerCase();
 
-  const withSD=vendidos.map(l=>{
-    const key=`${l.mza}-${l.lote}`;
-    const sd=SALDO_ESTADO[key]||{estado:'corriente',saldo:0,pagado:l.cuota};
-    const meses5=5;
-    const cargado=l.cuota*meses5;
-    const pagado=sd.pagado||0;
-    const saldo=sd.saldo||0;
-    const cov=COV_DATA[key]||0;
-    return {...l,sd,cargado,pagado,saldo,cov};
-  });
+  // KPIs globales (siempre de todos, sin filtro)
+  const corrienteAll=todos.filter(l=>l.estado==='corriente');
+  const morososAll=todos.filter(l=>l.estado==='moroso');
+  const abonadoAll=todos.filter(l=>l.estado==='abonando');
+  const deudaCof=todos.reduce((a,l)=>a+(l.saldoCof>0?l.saldoCof:0),0);
+  const recaudacion=todos.reduce((a,l)=>a+(l.pagadoCof||0),0);
+  document.getElementById('rTotal').textContent=todos.length;
+  document.getElementById('rCorriente').textContent=corrienteAll.length;
+  document.getElementById('rCorrientePct').textContent=`${Math.round(corrienteAll.length/todos.length*100)}% del total`;
+  document.getElementById('rMorosos').textContent=morososAll.length;
+  document.getElementById('rMorososPct').textContent=`${Math.round(morososAll.length/todos.length*100)}% · $${deudaCof.toLocaleString()} adeudado`;
+  document.getElementById('rAbonando').textContent=abonadoAll.length;
+  document.getElementById('rAbonadoPct').textContent=`${Math.round(abonadoAll.length/todos.length*100)}% del total`;
+  document.getElementById('rDeudaCof').textContent='$'+Math.round(deudaCof/1000)+'k';
+  document.getElementById('rRecaudacion').textContent='$'+Math.round(recaudacion/1000)+'k';
 
-  const corriente=withSD.filter(d=>d.sd.estado==='corriente');
-  const morosos=withSD.filter(d=>d.sd.estado==='moroso');
-  const abonando=withSD.filter(d=>d.sd.estado==='abonando');
+  // Tabla filtrada
+  let filtrados=todos;
+  if(mzaFil) filtrados=filtrados.filter(l=>l.mza===mzaFil);
+  if(estadoFil) filtrados=filtrados.filter(l=>l.estado===estadoFil);
+  if(q) filtrados=filtrados.filter(l=>(l.nombre||'').toLowerCase().includes(q)||String(l.lote).includes(q)||String(l.mza).includes(q));
 
-  document.getElementById('rCorriente').textContent=corriente.length;
-  document.getElementById('rCorrientePct').textContent=`${Math.round(corriente.length/vendidos.length*100)}% · $${corriente.reduce((a,d)=>a+d.cuota,0).toLocaleString()}`;
-  document.getElementById('rMorosos').textContent=morosos.length;
-  document.getElementById('rMorososPct').textContent=`${Math.round(morosos.length/vendidos.length*100)}% · $${morosos.reduce((a,d)=>a+d.saldo,0).toLocaleString()} adeudado`;
-  document.getElementById('rAbonando').textContent=abonando.length;
-  document.getElementById('rAbonadoPct').textContent=`${Math.round(abonando.length/vendidos.length*100)}%`;
+  const totCargado=filtrados.reduce((a,l)=>a+(l.cargadoCof||0),0);
+  const totPagado=filtrados.reduce((a,l)=>a+(l.pagadoCof||0),0);
+  const totDesc=filtrados.reduce((a,l)=>a+(l.descCof||0),0);
+  const totSaldo=filtrados.reduce((a,l)=>a+(l.saldoCof||0),0);
+  const totCov=filtrados.reduce((a,l)=>a+(l.saldoCov||0),0);
 
-  let filtered=withSD;
-  if(estadoFil) filtered=withSD.filter(d=>d.sd.estado===estadoFil);
-
-  const totCOF=filtered.reduce((a,d)=>a+d.cuota,0);
-  const totCOV=filtered.reduce((a,d)=>a+d.cov,0);
-  const totCargado=filtered.reduce((a,d)=>a+d.cargado,0);
-  const totPagado=filtered.reduce((a,d)=>a+d.pagado,0);
-  const totSaldo=filtered.reduce((a,d)=>a+d.saldo,0);
-
-  const rTotCOF=document.getElementById('rTotCOF');
-  const rTotCOV=document.getElementById('rTotCOV');
-  const rTotCargado=document.getElementById('rTotCargado');
-  const rTotPagado=document.getElementById('rTotPagado');
-  const rTotSaldo=document.getElementById('rTotSaldo');
-  if(rTotCOF) rTotCOF.textContent='$'+totCOF.toLocaleString();
-  if(rTotCOV) rTotCOV.textContent=totCOV>0?'$'+totCOV.toLocaleString('es-MX',{minimumFractionDigits:2}):'—';
-  if(rTotCargado) rTotCargado.textContent='$'+totCargado.toLocaleString();
-  if(rTotPagado) rTotPagado.textContent='$'+totPagado.toLocaleString();
-  if(rTotSaldo) rTotSaldo.textContent='$'+totSaldo.toLocaleString();
+  const set=s=>s?'$'+Math.round(s).toLocaleString():'—';
+  document.getElementById('rTotCargado').textContent=set(totCargado);
+  document.getElementById('rTotPagado').textContent=set(totPagado);
+  document.getElementById('rTotDesc').textContent=totDesc>0?'$'+totDesc.toLocaleString():'—';
+  document.getElementById('rTotSaldo').textContent=totSaldo>0?'$'+Math.round(totSaldo).toLocaleString():'—';
+  document.getElementById('rTotCOV').textContent=totCov>0.5?'$'+totCov.toLocaleString('es-MX',{minimumFractionDigits:2}):'—';
 
   const tbody=document.getElementById('reporteBody');
-  tbody.innerHTML=filtered.map(d=>{
-    const bdg=d.sd.estado==='corriente'?'badge-green':d.sd.estado==='moroso'?'badge-red':'badge-orange';
-    const lbl=d.sd.estado==='corriente'?'Al corriente':d.sd.estado==='moroso'?'Moroso':'Abonando';
+  tbody.innerHTML=filtrados.map(l=>{
+    const bdg=l.estado==='corriente'?'badge-green':l.estado==='moroso'?'badge-red':'badge-orange';
+    const lbl=l.estado==='corriente'?'Al corriente':l.estado==='moroso'?'Moroso':'Abonando';
+    const saldoCofCls=l.saldoCof>0?'color:var(--red)':'color:var(--green)';
+    const saldoCovCls=l.saldoCov>0.5?'color:var(--red)':'color:var(--muted)';
+    const venc=l.venc||0;
     return `<tr>
-      <td><strong>${d.mza}</strong></td>
-      <td><strong>${d.lote}</strong></td>
-      <td>${d.propietario}</td>
-      <td style="font-size:12px;color:var(--muted)">${d.m2.toFixed(0)}</td>
-      <td class="td-monto">$${d.cuota.toLocaleString()}</td>
-      <td class="td-monto" style="color:var(--teal)">${d.cov>0?'$'+d.cov.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
-      <td class="td-monto">$${d.cargado.toLocaleString()}</td>
-      <td class="td-monto ok">$${d.pagado.toLocaleString()}</td>
-      <td class="td-monto ${d.saldo>0?'deuda':'ok'}">$${d.saldo.toLocaleString()}</td>
+      <td><strong>${l.mza}</strong></td>
+      <td><strong>${l.lote}</strong></td>
+      <td style="font-size:12px;color:var(--muted)">${l.m2}</td>
+      <td class="td-name">${l.nombre}</td>
+      <td style="font-size:11.5px;color:var(--muted)">${l.escrituracion||'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${(l.cuotaFija||0).toLocaleString()}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">$${Math.round(l.cargadoCof||0).toLocaleString()}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--green)">$${Math.round(l.pagadoCof||0).toLocaleString()}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)">${l.descCof>0?'$'+l.descCof.toLocaleString():'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:600;${saldoCofCls}">$${Math.abs(Math.round(l.saldoCof||0)).toLocaleString()}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;${saldoCovCls}">${l.saldoCov>0.5?'$'+l.saldoCov.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
+      <td style="text-align:center">${venc>0?`<span class="badge badge-red">${venc}</span>`:'—'}</td>
       <td><span class="badge ${bdg}">${lbl}</span></td>
+      <td><span class="backlink" style="padding:3px 8px;font-size:11px;cursor:pointer" onclick="_irEstadoCuenta(${l.mza},${l.lote})">Ver →</span></td>
     </tr>`;
   }).join('');
+}
+
+function _irEstadoCuenta(mza, lote){
+  // Navigate to Estado de Cuenta and pre-select this lote
+  const navEl=document.querySelector('[onclick="showPage(\'estadoCuenta\',this)"]');
+  showPage('estadoCuenta', navEl);
+  _loadSD().then(()=>{
+    document.getElementById('ecLoteMza').value=String(mza);
+    _ecFilterLotes().then(()=>{
+      const sel=document.getElementById('ecLoteSelect');
+      const key=`${mza}-${lote}`;
+      for(let i=0;i<sel.options.length;i++){
+        if(sel.options[i].value===key||sel.options[i].value.startsWith(`Mza ${mza} · L${lote}`)){
+          sel.selectedIndex=i; break;
+        }
+      }
+      // Try by sheet key
+      const l=(_SD||[]).find(x=>x.mza===mza&&x.lote===lote);
+      if(l){
+        const sheet=l.sheet||key;
+        for(let i=0;i<sel.options.length;i++){
+          if(sel.options[i].value===sheet){ sel.selectedIndex=i; break; }
+        }
+      }
+      _ecOpenLote();
+    });
+  });
 }
 
 // ============================================================

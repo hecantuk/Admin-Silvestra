@@ -2457,6 +2457,13 @@ function _ecExportExcelDo(l){
   const wsY=XLSX.utils.aoa_to_sheet(aoaY);
   wsY['!cols']=[{wch:8},{wch:14},{wch:12},{wch:14},{wch:14},{wch:16},{wch:14},{wch:12},{wch:12}];
   wsY['!merges']=[{s:{r:0,c:0},e:{r:0,c:8}}];
+  // Apply money format to all numeric columns (B–I) in data rows (skip title/blank/headers = rows 0-2)
+  for(let ri=3;ri<aoaY.length;ri++){
+    for(let ci=1;ci<=8;ci++){
+      const ref=XLSX.utils.encode_cell({r:ri,c:ci});
+      if(wsY[ref]&&!wsY[ref].z) wsY[ref].z=moneyFmt;
+    }
+  }
   XLSX.utils.book_append_sheet(wb,wsY,'Historial por Año');
 
   XLSX.writeFile(wb,`EstadoCuenta_Mza${l.mza}L${l.lote}_${(l.nombre||'').split(' ')[0]}.xlsx`);

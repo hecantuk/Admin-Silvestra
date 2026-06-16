@@ -393,10 +393,6 @@ tr:last-child td{border-bottom:none}
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
         Gastos
       </div>
-      <div class="nav-item" onclick="showPage('saldos',this)">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-        Saldos
-      </div>
       <div class="sidebar-section">Reportes</div>
       <div class="nav-item" onclick="showPage('reporte',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -425,10 +421,6 @@ tr:last-child td{border-bottom:none}
         Exportar
       </div>
       <div class="sidebar-section">Administración</div>
-      <div class="nav-item" onclick="showPage('banco',this)">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-        Movimientos Banco
-      </div>
       <div class="nav-item" onclick="showPage('chequera',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>
         Chequera
@@ -1465,6 +1457,23 @@ tr:last-child td{border-bottom:none}
                 <input type="file" accept=".xlsx,.xlsm" style="display:none" onchange="importarHistorial(this)">
               </label>
               <span id="historialStatus" style="font-size:13px;color:var(--muted)"></span>
+            </div>
+          </div>
+          <div class="config-block" style="margin-top:16px">
+            <div class="config-block-header">
+              <span class="config-block-title">⚡ Importar Excel completo (limpia y recarga todo)</span>
+            </div>
+            <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+              Sube el archivo <strong>.xlsm</strong> de estados de cuenta. Esto <strong>borrará</strong> todos los datos actuales de Chequera
+              y regenerará el historial de saldos (silvestra_data.json) desde las hojas <code>Edo.Cta.*</code>.
+              Los Concentrados y Estado de Cuenta se actualizarán automáticamente.
+            </p>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <label class="btn-primary" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px">
+                📂 Seleccionar Excel y cargar
+                <input type="file" accept=".xlsx,.xlsm" style="display:none" onchange="_importarExcelCompleto(this)">
+              </label>
+              <span id="excelCompletoStatus" style="font-size:13px;color:var(--muted)"></span>
             </div>
           </div>
           <div class="config-block" style="margin-top:16px">
@@ -2720,10 +2729,10 @@ function _toggleDescPop(btn){
 // ============================================================
 const PAGE_TITLES={
   dashboard:'Dashboard',lotes:'Lotes',cargos:'Cargos del Mes',
-  ingresos:'COF / COV',gastos:'Gastos',saldos:'Saldos Pendientes',
+  ingresos:'COF / COV',gastos:'Gastos',
   reporte:'Concentrado de Cobranza',exportar:'Exportar estados de cuenta',
   estadoCuenta:'Estado de Cuenta Individual',descuentos:'Descuentos',
-  banco:'Movimientos Banco',chequera:'Chequera',
+  chequera:'Chequera',
   concentradoCOF:'Concentrado COF',concentradoCOV:'Concentrado COV',
   miCuenta:'Mi Estado de Cuenta',misPagos:'Mis Pagos',
   configuracion:'Configuración'
@@ -5637,6 +5646,30 @@ async function _migrarSilvestraJson(){
       st.style.color='var(--red)';
     }
   }catch(e){ st.textContent='❌ Error: '+e.message; st.style.color='var(--red)'; }
+}
+
+async function _importarExcelCompleto(input){
+  const file=input.files[0]; if(!file) return;
+  const token=localStorage.getItem('auth_token');
+  const st=document.getElementById('excelCompletoStatus');
+  st.textContent='Cargando y procesando… puede tardar 1-2 minutos.';
+  st.style.color='var(--muted)';
+  try{
+    const fd=new FormData(); fd.append('file',file);
+    const r=await fetch('/api/admin/regenerar_desde_excel',{
+      method:'POST', headers:{Authorization:`Bearer ${token}`}, body:fd
+    }).then(x=>x.json());
+    if(r.ok){
+      _SD=null; // forzar recarga de silvestra_data.json
+      st.textContent=`✅ ${r.lotes_actualizados} lotes · ${r.meses_total} meses históricos · ${r.chequera_importados} registros en Chequera`;
+      st.style.color='var(--green)';
+      showToast('✅ Excel importado correctamente');
+    } else {
+      st.textContent='❌ '+JSON.stringify(r);
+      st.style.color='var(--red)';
+    }
+  }catch(e){ st.textContent='❌ Error: '+e.message; st.style.color='var(--red)'; }
+  input.value='';
 }
 
 // Cuota mensual fija (COF) por año

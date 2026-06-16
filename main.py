@@ -1932,3 +1932,133 @@ async def importar_silvestra_json(admin: Usuario = Depends(_admin_only)):
 
     return {"ok": True, "pagos_creados": pagos_creados, "descuentos_creados": descuentos_creados,
             "lotes_actualizados": lotes_actualizados, "lecturas_creadas": lecturas_creadas}
+
+
+@app.post("/api/admin/regenerar_desde_excel")
+async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = Depends(_admin_only)):
+    """Re-genera silvestra_data.json desde las hojas Edo.Cta.* y reimporta Chequera (limpia primero)."""
+    import openpyxl, json as _json
+    from sqlalchemy import text as _text2
+
+    content = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+
+    lotes_data = []
+
+    for sheet_name in wb.sheetnames:
+        if not sheet_name.startswith('Edo.Cta.'):
+            continue
+        ws = wb[sheet_name]
+        rows = list(ws.iter_rows(values_only=True))
+        if len(rows) < 14:
+            continue
+
+        nombre = str(rows[5][2] or '').strip() if len(rows[5]) > 2 and rows[5][2] else ''
+        if not nombre:
+            continue
+
+        def _fv(r, col, default=0.0):
+            v = r[col] if len(r) > col else None
+            if v is None: return default
+            try: return float(v)
+            except: return default
+
+        mza = int(_fv(rows[6], 2, 0))
+        lote_num = int(_fv(rows[7], 2, 0))
+        m2 = _fv(rows[6], 9, 0.0)
+        cuota_fija = _fv(rows[5], 13, 0.0)
+        tarifa_cov = _fv(rows[6], 13, 5.0)
+        saldo_cof = _fv(rows[13], 6, 0.0)
+
+        escrit_raw = rows[5][9] if len(rows[5]) > 9 else None
+        escrituracion = escrit_raw.date().isoformat() if hasattr(escrit_raw, 'date') else ''
+
+        meses = []
+        for row in rows[18:]:
+            if not row or len(row) < 1 or not row[0] or not hasattr(row[0], 'year'):
+                continue
+            meses.append({
+                'mes': row[0].date().isoformat(),
+                'extra': _fv(row, 1),
+                'cof': _fv(row, 2),
+                'pagoCof': _fv(row, 3),
+                'desc': _fv(row, 4),
+                'fpago': row[5].date().isoformat() if len(row) > 5 and hasattr(row[5], 'date') else '',
+                'saldoMes': _fv(row, 6),
+                'vIni': _fv(row, 7),
+                'vFin': _fv(row, 8),
+                'consumo': _fv(row, 9),
+                'cov': _fv(row, 10),
+                'instal': _fv(row, 11),
+                'pagoCov': _fv(row, 12),
+            })
+
+        lotes_data.append({
+            'sheet': sheet_name,
+            'mza': mza, 'lote': lote_num, 'nombre': nombre,
+            'm2': m2, 'escrituracion': escrituracion,
+            'cuotaFija': cuota_fija, 'tarifaCOV': tarifa_cov,
+            'totales': {
+                'extra': round(sum(m['extra'] for m in meses), 2),
+                'cof': round(sum(m['cof'] for m in meses), 2),
+                'pagoCof': round(sum(m['pagoCof'] for m in meses), 2),
+                'desc': round(sum(m['desc'] for m in meses), 2),
+                'saldoCof': round(saldo_cof, 2),
+                'cov': round(sum(m['cov'] for m in meses), 2),
+                'instal': round(sum(m['instal'] for m in meses), 2),
+                'pagoCov': round(sum(m['pagoCov'] for m in meses), 2),
+            },
+            'meses': meses
+        })
+
+    lotes_data.sort(key=lambda x: (x['mza'], x['lote']))
+    json_path = os.path.join(os.path.dirname(__file__), 'static', 'silvestra_data.json')
+    with open(json_path, 'w', encoding='utf-8') as f:
+        _json.dump(lotes_data, f, ensure_ascii=False, separators=(',', ':'))
+
+    # Limpiar y reimportar Chequera
+    with engine.connect() as conn:
+        conn.execute(_text2("DELETE FROM movimientobancario"))
+        conn.commit()
+
+    ws_cheq = wb['Chequera']
+    importados = 0
+    with Session(engine) as s:
+        for row in list(ws_cheq.iter_rows(values_only=True))[5:]:
+            if not row or len(row) < 3: continue
+            fecha_raw = row[2]
+            if not fecha_raw: continue
+            if hasattr(fecha_raw, 'date'):
+                fecha = fecha_raw.date()
+            else:
+                try: fecha = date.fromisoformat(str(fecha_raw)[:10])
+                except:
+                    try: fecha = date(1899, 12, 30) + timedelta(days=int(float(str(fecha_raw))))
+                    except: continue
+
+            def _sv(r, c): return str(r[c] or '').strip() if len(r) > c and r[c] else ''
+            def _nv(r, c): return float(r[c] or 0) if len(r) > c and r[c] else 0.0
+
+            nombre_v = _sv(row, 3); concepto_v = _sv(row, 4)
+            s.add(MovimientoBancario(
+                fecha=fecha,
+                descripcion=nombre_v or concepto_v or 'Sin descripción',
+                nombre=nombre_v, concepto=concepto_v,
+                importe=float(row[5]) if len(row) > 5 and row[5] else None,
+                cargo=_nv(row, 10), abono=_nv(row, 11),
+                referencia=_sv(row, 1) or None,
+                tipo='sin_clasificar',
+                iva_ret=_nv(row, 6) or _nv(row, 8),
+                isr_ret=_nv(row, 7),
+                tiene_iva_ret=bool(_nv(row, 6) or _nv(row, 8)),
+                tiene_isr_ret=bool(_nv(row, 7)),
+            ))
+            importados += 1
+        s.commit()
+
+    return {
+        "ok": True,
+        "lotes_actualizados": len(lotes_data),
+        "meses_total": sum(len(l['meses']) for l in lotes_data),
+        "chequera_importados": importados
+    }

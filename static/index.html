@@ -418,6 +418,10 @@ tr:last-child td{border-bottom:none}
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
         Movimientos Banco
       </div>
+      <div class="nav-item" onclick="showPage('chequera',this)">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>
+        Chequera
+      </div>
       <div class="nav-item" onclick="showPage('diot',this)">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 14l6-6m-5 .5h.01M14 13.5h.01M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z"/></svg>
         DIOT Fiscal
@@ -1016,6 +1020,61 @@ tr:last-child td{border-bottom:none}
             <table>
               <thead><tr><th>Fecha</th><th>Descripción</th><th>Cargo</th><th>Abono</th><th>Referencia</th><th>Tipo</th><th>Acción</th></tr></thead>
               <tbody id="bancoBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHEQUERA -->
+      <div class="page" id="pageChequera">
+        <div class="kpi-grid" id="chequeraKpis"></div>
+        <div class="search-row">
+          <select class="search-box" id="chequeraAnio" onchange="loadChequera()" style="width:110px">
+            <option value="">Todos los años</option>
+          </select>
+          <select class="search-box" id="chequeraTipo" onchange="loadChequera()" style="width:170px">
+            <option value="">Todos los tipos</option>
+            <option value="abono">Entradas (abonos)</option>
+            <option value="cargo">Salidas (cargos)</option>
+            <option value="ingreso_colono">Colonos</option>
+            <option value="pago_proveedor">Proveedores</option>
+            <option value="sin_clasificar">Sin clasificar</option>
+          </select>
+          <input class="search-box" id="chequeraSearch" placeholder="Buscar concepto o referencia…" oninput="loadChequera()" style="flex:1;min-width:160px">
+          <label class="btn-primary admin-only" style="cursor:pointer">
+            ⬆ Importar
+            <input type="file" accept=".xlsx" style="display:none" onchange="importarBancoChequera(this)">
+          </label>
+          <button class="btn-secondary" onclick="_chequeraExportExcel()">⬇ Excel</button>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Libro de chequera</span>
+            <span id="chequeraTotalesInfo" style="font-size:12px;color:var(--muted)"></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:96px">Fecha</th>
+                  <th>Concepto</th>
+                  <th style="width:130px">Referencia</th>
+                  <th style="width:120px;text-align:right">Cargo</th>
+                  <th style="width:120px;text-align:right">Abono</th>
+                  <th style="width:130px;text-align:right">Saldo</th>
+                  <th style="width:90px">Tipo</th>
+                </tr>
+              </thead>
+              <tbody id="chequeraBody"></tbody>
+              <tfoot>
+                <tr style="background:var(--bg);font-size:13px">
+                  <td colspan="3" style="font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:10px 12px">TOTALES</td>
+                  <td style="text-align:right;font-weight:700;color:var(--red);padding:10px 12px" id="chequeraTotCargo"></td>
+                  <td style="text-align:right;font-weight:700;color:var(--green);padding:10px 12px" id="chequeraTotAbono"></td>
+                  <td style="text-align:right;font-weight:700;padding:10px 12px" id="chequeraTotSaldo"></td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -2441,6 +2500,7 @@ const PAGE_TITLES={
   ingresos:'COF / COV',gastos:'Gastos',saldos:'Saldos Pendientes',
   reporte:'Concentrado de Cobranza',exportar:'Exportar estados de cuenta',
   estadoCuenta:'Estado de Cuenta Individual',descuentos:'Descuentos',
+  banco:'Movimientos Banco',chequera:'Chequera',
   miCuenta:'Mi Estado de Cuenta',misPagos:'Mis Pagos',
   configuracion:'Configuración'
 };
@@ -2464,6 +2524,7 @@ function showPage(id,navEl){
     else if(id==='estadoCuenta') loadEstadoCuenta();
     else if(id==='descuentos') loadDescuentos();
     else if(id==='banco') loadBanco();
+    else if(id==='chequera') loadChequera();
     else if(id==='diot') loadDiot();
     else if(id==='agua') loadAgua();
     else if(id==='prorrateo') loadProrrateo();
@@ -2472,6 +2533,7 @@ function showPage(id,navEl){
   } else {
     // Estas siempre recargan datos frescos del servidor
     if(id==='banco') loadBanco();
+    else if(id==='chequera') loadChequera();
     else if(id==='diot') loadDiot();
     else if(id==='ingresos') loadIngresos();
     else if(id==='agua') loadAgua();
@@ -3792,6 +3854,132 @@ const _origTitles = PAGE_TITLES;
 Object.assign(PAGE_TITLES,{banco:'Movimientos Bancarios',diot:'DIOT Fiscal',agua:'COV — Cuota Variable',prorrateo:'Prorrateo por m²',financiero:'Estados Financieros'});
 
 // ============================================================
+// CHEQUERA
+// ============================================================
+let _chequeraData=[];   // all movements cached; cleared on import
+
+async function loadChequera(){
+  if(!_chequeraData.length){
+    showToast('Cargando movimientos…');
+    const r=await fetch('/api/banco/movimientos').then(x=>x.json()).catch(()=>({movimientos:[]}));
+    // sort oldest→newest for running balance
+    _chequeraData=(r.movimientos||[]).slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    // populate year selector from available data
+    const years=[...new Set(_chequeraData.map(m=>m.fecha.slice(0,4)))].sort((a,b)=>b-a);
+    const sel=document.getElementById('chequeraAnio');
+    if(sel&&sel.options.length===1){
+      years.forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; sel.appendChild(o); });
+    }
+  }
+
+  const anio=(document.getElementById('chequeraAnio')||{}).value||'';
+  const tipo=(document.getElementById('chequeraTipo')||{}).value||'';
+  const q=((document.getElementById('chequeraSearch')||{}).value||'').toLowerCase();
+
+  // KPIs from full year (or all-time)
+  const base=anio?_chequeraData.filter(m=>m.fecha.startsWith(anio)):_chequeraData;
+  const kpiAbonos=base.reduce((a,m)=>a+m.abono,0);
+  const kpiCargos=base.reduce((a,m)=>a+m.cargo,0);
+  const kpiSaldo=kpiAbonos-kpiCargos;
+
+  document.getElementById('chequeraKpis').innerHTML=`
+    <div class="kpi"><div class="lab">Saldo neto</div><div class="val" style="color:${kpiSaldo>=0?'var(--green)':'var(--red)'}">${kpiSaldo<0?'−':''}$${Math.abs(Math.round(kpiSaldo)).toLocaleString('es-MX')}</div><div class="sub">${anio||'Histórico'}</div></div>
+    <div class="kpi"><div class="lab">Total entradas</div><div class="val" style="color:var(--green)">$${Math.round(kpiAbonos).toLocaleString('es-MX')}</div><div class="sub">abonos</div></div>
+    <div class="kpi"><div class="lab">Total salidas</div><div class="val" style="color:var(--red)">$${Math.round(kpiCargos).toLocaleString('es-MX')}</div><div class="sub">cargos</div></div>
+    <div class="kpi"><div class="lab">Movimientos</div><div class="val">${base.length}</div><div class="sub">${base.length!==_chequeraData.length?`de ${_chequeraData.length} total`:'total'}</div></div>`;
+
+  // apply filters
+  let movs=base;
+  if(tipo==='abono') movs=movs.filter(m=>m.abono>0);
+  else if(tipo==='cargo') movs=movs.filter(m=>m.cargo>0);
+  else if(tipo) movs=movs.filter(m=>m.tipo===tipo);
+  if(q) movs=movs.filter(m=>(m.descripcion||'').toLowerCase().includes(q)||(m.referencia||'').toLowerCase().includes(q));
+
+  const tipoBadge={ingreso_colono:'badge-green',pago_proveedor:'badge-teal',sin_clasificar:'badge-gold'};
+  const tipoLabel={ingreso_colono:'Colono',pago_proveedor:'Proveedor',sin_clasificar:'Sin clas.'};
+
+  // compute running balance on the filtered, date-sorted set
+  let saldoCorr=0;
+  document.getElementById('chequeraBody').innerHTML=movs.length?movs.map(m=>{
+    saldoCorr+=m.abono-m.cargo;
+    const sc=saldoCorr>=0?'var(--green)':'var(--red)';
+    const signo=saldoCorr<0?'−':'';
+    return `<tr>
+      <td style="color:var(--muted);font-size:12px;white-space:nowrap">${m.fecha}</td>
+      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.descripcion||'—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${m.referencia||'—'}</td>
+      <td style="text-align:right;color:var(--red)">${m.cargo>0?'$'+m.cargo.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
+      <td style="text-align:right;color:var(--green)">${m.abono>0?'$'+m.abono.toLocaleString('es-MX',{minimumFractionDigits:2}):'—'}</td>
+      <td style="text-align:right;font-weight:600;color:${sc}">${signo}$${Math.abs(saldoCorr).toLocaleString('es-MX',{minimumFractionDigits:2})}</td>
+      <td><span class="badge ${tipoBadge[m.tipo]||'badge-gray'}" style="font-size:10px">${tipoLabel[m.tipo]||m.tipo}</span></td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Sin movimientos para este filtro</td></tr>';
+
+  const totC=movs.reduce((a,m)=>a+m.cargo,0);
+  const totA=movs.reduce((a,m)=>a+m.abono,0);
+  const totS=totA-totC;
+  const fmt2=(v)=>'$'+v.toLocaleString('es-MX',{minimumFractionDigits:2});
+  document.getElementById('chequeraTotCargo').textContent=fmt2(totC);
+  document.getElementById('chequeraTotAbono').textContent=fmt2(totA);
+  const sEl=document.getElementById('chequeraTotSaldo');
+  sEl.textContent=(totS<0?'−':'')+'$'+Math.abs(totS).toLocaleString('es-MX',{minimumFractionDigits:2});
+  sEl.style.color=totS>=0?'var(--green)':'var(--red)';
+  document.getElementById('chequeraTotalesInfo').textContent=`${movs.length} movimientos mostrados`;
+}
+
+function importarBancoChequera(input){
+  _chequeraData=[];  // invalidate cache
+  importarBanco(input);
+  // also reload chequera after import completes (banco reloads itself)
+  setTimeout(()=>{ _chequeraData=[]; _rendered.delete('chequera'); },2000);
+}
+
+function _chequeraExportExcel(){
+  _loadXLSX(()=>{
+    const anio=(document.getElementById('chequeraAnio')||{}).value||'';
+    const tipo=(document.getElementById('chequeraTipo')||{}).value||'';
+    const q=((document.getElementById('chequeraSearch')||{}).value||'').toLowerCase();
+    let movs=anio?_chequeraData.filter(m=>m.fecha.startsWith(anio)):_chequeraData.slice();
+    if(tipo==='abono') movs=movs.filter(m=>m.abono>0);
+    else if(tipo==='cargo') movs=movs.filter(m=>m.cargo>0);
+    else if(tipo) movs=movs.filter(m=>m.tipo===tipo);
+    if(q) movs=movs.filter(m=>(m.descripcion||'').toLowerCase().includes(q)||(m.referencia||'').toLowerCase().includes(q));
+
+    const wb=XLSX.utils.book_new();
+    const tipoLabel={ingreso_colono:'Colono',pago_proveedor:'Proveedor',sin_clasificar:'Sin clasificar'};
+    const aoa=[
+      ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],
+      ['LIBRO DE CHEQUERA'+(anio?' — '+anio:'')],
+      [''],
+      ['Fecha','Concepto','Referencia','Cargo','Abono','Saldo','Tipo'],
+    ];
+    let saldo=0;
+    movs.forEach(m=>{
+      saldo+=m.abono-m.cargo;
+      aoa.push([m.fecha,m.descripcion||'',m.referencia||'',m.cargo||0,m.abono||0,
+        parseFloat(saldo.toFixed(2)),tipoLabel[m.tipo]||m.tipo]);
+    });
+    const totC=movs.reduce((a,m)=>a+m.cargo,0);
+    const totA=movs.reduce((a,m)=>a+m.abono,0);
+    aoa.push(['TOTALES','','',totC,totA,parseFloat((totA-totC).toFixed(2)),'']);
+
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:12},{wch:40},{wch:16},{wch:14},{wch:14},{wch:14},{wch:14}];
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:6}},{s:{r:1,c:0},e:{r:1,c:6}}];
+    const moneyFmt='#,##0.00';
+    for(let ri=4;ri<aoa.length;ri++){
+      [3,4,5].forEach(ci=>{
+        const ref=XLSX.utils.encode_cell({r:ri,c:ci});
+        if(ws[ref]) ws[ref].z=moneyFmt;
+      });
+    }
+    XLSX.utils.book_append_sheet(wb,ws,'Chequera');
+    XLSX.writeFile(wb,`Chequera_Silvestra${anio?'_'+anio:''}.xlsx`);
+    showToast('Excel de chequera exportado');
+  });
+}
+
+// ============================================================
 // MÓDULO 1 — BANCO
 // ============================================================
 async function loadBanco(){
@@ -3841,6 +4029,7 @@ async function importarBanco(input){
   const r=await fetch('/api/banco/importar',{method:'POST',body:fd}).then(x=>x.json()).catch(()=>({importados:0}));
   input.value='';
   showToast(`${r.importados} movimientos importados`);
+  _chequeraData=[];  // invalidar caché de chequera
   loadBanco();
 }
 

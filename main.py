@@ -568,8 +568,8 @@ def _construir_historial(lote, pagos, descuentos, lecturas, cargos, hoy=None):
         k = p.mes_aplicado or ""
         if p.concepto == "COF":
             pago_cof[k] = pago_cof.get(k, 0) + p.importe
-            if p.fecha:
-                fpago_map[k] = str(p.fecha)
+            if p.fecha_pago:
+                fpago_map[k] = str(p.fecha_pago)
         elif p.concepto == "COV":
             pago_cov[k] = pago_cov.get(k, 0) + p.importe
 

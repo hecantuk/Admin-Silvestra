@@ -626,9 +626,9 @@ def get_estado_cuenta(lote_id: int, user: Usuario = Depends(_current_user)):
                 "desc": desc,
                 "fpago": fpago,
                 "saldoMes": round(saldo_mes, 2),
-                "vIni": lec.lectura_inicial if lec else None,
-                "vFin": lec.lectura_final if lec else None,
-                "consumo": round((lec.lectura_final - lec.lectura_inicial), 2) if lec and lec.lectura_final and lec.lectura_inicial else None,
+                "vIni": lec.lectura_anterior if lec else None,
+                "vFin": lec.lectura_actual if lec else None,
+                "consumo": round((lec.lectura_actual - lec.lectura_anterior), 2) if lec and lec.lectura_actual and lec.lectura_anterior else None,
                 "cov": round(lec.importe, 2) if lec else None,
                 "instal": 0,
                 "pagoCov": entry.get("pagoCov", 0),
@@ -2206,11 +2206,17 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
     content = await file.read()
     wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
 
+    import re as _re
+
     lotes_data = []
 
     for sheet_name in wb.sheetnames:
-        if not sheet_name.startswith('Edo.Cta.'):
+        m_sheet = _re.match(r'^Edo\.Cta\.M(\d+) L(\d+)$', sheet_name)
+        if not m_sheet:
             continue
+        mza = int(m_sheet.group(1))
+        lote_num = int(m_sheet.group(2))
+
         ws = wb[sheet_name]
         rows = list(ws.iter_rows(values_only=True))
         if len(rows) < 14:
@@ -2226,8 +2232,6 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
             try: return float(v)
             except: return default
 
-        mza = int(_fv(rows[6], 2, 0))
-        lote_num = int(_fv(rows[7], 2, 0))
         m2 = _fv(rows[6], 9, 0.0)
         cuota_fija = _fv(rows[5], 13, 0.0)
         tarifa_cov = _fv(rows[6], 13, 5.0)
@@ -2305,6 +2309,106 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
                 ))
         s.commit()
 
+    # Import full payment history (Pagos, LecturaAgua, Cargo, Descuento)
+    pagos_importados = 0
+    lecturas_importadas = 0
+    with Session(engine) as s:
+        for ld in lotes_data:
+            lote_row = s.exec(select(Lote).where(
+                Lote.manzana == ld['mza'], Lote.numero == ld['lote']
+            )).first()
+            if not lote_row:
+                continue
+            lid = lote_row.id
+
+            # Delete existing records for this lote
+            with engine.connect() as conn:
+                conn.execute(_text2("DELETE FROM pago WHERE lote_id = :lid"), {"lid": lid})
+                conn.commit()
+            with engine.connect() as conn:
+                conn.execute(_text2("DELETE FROM lecturaagua WHERE lote_id = :lid"), {"lid": lid})
+                conn.commit()
+            with engine.connect() as conn:
+                conn.execute(_text2("DELETE FROM cargo WHERE lote_id = :lid"), {"lid": lid})
+                conn.commit()
+            with engine.connect() as conn:
+                conn.execute(_text2("DELETE FROM descuento WHERE lote_id = :lid"), {"lid": lid})
+                conn.commit()
+
+            desc_por_anio = {}
+
+            for m in ld['meses']:
+                mes_key = m['mes'][:7]
+                anio_key = int(mes_key[:4])
+
+                if m['pagoCof'] > 0:
+                    fpago_str = m['fpago'] if m['fpago'] else mes_key + '-01'
+                    try:
+                        fpago_date = date.fromisoformat(fpago_str)
+                    except Exception:
+                        try:
+                            fpago_date = date.fromisoformat(m['mes'][:10])
+                        except Exception:
+                            fpago_date = date.fromisoformat(mes_key + '-01')
+                    s.add(Pago(
+                        lote_id=lid,
+                        fecha_pago=fpago_date,
+                        importe=m['pagoCof'],
+                        mes_aplicado=mes_key,
+                        concepto='COF',
+                        estado='aprobado',
+                    ))
+                    pagos_importados += 1
+
+                if m['pagoCov'] > 0:
+                    s.add(Pago(
+                        lote_id=lid,
+                        fecha_pago=date.fromisoformat(mes_key + '-01'),
+                        importe=m['pagoCov'],
+                        mes_aplicado=mes_key,
+                        concepto='COV',
+                        estado='aprobado',
+                    ))
+                    pagos_importados += 1
+
+                if m['extra'] > 0:
+                    s.add(Cargo(
+                        lote_id=lid,
+                        mes=mes_key,
+                        concepto='COF',
+                        descripcion='Cuota extraordinaria única',
+                        importe=m['extra'],
+                        fecha=date.fromisoformat(mes_key + '-01'),
+                    ))
+
+                cov_total = (m['cov'] or 0) + (m['instal'] or 0)
+                if cov_total > 0:
+                    s.add(LecturaAgua(
+                        lote_id=lid,
+                        mes=mes_key,
+                        lectura_anterior=m['vIni'] or 0,
+                        lectura_actual=m['vFin'] or 0,
+                        consumo_m3=m['consumo'] or 0,
+                        tarifa_por_m3=ld.get('tarifaCOV', 5.0),
+                        importe=cov_total,
+                    ))
+                    lecturas_importadas += 1
+
+                if m['desc'] > 0:
+                    desc_por_anio[anio_key] = desc_por_anio.get(anio_key, 0) + m['desc']
+
+            for anio_d, total_desc in desc_por_anio.items():
+                s.add(Descuento(
+                    lote_id=lid,
+                    tipo='descuento',
+                    concepto='COF',
+                    importe=total_desc,
+                    anio=anio_d,
+                    notas='Importado desde Excel',
+                ))
+
+        s.commit()
+
     # Limpiar y reimportar Chequera
     with engine.connect() as conn:
         conn.execute(_text2("DELETE FROM movimientobancario"))
@@ -2350,5 +2454,7 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
         "lotes_actualizados": len(lotes_data),
         "meses_total": sum(len(l['meses']) for l in lotes_data),
         "chequera_importados": importados,
-        "lotes_en_bd": len(lotes_data)
+        "lotes_en_bd": len(lotes_data),
+        "pagos_importados": pagos_importados,
+        "lecturas_importadas": lecturas_importadas,
     }

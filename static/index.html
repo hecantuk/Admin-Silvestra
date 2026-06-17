@@ -5894,7 +5894,7 @@ async function _importarExcelCompleto(input){
       _SD=null; // forzar recarga de silvestra_data.json
       await _loadLotes();
       populateSelects();
-      st.textContent=`✅ ${r.lotes_actualizados} lotes en BD · ${r.meses_total} meses históricos · ${r.chequera_importados} registros en Chequera`;
+      st.textContent=`✅ ${r.lotes_actualizados} lotes · ${r.pagos_importados} pagos · ${r.lecturas_importadas} lecturas agua · ${r.chequera_importados} en Chequera`;
       st.style.color='var(--green)';
       showToast('✅ Excel importado correctamente');
     } else {

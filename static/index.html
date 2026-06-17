@@ -5802,17 +5802,17 @@ async function _migrarSilvestraJson(){
 }
 
 async function _limpiarTodo(){
-  if(!confirm('¿Seguro que quieres borrar TODOS los datos de Chequera y el historial de saldos? Esta acción no se puede deshacer.')) return;
+  if(!confirm('¿Seguro? Se borrarán TODOS los datos: Chequera, pagos, gastos, descuentos, lecturas de agua e historial de saldos.\n\nNO se borran usuarios ni configuración.\n\nEsta acción no se puede deshacer.')) return;
   const token=localStorage.getItem('auth_token');
   const st=document.getElementById('limpiarStatus');
-  st.textContent='Borrando…'; st.style.color='var(--muted)';
+  st.textContent='Borrando todo…'; st.style.color='var(--muted)';
   try{
-    const r=await fetch('/api/admin/limpiar_chequera',{method:'POST',headers:{Authorization:`Bearer ${token}`}}).then(x=>x.json());
+    const r=await fetch('/api/admin/limpiar_todo',{method:'POST',headers:{Authorization:`Bearer ${token}`}}).then(x=>x.json());
     if(r.ok){
       _SD=null; _chequeraData=[];
-      st.textContent='✅ Chequera limpia. El historial de saldos también fue borrado con este deploy.';
+      st.textContent='✅ Todo borrado. Ahora importa el Excel para cargar los datos.';
       st.style.color='var(--green)';
-      showToast('✅ Datos borrados');
+      showToast('✅ Todos los datos borrados');
     } else { st.textContent='❌ '+JSON.stringify(r); st.style.color='var(--red)'; }
   }catch(e){ st.textContent='❌ Error: '+e.message; st.style.color='var(--red)'; }
 }

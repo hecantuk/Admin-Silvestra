@@ -1049,6 +1049,28 @@ async def limpiar_chequera(admin: Usuario = Depends(_admin_only)):
         conn.commit()
     return {"ok": True}
 
+@app.post("/api/admin/limpiar_todo")
+async def limpiar_todo(admin: Usuario = Depends(_admin_only)):
+    """Borra todos los datos operativos. Conserva usuarios, config y lotes."""
+    import json as _json, os as _os
+    from sqlalchemy import text as _text2
+    tables = [
+        "movimientobancario", "pago", "gasto", "gastoarchivo",
+        "descuento", "lecturaagua", "gastoreal", "prorrateoporldote",
+    ]
+    with engine.connect() as conn:
+        for t in tables:
+            try:
+                conn.execute(_text2(f"DELETE FROM {t}"))
+            except Exception:
+                pass
+        conn.commit()
+    # Vaciar silvestra_data.json
+    json_path = _os.path.join(_os.path.dirname(__file__), "static", "silvestra_data.json")
+    with open(json_path, "w") as f:
+        f.write("[]")
+    return {"ok": True}
+
 @app.get("/api/banco/movimientos")
 def get_movimientos(mes: Optional[str] = None):
     with Session(engine) as s:

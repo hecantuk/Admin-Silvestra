@@ -843,32 +843,25 @@ tr:last-child td{border-bottom:none}
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th style="min-width:190px">Propietario</th>
+                <th style="text-align:center">Mza</th>
+                <th style="text-align:center">Lote</th>
+                <th style="min-width:200px">Propietario</th>
                 <th style="text-align:right">M²</th>
-                <th>Escrituración</th>
-                <th style="text-align:right">Cuota COF</th>
-                <th style="text-align:right">Cuota COV</th>
+                <th style="text-align:right">Cuota</th>
+                <th style="text-align:right">COF Cargado</th>
+                <th style="text-align:right">Extraord.</th>
+                <th style="text-align:right">Pagado</th>
                 <th style="text-align:right">Descuento</th>
-                <th style="text-align:right">Total cuotas</th>
-                <th style="text-align:right">Total pagado</th>
-                <th style="text-align:right">Saldo COF</th>
-                <th style="text-align:right">Saldo COV</th>
-                <th style="text-align:right">Saldo Total</th>
-                <th style="text-align:center">Meses venc.</th>
-                <th>Estado</th><th></th>
+                <th style="text-align:right">Saldo</th>
               </tr></thead>
               <tbody id="ccofBody"></tbody>
               <tfoot><tr style="font-weight:700;background:var(--bg)">
-                <td colspan="3" style="text-align:right;padding:10px 12px">TOTALES</td>
-                <td style="text-align:right;padding:10px 12px" id="ccofTotCuotaCof"></td>
-                <td style="text-align:right;padding:10px 12px" id="ccofTotCuotaCov"></td>
-                <td style="text-align:right;padding:10px 12px" id="ccofTotDesc"></td>
+                <td colspan="5" style="text-align:right;padding:10px 12px">TOTALES</td>
                 <td style="text-align:right;padding:10px 12px" id="ccofTotCof"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccofTotExtra"></td>
                 <td style="text-align:right;padding:10px 12px" id="ccofTotPago"></td>
-                <td style="text-align:right;padding:10px 12px" id="ccofTotSaldoCof"></td>
-                <td style="text-align:right;padding:10px 12px" id="ccofTotSaldoCov"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccofTotDesc"></td>
                 <td style="text-align:right;padding:10px 12px" id="ccofTotSaldo"></td>
-                <td colspan="3"></td>
               </tr></tfoot>
             </table>
           </div>
@@ -905,32 +898,24 @@ tr:last-child td{border-bottom:none}
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th style="min-width:190px">Propietario</th>
+                <th style="text-align:center">Mza</th>
+                <th style="text-align:center">Lote</th>
+                <th style="min-width:200px">Propietario</th>
                 <th style="text-align:right">M²</th>
-                <th>Escrituración</th>
-                <th style="text-align:right">Cuota COF</th>
-                <th style="text-align:right">Cuota COV</th>
-                <th style="text-align:right">Descuento</th>
-                <th style="text-align:right">Total cuotas</th>
-                <th style="text-align:right">Total pagado</th>
-                <th style="text-align:right">Saldo COF</th>
+                <th style="text-align:right">Consumo m³</th>
+                <th style="text-align:right">COV</th>
+                <th style="text-align:right">Instalación</th>
+                <th style="text-align:right">Pagado</th>
                 <th style="text-align:right">Saldo COV</th>
-                <th style="text-align:right">Saldo Total</th>
-                <th style="text-align:center">Meses venc.</th>
-                <th>Estado</th><th></th>
               </tr></thead>
               <tbody id="ccovBody"></tbody>
               <tfoot><tr style="font-weight:700;background:var(--bg)">
-                <td colspan="3" style="text-align:right;padding:10px 12px">TOTALES</td>
-                <td style="text-align:right;padding:10px 12px" id="ccovTotCuotaCof"></td>
-                <td style="text-align:right;padding:10px 12px" id="ccovTotCuotaCov"></td>
-                <td style="text-align:right;padding:10px 12px" id="ccovTotDesc"></td>
-                <td style="text-align:right;padding:10px 12px" id="ccovTotCuotas"></td>
+                <td colspan="4" style="text-align:right;padding:10px 12px">TOTALES</td>
+                <td style="text-align:right;padding:10px 12px" id="ccovTotConsumo"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccovTotCov"></td>
+                <td style="text-align:right;padding:10px 12px" id="ccovTotInstal"></td>
                 <td style="text-align:right;padding:10px 12px" id="ccovTotPago"></td>
-                <td style="text-align:right;padding:10px 12px" id="ccovTotSaldoCof"></td>
-                <td style="text-align:right;padding:10px 12px" id="ccovTotSaldoCov"></td>
                 <td style="text-align:right;padding:10px 12px" id="ccovTotSaldo"></td>
-                <td colspan="3"></td>
               </tr></tfoot>
             </table>
           </div>
@@ -4456,80 +4441,54 @@ async function loadConcentradoCOF(){
       if(anio&&mes) return m.mes.startsWith(`${anio}-${mes}`);
       if(anio) return m.mes.startsWith(anio);
       return true;
-    });
+    }).filter(m=>m.cof>0||m.extra>0||m.pagoCof>0||m.desc>0);
     const cof=mFilt.reduce((a,m)=>a+(m.cof||0),0);
     const extra=mFilt.reduce((a,m)=>a+(m.extra||0),0);
-    const cov=mFilt.reduce((a,m)=>a+(m.cov||0)+(m.instal||0),0);
     const pagoCof=mFilt.reduce((a,m)=>a+(m.pagoCof||0),0);
-    const pagoCov=mFilt.reduce((a,m)=>a+(m.pagoCov||0),0);
     const desc=mFilt.reduce((a,m)=>a+(m.desc||0),0);
-    const saldoCof=parseFloat((cof+extra-pagoCof-desc).toFixed(2));
-    const saldoCov=parseFloat((cov-pagoCov).toFixed(2));
-    const totalPagado=pagoCof+pagoCov;
-    return {l,cof,extra,cov,pagoCof,pagoCov,totalPagado,desc,saldoCof,saldoCov,
-            saldoTotal:parseFloat((saldoCof+saldoCov).toFixed(2)),
-            hasActivity:mFilt.some(m=>m.cof>0||m.extra>0||m.pagoCof>0||m.cov>0||m.pagoCov>0)};
-  }).filter(r=>r.hasActivity);
+    const saldo=parseFloat((cof+extra-pagoCof-desc).toFixed(2));
+    return {l,cof,extra,pagoCof,desc,saldo,hasActivity:mFilt.length>0};
+  }).filter(r=>r.hasActivity||(r.saldo!==0));
 
   const filt=q?rows.filter(r=>r.l.nombre.toLowerCase().includes(q)):rows;
   filt.sort((a,b)=>a.l.mza-b.l.mza||a.l.lote-b.l.lote);
 
-  const fmt=(v)=>'$'+v.toLocaleString('es-MX',{minimumFractionDigits:2});
-  const periodLabel=anio?(mes?`${_MES_NAMES[+mes-1]} ${anio}`:anio):'Todo el historial';
-  const morosos=filt.filter(r=>r.saldoTotal>0.01).length;
-
-  const totCuotaCof=filt.reduce((a,r)=>a+(r.l.cuotaFija||0),0);
-  const totCuotaCov=filt.reduce((a,r)=>a+r.cov,0);
+  const totCof=filt.reduce((a,r)=>a+r.cof,0);
+  const totExtra=filt.reduce((a,r)=>a+r.extra,0);
+  const totPago=filt.reduce((a,r)=>a+r.pagoCof,0);
   const totDesc=filt.reduce((a,r)=>a+r.desc,0);
-  const totCof=filt.reduce((a,r)=>a+r.cof+r.extra,0);
-  const totPago=filt.reduce((a,r)=>a+r.totalPagado,0);
-  const totSaldoCof=filt.reduce((a,r)=>a+r.saldoCof,0);
-  const totSaldoCov=filt.reduce((a,r)=>a+r.saldoCov,0);
-  const totSaldo=filt.reduce((a,r)=>a+r.saldoTotal,0);
+  const totSaldo=filt.reduce((a,r)=>a+r.saldo,0);
 
+  const fmt=(v)=>'$'+v.toLocaleString('es-MX',{minimumFractionDigits:2});
+  const morosos=filt.filter(r=>r.saldo>0.01).length;
+  const periodLabel=anio?(mes?`${_MES_NAMES[+mes-1]} ${anio}`:anio):'Todo el historial';
   document.getElementById('ccofKpis').innerHTML=`
     <div class="kpi"><div class="lab">Lotes</div><div class="val">${filt.length}</div><div class="sub">${periodLabel}</div></div>
-    <div class="kpi"><div class="lab">Total cargado</div><div class="val" style="font-size:18px">${fmt(totCof+totCuotaCov)}</div></div>
+    <div class="kpi"><div class="lab">COF cargado</div><div class="val" style="font-size:18px">${fmt(totCof+totExtra)}</div></div>
     <div class="kpi"><div class="lab">Total pagado</div><div class="val" style="font-size:18px;color:var(--green)">${fmt(totPago)}</div></div>
-    <div class="kpi"><div class="lab">Saldo total</div><div class="val" style="font-size:18px;color:var(--red)">${fmt(totSaldo)}</div><div class="sub">${morosos} lotes con adeudo</div></div>`;
+    <div class="kpi"><div class="lab">Saldo pendiente</div><div class="val" style="font-size:18px;color:var(--red)">${fmt(totSaldo)}</div><div class="sub">${morosos} lotes con adeudo</div></div>`;
 
   document.getElementById('ccofBody').innerHTML=filt.length?filt.map(r=>{
-    const sc=r.saldoCof>0.01?'color:var(--red);font-weight:600':r.saldoCof<-0.01?'color:var(--green);font-weight:600':'';
-    const scv=r.saldoCov>0.01?'color:var(--red);font-weight:600':'color:var(--muted)';
-    const st=r.saldoTotal>0.01?'color:var(--red);font-weight:700':r.saldoTotal<-0.01?'color:var(--green);font-weight:700':'';
-    const venc=r.l.venc||0;
-    const bdg=r.l.estado==='corriente'?'badge-green':r.l.estado==='moroso'?'badge-red':'badge-orange';
-    const lbl=r.l.estado==='corriente'?'Al corriente':r.l.estado==='moroso'?'Moroso':'Abonando';
+    const sc=r.saldo>0.01?'color:var(--red);font-weight:600':r.saldo<-0.01?'color:var(--green);font-weight:600':'';
     return `<tr>
-      <td style="min-width:190px">
-        <div style="font-size:10.5px;color:var(--muted);font-weight:600;line-height:1.8">M${r.l.mza} · L${r.l.lote}</div>
-        <div class="td-name" style="margin:0">${r.l.nombre}</div>
-      </td>
-      <td style="text-align:right;font-size:12px;color:var(--muted)">${parseFloat(r.l.m2||0).toLocaleString('es-MX',{maximumFractionDigits:1})}</td>
-      <td style="font-size:11.5px;color:var(--muted)">${r.l.escrituracion||'—'}</td>
+      <td style="text-align:center">${r.l.mza}</td>
+      <td style="text-align:center">${r.l.lote}</td>
+      <td class="td-name">${r.l.nombre}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${parseFloat(r.l.m2||0).toLocaleString('es-MX',{maximumFractionDigits:1})}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">$${(r.l.cuotaFija||0).toLocaleString()}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.cov>0?fmt(r.cov):'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)">${r.desc>0?fmt(r.desc):'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.cof+r.extra>0?fmt(r.cof+r.extra):'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--green)">${r.totalPagado>0?fmt(r.totalPagado):'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;${sc}">${fmt(r.saldoCof)}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;${scv}">${r.saldoCov>0.01||r.saldoCov<-0.01?fmt(r.saldoCov):'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;${st}">${fmt(r.saldoTotal)}</td>
-      <td style="text-align:center">${venc>0?`<span class="badge badge-red">${venc}</span>`:'—'}</td>
-      <td><span class="badge ${bdg}">${lbl}</span></td>
-      <td><span class="backlink" style="padding:3px 8px;font-size:11px;cursor:pointer" onclick="_irEstadoCuenta(${r.l.mza},${r.l.lote})">Ver →</span></td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.cof>0?fmt(r.cof):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.extra>0?fmt(r.extra):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--green)">${r.pagoCof>0?fmt(r.pagoCof):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--green)">${r.desc>0?fmt(r.desc):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;${sc}">${fmt(r.saldo)}</td>
     </tr>`;
-  }).join(''):`<tr><td colspan="14" style="text-align:center;padding:32px;color:var(--muted)">Sin datos para el período seleccionado</td></tr>`;
+  }).join(''):`<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--muted)">Sin datos para el período seleccionado</td></tr>`;
 
-  const el=id=>document.getElementById(id);
-  el('ccofTotCuotaCof').textContent=fmt(totCuotaCof);
-  el('ccofTotCuotaCov').textContent=totCuotaCov>0?fmt(totCuotaCov):'—';
-  el('ccofTotDesc').textContent=totDesc>0?fmt(totDesc):'—';
-  el('ccofTotCof').textContent=fmt(totCof);
-  el('ccofTotPago').textContent=fmt(totPago);
-  el('ccofTotSaldoCof').textContent=fmt(totSaldoCof); el('ccofTotSaldoCof').style.color=totSaldoCof>0?'var(--red)':'var(--green)';
-  el('ccofTotSaldoCov').textContent=totSaldoCov>0?fmt(totSaldoCov):'—'; el('ccofTotSaldoCov').style.color=totSaldoCov>0?'var(--red)':'var(--muted)';
-  const sEl=el('ccofTotSaldo');
+  document.getElementById('ccofTotCof').textContent=fmt(totCof);
+  document.getElementById('ccofTotExtra').textContent=fmt(totExtra);
+  document.getElementById('ccofTotPago').textContent=fmt(totPago);
+  document.getElementById('ccofTotDesc').textContent=fmt(totDesc);
+  const sEl=document.getElementById('ccofTotSaldo');
   sEl.textContent=fmt(totSaldo); sEl.style.color=totSaldo>0?'var(--red)':'var(--green)';
 }
 
@@ -4547,42 +4506,31 @@ function _ccofExportExcel(){
         if(anio&&mes) return m.mes.startsWith(`${anio}-${mes}`);
         if(anio) return m.mes.startsWith(anio);
         return true;
-      });
+      }).filter(m=>m.cof>0||m.extra>0||m.pagoCof>0||m.desc>0);
       const cof=mFilt.reduce((a,m)=>a+(m.cof||0),0);
       const extra=mFilt.reduce((a,m)=>a+(m.extra||0),0);
-      const cov=mFilt.reduce((a,m)=>a+(m.cov||0)+(m.instal||0),0);
       const pagoCof=mFilt.reduce((a,m)=>a+(m.pagoCof||0),0);
-      const pagoCov=mFilt.reduce((a,m)=>a+(m.pagoCov||0),0);
       const desc=mFilt.reduce((a,m)=>a+(m.desc||0),0);
-      const saldoCof=parseFloat((cof+extra-pagoCof-desc).toFixed(2));
-      const saldoCov=parseFloat((cov-pagoCov).toFixed(2));
-      return {l,cof:cof+extra,cov,desc,totalPagado:pagoCof+pagoCov,saldoCof,saldoCov,
-              saldoTotal:parseFloat((saldoCof+saldoCov).toFixed(2)),
-              hasActivity:mFilt.some(m=>m.cof>0||m.extra>0||m.pagoCof>0||m.cov>0||m.pagoCov>0)};
+      return {l,cof,extra,pagoCof,desc,saldo:parseFloat((cof+extra-pagoCof-desc).toFixed(2)),hasActivity:mFilt.length>0};
     }).filter(r=>r.hasActivity).sort((a,b)=>a.l.mza-b.l.mza||a.l.lote-b.l.lote);
 
-    const NC=12;
     const aoa=[
       ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],
       ['CONCENTRADO COF — '+periodLabel],[''],
-      ['Propietario','M²','Escrituración','Cuota COF','Cuota COV','Descuento','Total cuotas','Total pagado','Saldo COF','Saldo COV','Saldo Total','Estado'],
+      ['Mza','Lote','Propietario','M²','Cuota','COF Cargado','Extraord.','Pagado','Descuento','Saldo'],
     ];
-    rows.forEach(r=>{
-      const lbl=r.l.estado==='corriente'?'Al corriente':r.l.estado==='moroso'?'Moroso':'Abonando';
-      aoa.push([`M${r.l.mza}·L${r.l.lote} · ${r.l.nombre}`,parseFloat(r.l.m2||0),r.l.escrituracion||'',
-        r.l.cuotaFija||0,r.cov,r.desc,r.cof,r.totalPagado,r.saldoCof,r.saldoCov,r.saldoTotal,lbl]);
-    });
-    aoa.push(['TOTALES','','','',
-      rows.reduce((a,r)=>a+r.cov,0),rows.reduce((a,r)=>a+r.desc,0),rows.reduce((a,r)=>a+r.cof,0),
-      rows.reduce((a,r)=>a+r.totalPagado,0),rows.reduce((a,r)=>a+r.saldoCof,0),
-      rows.reduce((a,r)=>a+r.saldoCov,0),parseFloat(rows.reduce((a,r)=>a+r.saldoTotal,0).toFixed(2)),'']);
+    rows.forEach(r=>aoa.push([r.l.mza,r.l.lote,r.l.nombre,parseFloat(r.l.m2||0),r.l.cuotaFija||0,r.cof,r.extra,r.pagoCof,r.desc,r.saldo]));
+    aoa.push(['','','TOTALES','','',
+      rows.reduce((a,r)=>a+r.cof,0),rows.reduce((a,r)=>a+r.extra,0),
+      rows.reduce((a,r)=>a+r.pagoCof,0),rows.reduce((a,r)=>a+r.desc,0),
+      parseFloat(rows.reduce((a,r)=>a+r.saldo,0).toFixed(2))]);
 
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:36},{wch:10},{wch:14},{wch:12},{wch:12},{wch:12},{wch:13},{wch:13},{wch:12},{wch:12},{wch:12},{wch:14}];
-    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:NC-1}},{s:{r:1,c:0},e:{r:1,c:NC-1}}];
+    ws['!cols']=[{wch:6},{wch:6},{wch:28},{wch:10},{wch:10},{wch:14},{wch:12},{wch:12},{wch:12},{wch:14}];
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
     const moneyFmt='#,##0.00';
     for(let ri=4;ri<aoa.length;ri++){
-      [3,4,5,6,7,8,9,10].forEach(ci=>{ const ref=XLSX.utils.encode_cell({r:ri,c:ci}); if(ws[ref]) ws[ref].z=moneyFmt; });
+      [4,5,6,7,8,9].forEach(ci=>{ const ref=XLSX.utils.encode_cell({r:ri,c:ci}); if(ws[ref]) ws[ref].z=moneyFmt; });
     }
     XLSX.utils.book_append_sheet(wb,ws,'Concentrado COF');
     XLSX.writeFile(wb,`Concentrado_COF_${periodLabel.replace(/\s/g,'_')}.xlsx`);
@@ -4613,80 +4561,53 @@ async function loadConcentradoCOV(){
       if(anio&&mes) return m.mes.startsWith(`${anio}-${mes}`);
       if(anio) return m.mes.startsWith(anio);
       return true;
-    });
-    const cof=mFilt.reduce((a,m)=>a+(m.cof||0),0);
-    const extra=mFilt.reduce((a,m)=>a+(m.extra||0),0);
-    const cov=mFilt.reduce((a,m)=>a+(m.cov||0)+(m.instal||0),0);
-    const pagoCof=mFilt.reduce((a,m)=>a+(m.pagoCof||0),0);
+    }).filter(m=>m.cov>0||m.instal>0||m.pagoCov>0);
+    const consumo=mFilt.reduce((a,m)=>a+(m.consumo||0),0);
+    const cov=mFilt.reduce((a,m)=>a+(m.cov||0),0);
+    const instal=mFilt.reduce((a,m)=>a+(m.instal||0),0);
     const pagoCov=mFilt.reduce((a,m)=>a+(m.pagoCov||0),0);
-    const desc=mFilt.reduce((a,m)=>a+(m.desc||0),0);
-    const saldoCof=parseFloat((cof+extra-pagoCof-desc).toFixed(2));
-    const saldoCov=parseFloat((cov-pagoCov).toFixed(2));
-    const totalPagado=pagoCof+pagoCov;
-    return {l,cof,extra,cov,pagoCof,pagoCov,totalPagado,desc,saldoCof,saldoCov,
-            saldoTotal:parseFloat((saldoCof+saldoCov).toFixed(2)),
-            hasActivity:mFilt.some(m=>m.cof>0||m.extra>0||m.pagoCof>0||m.cov>0||m.pagoCov>0)};
-  }).filter(r=>r.hasActivity);
+    const saldo=parseFloat((cov+instal-pagoCov).toFixed(2));
+    return {l,consumo,cov,instal,pagoCov,saldo,hasActivity:mFilt.length>0};
+  }).filter(r=>r.hasActivity||(r.saldo!==0));
 
   const filt=q?rows.filter(r=>r.l.nombre.toLowerCase().includes(q)):rows;
   filt.sort((a,b)=>a.l.mza-b.l.mza||a.l.lote-b.l.lote);
 
+  const totConsumo=filt.reduce((a,r)=>a+r.consumo,0);
+  const totCov=filt.reduce((a,r)=>a+r.cov,0);
+  const totInstal=filt.reduce((a,r)=>a+r.instal,0);
+  const totPago=filt.reduce((a,r)=>a+r.pagoCov,0);
+  const totSaldo=filt.reduce((a,r)=>a+r.saldo,0);
+
   const fmt=(v)=>'$'+v.toLocaleString('es-MX',{minimumFractionDigits:2});
+  const morosos=filt.filter(r=>r.saldo>0.01).length;
   const periodLabel=anio?(mes?`${_MES_NAMES[+mes-1]} ${anio}`:anio):'Todo el historial';
-  const morosos=filt.filter(r=>r.saldoTotal>0.01).length;
-
-  const totCuotaCof=filt.reduce((a,r)=>a+(r.l.cuotaFija||0),0);
-  const totCuotaCov=filt.reduce((a,r)=>a+r.cov,0);
-  const totDesc=filt.reduce((a,r)=>a+r.desc,0);
-  const totCuotas=filt.reduce((a,r)=>a+r.cof+r.extra,0);
-  const totPago=filt.reduce((a,r)=>a+r.totalPagado,0);
-  const totSaldoCof=filt.reduce((a,r)=>a+r.saldoCof,0);
-  const totSaldoCov=filt.reduce((a,r)=>a+r.saldoCov,0);
-  const totSaldo=filt.reduce((a,r)=>a+r.saldoTotal,0);
-
   document.getElementById('ccovKpis').innerHTML=`
-    <div class="kpi"><div class="lab">Lotes</div><div class="val">${filt.length}</div><div class="sub">${periodLabel}</div></div>
-    <div class="kpi"><div class="lab">Total cargado</div><div class="val" style="font-size:18px">${fmt(totCuotas+totCuotaCov)}</div></div>
-    <div class="kpi"><div class="lab">Total pagado</div><div class="val" style="font-size:18px;color:var(--green)">${fmt(totPago)}</div></div>
-    <div class="kpi"><div class="lab">Saldo total</div><div class="val" style="font-size:18px;color:var(--red)">${fmt(totSaldo)}</div><div class="sub">${morosos} lotes con adeudo</div></div>`;
+    <div class="kpi"><div class="lab">Lotes con COV</div><div class="val">${filt.length}</div><div class="sub">${periodLabel}</div></div>
+    <div class="kpi"><div class="lab">Consumo total</div><div class="val" style="font-size:18px">${totConsumo.toLocaleString('es-MX',{maximumFractionDigits:1})} m³</div></div>
+    <div class="kpi"><div class="lab">COV cargado</div><div class="val" style="font-size:18px">${fmt(totCov+totInstal)}</div></div>
+    <div class="kpi"><div class="lab">Saldo COV</div><div class="val" style="font-size:18px;color:var(--red)">${fmt(totSaldo)}</div><div class="sub">${morosos} lotes con adeudo</div></div>`;
 
   document.getElementById('ccovBody').innerHTML=filt.length?filt.map(r=>{
-    const sc=r.saldoCof>0.01?'color:var(--red);font-weight:600':r.saldoCof<-0.01?'color:var(--green);font-weight:600':'';
-    const scv=r.saldoCov>0.01?'color:var(--red);font-weight:600':'color:var(--muted)';
-    const st=r.saldoTotal>0.01?'color:var(--red);font-weight:700':r.saldoTotal<-0.01?'color:var(--green);font-weight:700':'';
-    const venc=r.l.venc||0;
-    const bdg=r.l.estado==='corriente'?'badge-green':r.l.estado==='moroso'?'badge-red':'badge-orange';
-    const lbl=r.l.estado==='corriente'?'Al corriente':r.l.estado==='moroso'?'Moroso':'Abonando';
+    const sc=r.saldo>0.01?'color:var(--red);font-weight:600':r.saldo<-0.01?'color:var(--green);font-weight:600':'';
     return `<tr>
-      <td style="min-width:190px">
-        <div style="font-size:10.5px;color:var(--muted);font-weight:600;line-height:1.8">M${r.l.mza} · L${r.l.lote}</div>
-        <div class="td-name" style="margin:0">${r.l.nombre}</div>
-      </td>
-      <td style="text-align:right;font-size:12px;color:var(--muted)">${parseFloat(r.l.m2||0).toLocaleString('es-MX',{maximumFractionDigits:1})}</td>
-      <td style="font-size:11.5px;color:var(--muted)">${r.l.escrituracion||'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums">$${(r.l.cuotaFija||0).toLocaleString()}</td>
+      <td style="text-align:center">${r.l.mza}</td>
+      <td style="text-align:center">${r.l.lote}</td>
+      <td class="td-name">${r.l.nombre}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${parseFloat(r.l.m2||0).toLocaleString('es-MX',{maximumFractionDigits:1})}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.consumo>0?r.consumo.toLocaleString('es-MX',{maximumFractionDigits:2}):'—'}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums">${r.cov>0?fmt(r.cov):'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)">${r.desc>0?fmt(r.desc):'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.cof+r.extra>0?fmt(r.cof+r.extra):'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--green)">${r.totalPagado>0?fmt(r.totalPagado):'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;${sc}">${fmt(r.saldoCof)}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;${scv}">${r.saldoCov>0.01||r.saldoCov<-0.01?fmt(r.saldoCov):'—'}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;${st}">${fmt(r.saldoTotal)}</td>
-      <td style="text-align:center">${venc>0?`<span class="badge badge-red">${venc}</span>`:'—'}</td>
-      <td><span class="badge ${bdg}">${lbl}</span></td>
-      <td><span class="backlink" style="padding:3px 8px;font-size:11px;cursor:pointer" onclick="_irEstadoCuenta(${r.l.mza},${r.l.lote})">Ver →</span></td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums">${r.instal>0?fmt(r.instal):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--green)">${r.pagoCov>0?fmt(r.pagoCov):'—'}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;${sc}">${fmt(r.saldo)}</td>
     </tr>`;
-  }).join(''):`<tr><td colspan="14" style="text-align:center;padding:32px;color:var(--muted)">Sin datos para el período seleccionado</td></tr>`;
+  }).join(''):`<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Sin datos para el período seleccionado</td></tr>`;
 
-  const el=id=>document.getElementById(id);
-  el('ccovTotCuotaCof').textContent=fmt(totCuotaCof);
-  el('ccovTotCuotaCov').textContent=totCuotaCov>0?fmt(totCuotaCov):'—';
-  el('ccovTotDesc').textContent=totDesc>0?fmt(totDesc):'—';
-  el('ccovTotCuotas').textContent=fmt(totCuotas);
-  el('ccovTotPago').textContent=fmt(totPago);
-  el('ccovTotSaldoCof').textContent=fmt(totSaldoCof); el('ccovTotSaldoCof').style.color=totSaldoCof>0?'var(--red)':'var(--green)';
-  el('ccovTotSaldoCov').textContent=totSaldoCov>0?fmt(totSaldoCov):'—'; el('ccovTotSaldoCov').style.color=totSaldoCov>0?'var(--red)':'var(--muted)';
-  const sEl=el('ccovTotSaldo');
+  document.getElementById('ccovTotConsumo').textContent=totConsumo.toLocaleString('es-MX',{maximumFractionDigits:1})+' m³';
+  document.getElementById('ccovTotCov').textContent=fmt(totCov);
+  document.getElementById('ccovTotInstal').textContent=fmt(totInstal);
+  document.getElementById('ccovTotPago').textContent=fmt(totPago);
+  const sEl=document.getElementById('ccovTotSaldo');
   sEl.textContent=fmt(totSaldo); sEl.style.color=totSaldo>0?'var(--red)':'var(--green)';
 }
 
@@ -4704,42 +4625,33 @@ function _ccovExportExcel(){
         if(anio&&mes) return m.mes.startsWith(`${anio}-${mes}`);
         if(anio) return m.mes.startsWith(anio);
         return true;
-      });
-      const cof=mFilt.reduce((a,m)=>a+(m.cof||0),0);
-      const extra=mFilt.reduce((a,m)=>a+(m.extra||0),0);
-      const cov=mFilt.reduce((a,m)=>a+(m.cov||0)+(m.instal||0),0);
-      const pagoCof=mFilt.reduce((a,m)=>a+(m.pagoCof||0),0);
+      }).filter(m=>m.cov>0||m.instal>0||m.pagoCov>0);
+      const consumo=mFilt.reduce((a,m)=>a+(m.consumo||0),0);
+      const cov=mFilt.reduce((a,m)=>a+(m.cov||0),0);
+      const instal=mFilt.reduce((a,m)=>a+(m.instal||0),0);
       const pagoCov=mFilt.reduce((a,m)=>a+(m.pagoCov||0),0);
-      const desc=mFilt.reduce((a,m)=>a+(m.desc||0),0);
-      const saldoCof=parseFloat((cof+extra-pagoCof-desc).toFixed(2));
-      const saldoCov=parseFloat((cov-pagoCov).toFixed(2));
-      return {l,cof:cof+extra,cov,desc,totalPagado:pagoCof+pagoCov,saldoCof,saldoCov,
-              saldoTotal:parseFloat((saldoCof+saldoCov).toFixed(2)),
-              hasActivity:mFilt.some(m=>m.cof>0||m.extra>0||m.pagoCof>0||m.cov>0||m.pagoCov>0)};
+      return {l,consumo,cov,instal,pagoCov,saldo:parseFloat((cov+instal-pagoCov).toFixed(2)),hasActivity:mFilt.length>0};
     }).filter(r=>r.hasActivity).sort((a,b)=>a.l.mza-b.l.mza||a.l.lote-b.l.lote);
 
-    const NC=12;
     const aoa=[
       ['ASOCIACIÓN DE COLONOS SILVESTRA-CANOAS AC'],
       ['CONCENTRADO COV — '+periodLabel],[''],
-      ['Propietario','M²','Escrituración','Cuota COF','Cuota COV','Descuento','Total cuotas','Total pagado','Saldo COF','Saldo COV','Saldo Total','Estado'],
+      ['Mza','Lote','Propietario','M²','Consumo m³','COV','Instalación','Pagado','Saldo COV'],
     ];
-    rows.forEach(r=>{
-      const lbl=r.l.estado==='corriente'?'Al corriente':r.l.estado==='moroso'?'Moroso':'Abonando';
-      aoa.push([`M${r.l.mza}·L${r.l.lote} · ${r.l.nombre}`,parseFloat(r.l.m2||0),r.l.escrituracion||'',
-        r.l.cuotaFija||0,r.cov,r.desc,r.cof,r.totalPagado,r.saldoCof,r.saldoCov,r.saldoTotal,lbl]);
-    });
-    aoa.push(['TOTALES','','','',
-      rows.reduce((a,r)=>a+r.cov,0),rows.reduce((a,r)=>a+r.desc,0),rows.reduce((a,r)=>a+r.cof,0),
-      rows.reduce((a,r)=>a+r.totalPagado,0),rows.reduce((a,r)=>a+r.saldoCof,0),
-      rows.reduce((a,r)=>a+r.saldoCov,0),parseFloat(rows.reduce((a,r)=>a+r.saldoTotal,0).toFixed(2)),'']);
+    rows.forEach(r=>aoa.push([r.l.mza,r.l.lote,r.l.nombre,parseFloat(r.l.m2||0),
+      parseFloat(r.consumo.toFixed(2)),r.cov,r.instal,r.pagoCov,r.saldo]));
+    const totConsumo=rows.reduce((a,r)=>a+r.consumo,0);
+    aoa.push(['','','TOTALES','',parseFloat(totConsumo.toFixed(2)),
+      rows.reduce((a,r)=>a+r.cov,0),rows.reduce((a,r)=>a+r.instal,0),
+      rows.reduce((a,r)=>a+r.pagoCov,0),parseFloat(rows.reduce((a,r)=>a+r.saldo,0).toFixed(2))]);
 
     const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:36},{wch:10},{wch:14},{wch:12},{wch:12},{wch:12},{wch:13},{wch:13},{wch:12},{wch:12},{wch:12},{wch:14}];
-    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:NC-1}},{s:{r:1,c:0},e:{r:1,c:NC-1}}];
+    ws['!cols']=[{wch:6},{wch:6},{wch:28},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12},{wch:12}];
+    ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:8}},{s:{r:1,c:0},e:{r:1,c:8}}];
     const moneyFmt='#,##0.00';
     for(let ri=4;ri<aoa.length;ri++){
-      [3,4,5,6,7,8,9,10].forEach(ci=>{ const ref=XLSX.utils.encode_cell({r:ri,c:ci}); if(ws[ref]) ws[ref].z=moneyFmt; });
+      [5,6,7,8].forEach(ci=>{ const ref=XLSX.utils.encode_cell({r:ri,c:ci}); if(ws[ref]) ws[ref].z=moneyFmt; });
+      const cRef=XLSX.utils.encode_cell({r:ri,c:4}); if(ws[cRef]) ws[cRef].z='#,##0.##';
     }
     XLSX.utils.book_append_sheet(wb,ws,'Concentrado COV');
     XLSX.writeFile(wb,`Concentrado_COV_${periodLabel.replace(/\s/g,'_')}.xlsx`);

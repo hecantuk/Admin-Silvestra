@@ -972,6 +972,7 @@ def get_concentrado(admin: Usuario = Depends(_admin_only)):
                 select(LecturaAgua).where(LecturaAgua.lote_id == lote.id)
             ).all()
             cov_map: dict = {lec.mes: lec.importe for lec in lecturas}
+            consumo_map: dict = {lec.mes: lec.consumo_m3 for lec in lecturas}
 
             # Cargos extra (multas, derramas, etc.)
             cargos_extra = s.exec(
@@ -1012,6 +1013,7 @@ def get_concentrado(admin: Usuario = Depends(_admin_only)):
                     "cov": round(cov, 2),
                     "instal": 0,
                     "pagoCov": round(pago_cov, 2),
+                    "consumo": round(consumo_map.get(key, 0), 3),
                     "desc": round(desc_mes, 2),
                     "saldoMes": round(saldo_mes, 2),
                 })

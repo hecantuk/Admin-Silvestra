@@ -122,7 +122,7 @@ def init():
 
         # ── Admins: upsert (no sobreescribir si ya existe) ───────
         ADMINS_SEED = [
-            ("administradora@silvestra.mx", "silvestra2024", False),
+            ("administrador@silvestra.mx", "silvestra2024", False),
             ("sena.ana@dicka.com.mx",        "silvestra2024", True),
         ]
         for email_admin, pwd_admin, cambiar in ADMINS_SEED:

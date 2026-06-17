@@ -2042,6 +2042,7 @@ function _loadLotes(){
     .then(list=>{
       LOTES_DATA.length=0;
       (list||[]).forEach(l=>{
+        if(!l.m2) return; // omitir lotes blanqueados por "Borrar todo"
         LOTES_DATA.push({
           id:l.id,
           mza:l.manzana,
@@ -2991,8 +2992,7 @@ function renderLotes(data){
   const list=data||LOTES_DATA;
   const tbody=document.getElementById('lotesBody');
   if(!list.length&&!data){
-    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Cargando lotes…</td></tr>';
-    _loadLotes().then(()=>renderLotes());
+    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Sin datos. Importa el Excel para cargar la información.</td></tr>';
     return;
   }
   tbody.innerHTML=list.map(l=>{
@@ -3051,8 +3051,7 @@ function filterEstado(est){
 function renderCargos(search){
   if(!LOTES_DATA.length){
     const tbody=document.getElementById('cargosBody');
-    if(tbody) tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Cargando lotes…</td></tr>';
-    _loadLotes().then(()=>renderCargos(search));
+    if(tbody) tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Sin datos. Importa el Excel para cargar la información.</td></tr>';
     return;
   }
   const s=(search||'').toLowerCase();
@@ -5743,8 +5742,13 @@ async function _limpiarTodo(){
       _SD=null; _chequeraData=[];
       LOTES_DATA.length=0; GASTOS_DATA.length=0; INGRESOS_DATA.length=0;
       filteredLotes=[]; filteredCargos=[];
-      if(document.getElementById('lotesBody')) document.getElementById('lotesBody').innerHTML='';
-      if(document.getElementById('cargosBody')) document.getElementById('cargosBody').innerHTML='';
+      // Limpiar tablas visibles
+      ['lotesBody','cargosBody','gastosBody','ingresosBody','ingresosAprobarBody'].forEach(id=>{
+        const el=document.getElementById(id);
+        if(el) el.innerHTML='';
+      });
+      // Quitar de _rendered para que recarguen al volver
+      ['lotes','cargos','gastos','ingresos','chequera','estadoCuenta','concentradoCOF','concentradoCOV','saldos','reporte'].forEach(p=>_rendered.delete(p));
       st.textContent='✅ Todo borrado. Ahora importa el Excel para cargar los datos.';
       st.style.color='var(--green)';
       showToast('✅ Todos los datos borrados');

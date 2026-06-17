@@ -2168,8 +2168,9 @@ async def importar_silvestra_json(admin: Usuario = Depends(_admin_only)):
 @app.post("/api/admin/regenerar_desde_excel")
 async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = Depends(_admin_only)):
     """Re-genera silvestra_data.json desde las hojas Edo.Cta.* y reimporta Chequera (limpia primero)."""
-    import openpyxl, json as _json
-    from sqlalchemy import text as _text2
+    import openpyxl, json as _json, traceback as _tb
+    from sqlalchemy import text as _text2, delete as _sa_delete
+    from fastapi.responses import JSONResponse as _JSONResponse
 
     content = await file.read()
     wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
@@ -2251,6 +2252,49 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
     with open(json_path, 'w', encoding='utf-8') as f:
         _json.dump(lotes_data, f, ensure_ascii=False, separators=(',', ':'))
 
+    pagos_importados = 0
+    lecturas_importadas = 0
+    importados = 0
+    anio_actual = date.today().year
+    try:
+        importados = _regenerar_escribir_bd(wb, lotes_data, anio_actual)
+    except Exception as e:
+        return _JSONResponse(status_code=500, content={
+            "ok": False,
+            "error": f"{type(e).__name__}: {e}",
+            "traceback": _tb.format_exc()[-1500:],
+        })
+
+    # Recalcular contadores para la respuesta
+    pagos_importados = sum(
+        1 for ld in lotes_data for m in ld['meses']
+        if int(m['mes'][:4]) <= anio_actual and (m['pagoCof'] > 0)
+    ) + sum(
+        1 for ld in lotes_data for m in ld['meses']
+        if int(m['mes'][:4]) <= anio_actual and (m['pagoCov'] > 0)
+    )
+    lecturas_importadas = sum(
+        1 for ld in lotes_data for m in ld['meses']
+        if int(m['mes'][:4]) <= anio_actual and ((m['cov'] or 0) != 0)
+    )
+
+    return {
+        "ok": True,
+        "lotes_actualizados": len(lotes_data),
+        "meses_total": sum(len(l['meses']) for l in lotes_data),
+        "chequera_importados": importados,
+        "lotes_en_bd": len(lotes_data),
+        "pagos_importados": pagos_importados,
+        "lecturas_importadas": lecturas_importadas,
+    }
+
+
+def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
+    """Escribe a BD el historial completo y la Chequera. Aislado para poder
+    capturar y reportar errores en JSON (Postgres no es tan permisivo como SQLite).
+    Devuelve el número de movimientos de Chequera importados."""
+    from sqlalchemy import text as _text2, delete as _sa_delete
+
     # Upsert lotes into DB (manzana, lote, propietario, m2, cuota, escrituracion)
     with Session(engine) as s:
         for ld in lotes_data:
@@ -2278,32 +2322,25 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
         s.commit()
 
     # Import full payment history (Pagos, LecturaAgua, Cargo, Descuento)
-    pagos_importados = 0
-    lecturas_importadas = 0
     with Session(engine) as s:
+        # Mapa (mza, lote) -> lote_id de todos los lotes importados
+        lote_id_map = {}
+        for lote_row in s.exec(select(Lote)).all():
+            lote_id_map[(lote_row.manzana, lote_row.numero)] = lote_row.id
+        lote_ids = [lote_id_map[(ld['mza'], ld['lote'])]
+                    for ld in lotes_data if (ld['mza'], ld['lote']) in lote_id_map]
+
+        # Borrar historial previo de esos lotes (una sola transacción, sin abrir 300+ conexiones)
+        if lote_ids:
+            for Model in (Pago, LecturaAgua, Cargo, Descuento):
+                s.execute(_sa_delete(Model).where(Model.lote_id.in_(lote_ids)))
+        s.commit()
+
         for ld in lotes_data:
-            lote_row = s.exec(select(Lote).where(
-                Lote.manzana == ld['mza'], Lote.numero == ld['lote']
-            )).first()
-            if not lote_row:
+            lid = lote_id_map.get((ld['mza'], ld['lote']))
+            if lid is None:
                 continue
-            lid = lote_row.id
 
-            # Delete existing records for this lote
-            with engine.connect() as conn:
-                conn.execute(_text2("DELETE FROM pago WHERE lote_id = :lid"), {"lid": lid})
-                conn.commit()
-            with engine.connect() as conn:
-                conn.execute(_text2("DELETE FROM lecturaagua WHERE lote_id = :lid"), {"lid": lid})
-                conn.commit()
-            with engine.connect() as conn:
-                conn.execute(_text2("DELETE FROM cargo WHERE lote_id = :lid"), {"lid": lid})
-                conn.commit()
-            with engine.connect() as conn:
-                conn.execute(_text2("DELETE FROM descuento WHERE lote_id = :lid"), {"lid": lid})
-                conn.commit()
-
-            anio_actual = date.today().year
             for m in ld['meses']:
                 mes_key = m['mes'][:7]
                 anio_key = int(mes_key[:4])
@@ -2341,7 +2378,6 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
                         concepto='COF',
                         estado='aprobado',
                     ))
-                    pagos_importados += 1
 
                 if m['pagoCov'] > 0:
                     s.add(Pago(
@@ -2352,7 +2388,6 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
                         concepto='COV',
                         estado='aprobado',
                     ))
-                    pagos_importados += 1
 
                 if (m['extra'] or 0) != 0:
                     s.add(Cargo(
@@ -2375,7 +2410,6 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
                         tarifa_por_m3=ld.get('tarifaCOV', 5.0),
                         importe=m['cov'],
                     ))
-                    lecturas_importadas += 1
 
                 if (m['instal'] or 0) != 0:
                     s.add(Cargo(
@@ -2398,7 +2432,8 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
                         notas='Importado desde Excel',
                     ))
 
-        s.commit()
+            # Commit por lote: transacciones acotadas (evita una sola de ~40k filas)
+            s.commit()
 
     # Limpiar y reimportar Chequera
     with engine.connect() as conn:
@@ -2423,8 +2458,8 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
                         try:
                             parts = s_fecha.replace('-', '/').split('/')
                             if len(parts) == 3:
-                                d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
-                                fecha = date(y if y > 100 else 2000+y, m, d)
+                                _d, _mo, _y = int(parts[0]), int(parts[1]), int(parts[2])
+                                fecha = date(_y if _y > 100 else 2000+_y, _mo, _d)
                             else: continue
                         except: continue
 
@@ -2448,12 +2483,4 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
             importados += 1
         s.commit()
 
-    return {
-        "ok": True,
-        "lotes_actualizados": len(lotes_data),
-        "meses_total": sum(len(l['meses']) for l in lotes_data),
-        "chequera_importados": importados,
-        "lotes_en_bd": len(lotes_data),
-        "pagos_importados": pagos_importados,
-        "lecturas_importadas": lecturas_importadas,
-    }
+    return importados

@@ -836,6 +836,7 @@ tr:last-child td{border-bottom:none}
             <option value="38">Mza. 38</option>
           </select>
           <input class="search-box" id="ccofSearch" placeholder="Buscar propietario…" oninput="loadConcentradoCOF()" style="flex:1;min-width:160px">
+          <button class="btn-primary admin-only" onclick="_abrirNuevoCargo()">+ Cargo extra</button>
           <button class="btn-secondary" onclick="_ccofExportExcel()">⬇ Excel</button>
         </div>
         <div class="card" style="padding:0">
@@ -1983,6 +1984,60 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- MODAL NUEVO CARGO EXTRAORDINARIO -->
+<div class="modal-overlay" id="modalNuevoCargo">
+  <div class="modal" style="width:480px">
+    <div class="modal-head">
+      <h3>➕ Nuevo cargo extraordinario</h3>
+      <button class="modal-close" onclick="closeModal('modalNuevoCargo')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>Lote</label>
+        <select id="cargoLote" style="width:100%"></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label>Mes (YYYY-MM)</label>
+          <input type="month" id="cargoMes" style="width:100%">
+        </div>
+        <div class="form-field">
+          <label>Concepto</label>
+          <select id="cargoConcepto" style="width:100%">
+            <option value="COF">COF extra</option>
+            <option value="COV">COV extra</option>
+            <option value="Multa">Multa</option>
+            <option value="Derrama">Derrama</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label>Importe ($)</label>
+          <input type="number" id="cargoImporte" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-field">
+          <label>Fecha</label>
+          <input type="date" id="cargoFecha">
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Descripción</label>
+        <input type="text" id="cargoDescripcion" placeholder="Ej: Multa por obras sin permiso…">
+      </div>
+      <div class="form-field">
+        <label>Notas</label>
+        <input type="text" id="cargoNotas" placeholder="Observaciones adicionales…">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-secondary" onclick="closeModal('modalNuevoCargo')">Cancelar</button>
+      <button class="btn-primary" onclick="guardarCargo()">Guardar cargo</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CAMBIAR CONTRASEÑA (primer login residente) -->
 <div class="modal-overlay" id="modalCambiarPass" style="z-index:200">
   <div class="modal" style="width:420px">
@@ -2385,23 +2440,31 @@ function _fmtPos(n,dec=0){ if(!n) return '—'; return '$'+n.toLocaleString('es-
 
 async function _loadSD(){
   if(_SD) return _SD;
+  const token=localStorage.getItem('auth_token');
   try{
-    const r=await fetch('/static/silvestra_data.json');
-    _SD=await r.json();
-    _SD=_SD.map(l=>{
-      const t=l.totales;
-      const saldoCof=t.saldoCof;
-      const saldoCov=Math.round((t.cov+t.instal-t.pagoCov)*100)/100;
-      const venc=l.meses.filter(m=>m.cof>0&&m.saldoMes>0).length;
-      const charged=l.meses.filter(m=>m.cof>0);
-      const recent=charged.slice(-6);
+    const r=await fetch('/api/concentrado',{headers:{Authorization:'Bearer '+token}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    _SD=(data||[]).map(l=>{
+      const totalCof=l.meses.reduce((a,m)=>a+(m.cof||0),0);
+      const totalExtra=l.meses.reduce((a,m)=>a+(m.extra||0),0);
+      const totalPagoCof=l.meses.reduce((a,m)=>a+(m.pagoCof||0),0);
+      const totalDesc=l.meses.reduce((a,m)=>a+(m.desc||0),0);
+      const totalCov=l.meses.reduce((a,m)=>a+(m.cov||0),0);
+      const totalInstal=l.meses.reduce((a,m)=>a+(m.instal||0),0);
+      const totalPagoCov=l.meses.reduce((a,m)=>a+(m.pagoCov||0),0);
+      const saldoCof=l.saldoCof!==undefined?l.saldoCof:Math.round((totalCof+totalExtra-totalPagoCof-totalDesc)*100)/100;
+      const saldoCov=l.saldoCov!==undefined?l.saldoCov:Math.round((totalCov+totalInstal-totalPagoCov)*100)/100;
+      const venc=l.venc||l.meses.filter(m=>m.cof>0&&m.saldoMes>0).length;
+      const recent=l.meses.filter(m=>m.cof>0).slice(-6);
       const rPago=recent.reduce((a,m)=>a+m.pagoCof,0);
-      let estado='corriente';
-      if(saldoCof>0.5){ estado=rPago>0?'abonando':'moroso'; }
+      const estado=l.estado||(saldoCof>0.5?(rPago>0?'abonando':'moroso'):'corriente');
       return {...l,saldoCof,saldoCov,venc,estado,
-        cargadoCof:t.cof+t.extra,pagadoCof:t.pagoCof,descCof:t.desc};
+        cargadoCof:totalCof+totalExtra,pagadoCof:totalPagoCof,descCof:totalDesc,
+        totales:{cof:totalCof,extra:totalExtra,pagoCof:totalPagoCof,desc:totalDesc,
+                 saldoCof,cov:totalCov,instal:totalInstal,pagoCov:totalPagoCov}};
     });
-  }catch(e){ console.error('No se pudo cargar silvestra_data.json',e); _SD=[]; }
+  }catch(e){ console.error('No se pudo cargar concentrado desde BD',e); _SD=[]; }
   return _SD;
 }
 
@@ -3248,6 +3311,7 @@ function renderIngresosByTab(tab){
       if(tabAprobados) switchTab('ingresos','aprobados',tabAprobados);
       else renderIngresosByTab('aprobados');
       showToast('✅ Ingreso aprobado');
+      _SD=null; // el concentrado debe reflejar el nuevo pago
       if(id) fetch(`/api/pagos/${id}/aprobar`,{method:'PUT'}).catch(()=>{});
     });
   });
@@ -5531,6 +5595,44 @@ async function guardarDescuento(){
   closeModal('modalDescuento');
   showToast('✅ Descuento registrado');
   calcularSaldos();
+}
+
+function _abrirNuevoCargo(){
+  const sel=document.getElementById('cargoLote');
+  sel.innerHTML=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA')
+    .map(l=>`<option value="${l.id}">${'Mza '+l.mza+' L'+l.lote+' — '+l.propietario}</option>`)
+    .join('');
+  document.getElementById('cargoFecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('cargoMes').value=new Date().toISOString().slice(0,7);
+  document.getElementById('cargoImporte').value='';
+  document.getElementById('cargoDescripcion').value='';
+  document.getElementById('cargoNotas').value='';
+  openModal('modalNuevoCargo');
+}
+
+async function guardarCargo(){
+  const token=localStorage.getItem('auth_token');
+  const lote_id=parseInt(document.getElementById('cargoLote').value);
+  if(!lote_id){showToast('⚠ Selecciona un lote');return;}
+  const mes=document.getElementById('cargoMes').value;
+  if(!mes){showToast('⚠ Selecciona el mes');return;}
+  const importe=parseFloat(document.getElementById('cargoImporte').value);
+  if(!importe||importe<=0){showToast('⚠ Ingresa un importe válido');return;}
+  const concepto=document.getElementById('cargoConcepto').value;
+  const descripcion=document.getElementById('cargoDescripcion').value.trim();
+  const fecha=document.getElementById('cargoFecha').value;
+  const notas=document.getElementById('cargoNotas').value.trim();
+  const res=await fetch('/api/cargos',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+    body:JSON.stringify({lote_id,mes,concepto,descripcion,importe,fecha,notas})
+  });
+  if(!res.ok){showToast('❌ Error al guardar cargo');return;}
+  closeModal('modalNuevoCargo');
+  showToast('✅ Cargo registrado');
+  _SD=null; // invalidar caché del concentrado
+  if(document.getElementById('pageConcentradoCOF').classList.contains('active')) loadConcentradoCOF();
+  else if(document.getElementById('pageConcentradoCOV').classList.contains('active')) loadConcentradoCOV();
 }
 
 function _cfgCargarVisores(){

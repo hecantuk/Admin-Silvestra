@@ -155,3 +155,17 @@ class GastoArchivo(SQLModel, table=True):
     tipo_mime: str = "application/octet-stream"
     contenido_b64: str
     subido_en: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Cargo(SQLModel, table=True):
+    """Cargos extraordinarios por lote: multas, derramas, ajustes, etc.
+    El cargo mensual normal de COF se calcula automáticamente desde Lote.cuota_cof."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    lote_id: int = Field(foreign_key="lote.id")
+    mes: str                    # "2026-05"
+    concepto: str = "COF"       # COF | COV | Multa | Derrama | Otro
+    descripcion: str = ""
+    importe: float
+    fecha: date = Field(default_factory=date.today)
+    notas: Optional[str] = None
+    creado_en: datetime = Field(default_factory=datetime.utcnow)

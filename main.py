@@ -31,7 +31,7 @@ from email import encoders as _email_enc
 
 from models import (Lote, Pago, Gasto, GastoArchivo, Usuario,
                     Proveedor, MovimientoBancario,
-                    LecturaAgua, GastoReal, ProrrateoPorLote, Config, CuotaAnual, Descuento)
+                    LecturaAgua, GastoReal, ProrrateoPorLote, Config, CuotaAnual, Descuento, Cargo)
 
 # ── Auth config ─────────────────────────────────────────────
 SECRET_KEY  = os.environ.get("SECRET_KEY", "silvestra_dev_key_cambia_en_produccion")
@@ -569,6 +569,9 @@ def get_estado_cuenta(lote_id: int, user: Usuario = Depends(_current_user)):
         lecturas = s.exec(
             select(LecturaAgua).where(LecturaAgua.lote_id == lote_id)
         ).all()
+        cargos_extra = s.exec(
+            select(Cargo).where(Cargo.lote_id == lote_id)
+        ).all()
 
         # Build monthly map
         by_mes: dict = {}
@@ -585,7 +588,6 @@ def get_estado_cuenta(lote_id: int, user: Usuario = Depends(_current_user)):
 
         for d in descuentos:
             if d.anio:
-                # Map annual discount to December of that year for display
                 key = f"{d.anio}-12"
                 if key not in by_mes:
                     by_mes[key] = {"pagoCof": 0, "pagoCov": 0, "fpago": ""}
@@ -594,6 +596,10 @@ def get_estado_cuenta(lote_id: int, user: Usuario = Depends(_current_user)):
         lec_map: dict = {}
         for lec in lecturas:
             lec_map[lec.mes] = lec
+
+        extra_map: dict = {}
+        for c in cargos_extra:
+            extra_map[c.mes] = extra_map.get(c.mes, 0) + c.importe
 
         # Generate monthly rows from escrituracion to today
         hoy = date.today()
@@ -605,7 +611,7 @@ def get_estado_cuenta(lote_id: int, user: Usuario = Depends(_current_user)):
             key = cur.strftime("%Y-%m")
             entry = by_mes.get(key, {})
             cof = lote.cuota_cof
-            extra = 0.0
+            extra = extra_map.get(key, 0.0)
             pago_cof = entry.get("pagoCof", 0)
             desc = entry.get("desc", 0)
             fpago = entry.get("fpago", "")
@@ -633,8 +639,9 @@ def get_estado_cuenta(lote_id: int, user: Usuario = Depends(_current_user)):
         total_pagado_cov = sum(p.importe for p in pagos if p.concepto == "COV")
         total_desc = sum(d.importe for d in descuentos)
         total_cov_cargado = sum(lec.importe for lec in lecturas)
+        total_extra = sum(c.importe for c in cargos_extra)
         n_meses = len(meses_rows)
-        cargado_cof = lote.cuota_cof * n_meses
+        cargado_cof = lote.cuota_cof * n_meses + total_extra
         saldo_cof = cargado_cof - total_pagado_cof - total_desc
         saldo_cov = total_cov_cargado - total_pagado_cov
 
@@ -924,6 +931,168 @@ def reporte_saldos(mes: str = "2026-05"):
         }
 
 
+# ─── CONCENTRADO (DB-driven, reemplaza silvestra_data.json) ───────────────
+@app.get("/api/concentrado")
+def get_concentrado(admin: Usuario = Depends(_admin_only)):
+    """Retorna todos los lotes con su historial mensual de cargos/pagos calculado desde la BD.
+    Devuelve el mismo formato que silvestra_data.json para compatibilidad con el frontend."""
+    with Session(engine) as s:
+        lotes = s.exec(select(Lote).where(Lote.propietario != None, Lote.activo == True)).all()
+        hoy = date.today()
+        resultado = []
+
+        for lote in lotes:
+            if lote.propietario and lote.propietario.upper() == "CASA MUESTRA":
+                continue
+
+            # Cargar pagos aprobados de este lote
+            pagos = s.exec(
+                select(Pago).where(Pago.lote_id == lote.id, Pago.estado == "aprobado")
+            ).all()
+            pago_map_cof: dict = {}
+            pago_map_cov: dict = {}
+            for p in pagos:
+                m = p.mes_aplicado or ""
+                if p.concepto == "COF":
+                    pago_map_cof[m] = pago_map_cof.get(m, 0) + p.importe
+                elif p.concepto == "COV":
+                    pago_map_cov[m] = pago_map_cov.get(m, 0) + p.importe
+
+            # Descuentos
+            descuentos = s.exec(
+                select(Descuento).where(Descuento.lote_id == lote.id)
+            ).all()
+            desc_por_anio: dict = {}
+            for d in descuentos:
+                anio_d = d.anio or (d.fecha.year if d.fecha else hoy.year)
+                desc_por_anio[anio_d] = desc_por_anio.get(anio_d, 0) + d.importe
+
+            # Lecturas de agua (COV)
+            lecturas = s.exec(
+                select(LecturaAgua).where(LecturaAgua.lote_id == lote.id)
+            ).all()
+            cov_map: dict = {lec.mes: lec.importe for lec in lecturas}
+
+            # Cargos extra (multas, derramas, etc.)
+            cargos_extra = s.exec(
+                select(Cargo).where(Cargo.lote_id == lote.id)
+            ).all()
+            extra_map_cof: dict = {}
+            extra_map_cov: dict = {}
+            for c in cargos_extra:
+                if c.concepto in ("COF", "Multa", "Derrama", "Otro"):
+                    extra_map_cof[c.mes] = extra_map_cof.get(c.mes, 0) + c.importe
+                elif c.concepto == "COV":
+                    extra_map_cov[c.mes] = extra_map_cov.get(c.mes, 0) + c.importe
+
+            # Construir historial mensual desde escrituración hasta hoy
+            inicio = lote.fecha_escrituracion or date(2020, 9, 1)
+            cur = date(inicio.year, inicio.month, 1)
+            fin = date(hoy.year, hoy.month, 1)
+            meses_rows = []
+            saldo_acum_cof = 0.0
+
+            while cur <= fin:
+                key = cur.strftime("%Y-%m")
+                anio_key = cur.year
+                desc_mes = desc_por_anio.get(anio_key, 0) / 12  # distribuir anual entre 12 meses
+                cof = lote.cuota_cof
+                extra = extra_map_cof.get(key, 0)
+                pago_cof = pago_map_cof.get(key, 0)
+                cov = cov_map.get(key, 0) + extra_map_cov.get(key, 0)
+                pago_cov = pago_map_cov.get(key, 0)
+                saldo_mes = cof + extra - pago_cof - desc_mes
+                saldo_acum_cof += saldo_mes
+
+                meses_rows.append({
+                    "mes": key,
+                    "cof": round(cof, 2),
+                    "extra": round(extra, 2),
+                    "pagoCof": round(pago_cof, 2),
+                    "cov": round(cov, 2),
+                    "instal": 0,
+                    "pagoCov": round(pago_cov, 2),
+                    "desc": round(desc_mes, 2),
+                    "saldoMes": round(saldo_mes, 2),
+                })
+                cur = date(cur.year + (cur.month // 12), cur.month % 12 + 1, 1)
+
+            # Totales acumulados
+            total_cof_cargado = sum(m["cof"] + m["extra"] for m in meses_rows)
+            total_pagado_cof = sum(m["pagoCof"] for m in meses_rows)
+            total_desc = sum(m["desc"] for m in meses_rows)
+            total_cov = sum(m["cov"] for m in meses_rows)
+            total_pagado_cov = sum(m["pagoCov"] for m in meses_rows)
+            saldo_cof = round(total_cof_cargado - total_pagado_cof - total_desc, 2)
+            saldo_cov = round(total_cov - total_pagado_cov, 2)
+            meses_vencidos = max(0, round(saldo_cof / lote.cuota_cof)) if lote.cuota_cof and saldo_cof > 0 else 0
+            estado = "corriente" if (saldo_cof + saldo_cov) <= 0.01 else "moroso"
+
+            resultado.append({
+                "mza": lote.manzana,
+                "lote": lote.numero,
+                "nombre": lote.propietario,
+                "m2": lote.m2,
+                "cuotaFija": lote.cuota_cof,
+                "escrituracion": str(lote.fecha_escrituracion) if lote.fecha_escrituracion else None,
+                "estado": estado,
+                "venc": meses_vencidos,
+                "saldoCof": saldo_cof,
+                "saldoCov": saldo_cov,
+                "meses": meses_rows,
+            })
+
+        return resultado
+
+
+# ─── CARGOS EXTRAORDINARIOS ───────────────────────────────────
+class CargoReq(SQLModel):
+    lote_id: int
+    mes: str
+    concepto: str = "COF"
+    descripcion: str = ""
+    importe: float
+    fecha: Optional[str] = None
+    notas: Optional[str] = None
+
+@app.get("/api/cargos")
+def get_cargos(lote_id: Optional[int] = None, mes: Optional[str] = None,
+               admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        q = select(Cargo)
+        if lote_id:
+            q = q.where(Cargo.lote_id == lote_id)
+        if mes:
+            q = q.where(Cargo.mes == mes)
+        return s.exec(q.order_by(Cargo.mes.desc())).all()
+
+@app.post("/api/cargos")
+def create_cargo(req: CargoReq, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        lote = s.get(Lote, req.lote_id)
+        if not lote:
+            raise HTTPException(404, "Lote no encontrado")
+        fecha_cargo = date.fromisoformat(req.fecha) if req.fecha else date.today()
+        c = Cargo(
+            lote_id=req.lote_id, mes=req.mes, concepto=req.concepto,
+            descripcion=req.descripcion, importe=req.importe,
+            fecha=fecha_cargo, notas=req.notas,
+        )
+        s.add(c)
+        s.commit()
+        s.refresh(c)
+        return c
+
+@app.delete("/api/cargos/{cid}")
+def delete_cargo(cid: int, admin: Usuario = Depends(_admin_only)):
+    with Session(engine) as s:
+        c = s.get(Cargo, cid)
+        if not c:
+            raise HTTPException(404)
+        s.delete(c)
+        s.commit()
+        return {"ok": True}
+
 
 # ─── DESCUENTOS ───────────────────────────────────────────────
 class DescuentoReq(SQLModel):
@@ -1083,6 +1252,7 @@ async def limpiar_todo(admin: Usuario = Depends(_admin_only)):
         "prorrateoporldote",  # hijo de lote
         "lecturaagua",        # hijo de lote
         "descuento",          # hijo de lote
+        "cargo",              # hijo de lote
         "pago",               # hijo de lote
         "movimientobancario", # hijo de lote y proveedor
         "gastoreal",

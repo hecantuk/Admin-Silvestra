@@ -476,6 +476,27 @@ def reset_admin_password(uid: int, req: CambiarPassReq,
     session.commit()
     return {"ok": True}
 
+class CambiarEmailReq(BaseModel):
+    nuevo_email: str
+
+@app.post("/api/auth/admins/{uid}/cambiar-email")
+def cambiar_email_admin(uid: int, req: CambiarEmailReq,
+                        admin: Usuario = Depends(_admin_only),
+                        session: Session = Depends(get_session)):
+    nuevo = req.nuevo_email.strip()
+    if not nuevo or "@" not in nuevo:
+        raise HTTPException(400, "Correo inválido")
+    existe = session.exec(select(Usuario).where(Usuario.email == nuevo)).first()
+    if existe and existe.id != uid:
+        raise HTTPException(400, "Ese correo ya está en uso")
+    u = session.get(Usuario, uid)
+    if not u or u.rol != "admin":
+        raise HTTPException(404, "Admin no encontrado")
+    u.email = nuevo
+    session.add(u)
+    session.commit()
+    return {"ok": True}
+
 @app.get("/api/auth/visores")
 def get_visores(admin: Usuario = Depends(_admin_only),
                 session: Session = Depends(get_session)):

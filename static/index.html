@@ -694,10 +694,10 @@ tr:last-child td{border-bottom:none}
           <button class="btn-primary admin-only" onclick="openModal('modalNuevoGasto')">+ Nuevo gasto</button>
         </div>
         <div class="stat-grid" style="margin-bottom:20px">
-          <div class="stat-card"><div class="stat-label">Total gastos mayo</div><div class="stat-value">$41,850</div><div class="stat-sub">12 conceptos</div></div>
-          <div class="stat-card"><div class="stat-label">Mantenimiento</div><div class="stat-value">$18,500</div><div class="stat-sub">6 proveedores</div></div>
-          <div class="stat-card"><div class="stat-label">Seguridad</div><div class="stat-value">$15,200</div><div class="stat-sub">2 vigilantes</div></div>
-          <div class="stat-card"><div class="stat-label">Admin & Otros</div><div class="stat-value">$8,150</div><div class="stat-sub">4 conceptos</div></div>
+          <div class="stat-card"><div class="stat-label">Total gastos mes</div><div class="stat-value" id="gastosStatTotal">$0</div><div class="stat-sub" id="gastosStatTotalSub">0 conceptos</div></div>
+          <div class="stat-card"><div class="stat-label">Mantenimiento</div><div class="stat-value" id="gastosStatMant">$0</div><div class="stat-sub" id="gastosStatMantSub">0 proveedores</div></div>
+          <div class="stat-card"><div class="stat-label">Seguridad</div><div class="stat-value" id="gastosStatSeg">$0</div><div class="stat-sub" id="gastosStatSegSub">0 vigilantes</div></div>
+          <div class="stat-card"><div class="stat-label">Admin & Otros</div><div class="stat-value" id="gastosStatOtros">$0</div><div class="stat-sub" id="gastosStatOtrosSub">0 conceptos</div></div>
         </div>
         <div class="card">
           <div class="table-wrap">
@@ -3106,6 +3106,21 @@ async function loadGastos(){
 }
 
 function renderGastos(){
+  // Update summary cards
+  const mant=GASTOS_DATA.filter(g=>g.tipo==='Mantenimiento');
+  const seg=GASTOS_DATA.filter(g=>g.tipo==='Seguridad');
+  const otros=GASTOS_DATA.filter(g=>g.tipo!=='Mantenimiento'&&g.tipo!=='Seguridad');
+  const sum=arr=>arr.reduce((s,g)=>s+(g.importe||0),0);
+  const fmt=n=>'$'+Math.round(n).toLocaleString();
+  const el=id=>document.getElementById(id);
+  el('gastosStatTotal').textContent=fmt(sum(GASTOS_DATA));
+  el('gastosStatTotalSub').textContent=GASTOS_DATA.length+' conceptos';
+  el('gastosStatMant').textContent=fmt(sum(mant));
+  el('gastosStatMantSub').textContent=mant.length+' proveedores';
+  el('gastosStatSeg').textContent=fmt(sum(seg));
+  el('gastosStatSegSub').textContent=seg.length+' vigilantes';
+  el('gastosStatOtros').textContent=fmt(sum(otros));
+  el('gastosStatOtrosSub').textContent=otros.length+' conceptos';
   const tbody=document.getElementById('gastosBody');
   tbody.innerHTML=GASTOS_DATA.map(g=>`<tr>
     <td style="color:var(--muted)">${g.fecha}</td>
@@ -5396,7 +5411,8 @@ function _cfgCargarAdmins(){
           <td><span class="badge badge-gold">Admin</span></td>
           <td>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-              <button onclick="_cfgResetAdmin(${a.id},'${a.email}')" style="background:var(--bg);color:var(--navy);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">Restablecer contraseña</button>
+              <button onclick="_cfgResetAdmin(${a.id},'${a.email}')" style="background:var(--bg);color:var(--navy);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">Cambiar contraseña</button>
+              <button onclick="_cfgCambiarEmail(${a.id},'${a.email}')" style="background:var(--bg);color:var(--teal);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">Cambiar correo</button>
               ${a.id==me.sub?'<span style="color:var(--muted);font-size:12px">Tú</span>'
                 :`<button onclick="_cfgEliminarAdmin(${a.id},'${a.email}')" style="background:var(--red-light);color:var(--red);border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">Eliminar</button>`}
             </div>
@@ -5436,6 +5452,21 @@ function _cfgResetAdmin(id,email){
     body:JSON.stringify({nueva})
   }).then(r=>r.json()).then(d=>{
     if(d.ok) showToast('✅ Contraseña restablecida para '+email);
+    else showToast('Error: '+(d.detail||'desconocido'));
+  }).catch(()=>showToast('Error de conexión'));
+}
+
+function _cfgCambiarEmail(id,email){
+  const nuevo=prompt(`Nuevo correo para "${email}":`);
+  if(nuevo===null) return;
+  if(!nuevo.trim()||!nuevo.includes('@')){showToast('Correo inválido');return;}
+  const token=localStorage.getItem('auth_token');
+  fetch(`/api/auth/admins/${id}/cambiar-email`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({nuevo_email:nuevo.trim()})
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){showToast('✅ Correo actualizado');_cfgCargarAdmins();}
     else showToast('Error: '+(d.detail||'desconocido'));
   }).catch(()=>showToast('Error de conexión'));
 }

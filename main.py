@@ -2062,6 +2062,32 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
     with open(json_path, 'w', encoding='utf-8') as f:
         _json.dump(lotes_data, f, ensure_ascii=False, separators=(',', ':'))
 
+    # Upsert lotes into DB (manzana, lote, propietario, m2, cuota, escrituracion)
+    with Session(engine) as s:
+        for ld in lotes_data:
+            lote_row = s.exec(select(Lote).where(
+                Lote.manzana == ld['mza'], Lote.numero == ld['lote']
+            )).first()
+            escrit = None
+            if ld['escrituracion']:
+                try: escrit = date.fromisoformat(ld['escrituracion'])
+                except: pass
+            if lote_row:
+                lote_row.propietario = ld['nombre']
+                lote_row.m2 = ld['m2']
+                lote_row.cuota_cof = ld['cuotaFija']
+                lote_row.fecha_escrituracion = escrit
+                lote_row.activo = True
+                s.add(lote_row)
+            else:
+                s.add(Lote(
+                    manzana=ld['mza'], numero=ld['lote'],
+                    propietario=ld['nombre'], m2=ld['m2'],
+                    cuota_cof=ld['cuotaFija'], paseo='',
+                    fecha_escrituracion=escrit, activo=True
+                ))
+        s.commit()
+
     # Limpiar y reimportar Chequera
     with engine.connect() as conn:
         conn.execute(_text2("DELETE FROM movimientobancario"))
@@ -2106,5 +2132,6 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
         "ok": True,
         "lotes_actualizados": len(lotes_data),
         "meses_total": sum(len(l['meses']) for l in lotes_data),
-        "chequera_importados": importados
+        "chequera_importados": importados,
+        "lotes_en_bd": len(lotes_data)
     }

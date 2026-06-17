@@ -2011,116 +2011,14 @@ tr:last-child td{border-bottom:none}
 // ============================================================
 // DATA
 // ============================================================
-const LOTES_DATA = [
-  {mza:24,lote:1,paseo:'Paseo de los Nogales',m2:2289.82,propietario:'Juan Bosco Martínez Guevara',cuota:1350},
-  {mza:24,lote:2,paseo:'Paseo de los Nogales',m2:2404.85,propietario:'José Humberto Valdez Elizondo',cuota:1450},
-  {mza:24,lote:3,paseo:'Paseo de los Nogales',m2:2088.25,propietario:'Zayury de la Garza Garza / Erick Alejandro Molina Perez',cuota:1350},
-  {mza:24,lote:4,paseo:'Paseo de los Sabinos',m2:2248.33,propietario:'Raquel Elena Urquidi Garza',cuota:1350},
-  {mza:24,lote:5,paseo:'Paseo de los Sabinos',m2:2254.52,propietario:'Antonio de Jesús Rodríguez Caballero',cuota:1350},
-  {mza:24,lote:6,paseo:'Paseo Silvestra',m2:2340.63,propietario:'',cuota:1400},
-  {mza:24,lote:7,paseo:'Paseo Silvestra',m2:2008.35,propietario:'Alfonso Vazquez Limón',cuota:1350},
-  {mza:24,lote:8,paseo:'Paseo Silvestra',m2:2394.35,propietario:'',cuota:1400},
-  {mza:24,lote:9,paseo:'Paseo Silvestra',m2:2262.07,propietario:'',cuota:1350},
-  {mza:24,lote:10,paseo:'Paseo Silvestra',m2:2021.29,propietario:'CASA MUESTRA',cuota:1350},
-  {mza:24,lote:11,paseo:'Paseo Silvestra',m2:2281.63,propietario:'Ricardo Mendoza Barrera',cuota:1350},
-  {mza:24,lote:12,paseo:'Paseo Silvestra',m2:2284.59,propietario:'Marlon Abraham Bustillo Mendez',cuota:1350},
-  {mza:24,lote:13,paseo:'Paseo del Encino',m2:2297.98,propietario:'Myriam Marybel Torres Tellez',cuota:1350},
-  {mza:24,lote:14,paseo:'Paseo del Encino',m2:2472.82,propietario:'Myriam Marybel Torres Tellez',cuota:1450},
-  {mza:24,lote:15,paseo:'Paseo de los Robles',m2:2428.38,propietario:'Alejandro Sepulveda López',cuota:1450},
-  {mza:24,lote:16,paseo:'Paseo de los Robles',m2:2207.52,propietario:'Alejandro Sepulveda López',cuota:1350},
-  {mza:24,lote:17,paseo:'Paseo de los Nogales',m2:2427.01,propietario:'',cuota:1450},
-  {mza:24,lote:18,paseo:'Paseo de los Robles',m2:2705.36,propietario:'',cuota:1500},
-  {mza:24,lote:19,paseo:'Paseo de los Nogales',m2:2102.92,propietario:'Ramiro Montero Cantú',cuota:1350},
-  {mza:24,lote:20,paseo:'Paseo de los Sabinos',m2:2199.38,propietario:'María Elena Contreras Venecia',cuota:1350},
-  {mza:24,lote:21,paseo:'Paseo de los Sabinos',m2:2455.94,propietario:'Wendy Marysol Soltero Rodríguez',cuota:1450},
-  {mza:24,lote:22,paseo:'Paseo de los Sabinos',m2:2402.72,propietario:'Carlos Alberto Dávila Rosete',cuota:1450},
-  {mza:24,lote:31,paseo:'Paseo de los Olmos',m2:2734.88,propietario:'Rodolfo Martínez Martínez',cuota:1500},
-  {mza:24,lote:32,paseo:'Paseo de los Sabinos',m2:2628.71,propietario:'Adrián Tamez Leal',cuota:1500},
-  {mza:29,lote:2,paseo:'Paseo de las Aves',m2:3302.97,propietario:'Rocío Griselda Vega Campos / Edgard Yair Pérez Martínez',cuota:1500},
-  {mza:29,lote:10,paseo:'Paseo de las Aves',m2:2043.28,propietario:'Edgard Yair Pérez Martínez',cuota:1350},
-  {mza:29,lote:12,paseo:'Paseo de las Aves',m2:2450.89,propietario:'Orlando Javier Silva Alanis / Rosa Anyela Reyes Arriaga',cuota:1450},
-  {mza:29,lote:13,paseo:'Paseo de las Golondrinas',m2:2227.9,propietario:'Armando Rubio Cano',cuota:1350},
-  {mza:29,lote:14,paseo:'Paseo de las Aves',m2:2051.75,propietario:'Hugo Salinas Barrera',cuota:1350},
-  {mza:29,lote:15,paseo:'Paseo de las Golondrinas',m2:3172.85,propietario:'Ma Concepción Alonso Molina / Mario Alberto Esquivel',cuota:1500},
-  {mza:29,lote:20,paseo:'Paseo de las Golondrinas',m2:2005.18,propietario:'Anayancy Carranco Chavez',cuota:1350},
-  {mza:29,lote:21,paseo:'Paseo de las Aves',m2:2025.33,propietario:'Rodolfo Maldonado Morales',cuota:1350},
-  {mza:29,lote:22,paseo:'Paseo de las Aves',m2:2000.14,propietario:'Manuel Fernando Ortiz Loera',cuota:1350},
-  {mza:30,lote:2,paseo:'Paseo Silvestra',m2:2722.13,propietario:'Roberto Soto Palma',cuota:1500},
-  {mza:30,lote:3,paseo:'Paseo Silvestra',m2:2292.4,propietario:'Amelia Villarreal / Francisco Zertuche',cuota:1350},
-  {mza:30,lote:4,paseo:'Paseo de los Colibríes',m2:1748.93,propietario:'Enrique Javier González Báez',cuota:1350},
-  {mza:30,lote:8,paseo:'Paseo de los Colibríes',m2:1727.55,propietario:'Arturo Abraham de León Quintanilla',cuota:1350},
-  {mza:30,lote:9,paseo:'Paseo Silvestra',m2:2013.02,propietario:'Martín Silvestre Escobedo Ortega',cuota:1350},
-  {mza:30,lote:10,paseo:'Paseo de los Codornices',m2:1953.73,propietario:'María Esther Álvarez Medina / Sarahí Teresita Lara Álvarez',cuota:1350},
-  {mza:30,lote:17,paseo:'Paseo de los Codornices',m2:2088.47,propietario:'Noé Valdés Gaona',cuota:1350},
-  {mza:34,lote:1,paseo:'Paseo Silvestra',m2:2489.26,propietario:'Francisco Javier González Nieto / Patricio González Longoria',cuota:1450},
-  {mza:34,lote:4,paseo:'Paseo de las Aves',m2:2014.42,propietario:'Edna Selene Calleros Luna / Eduardo Godinez',cuota:1350},
-  {mza:34,lote:5,paseo:'Paseo de las Aves',m2:1928.19,propietario:'Fernando Tellez Meza',cuota:1350},
-  {mza:34,lote:6,paseo:'Paseo de las Aves',m2:1823.26,propietario:'Ghassan Kahwati Jamal',cuota:1350},
-  {mza:34,lote:7,paseo:'Paseo de las Aves',m2:2051.69,propietario:'Juan Carlos Cuervo Kleen',cuota:1350},
-  {mza:34,lote:8,paseo:'Paseo de las Aves',m2:2005.5,propietario:'Adrián Mauricio Cuervo Kleen',cuota:1350},
-  {mza:34,lote:9,paseo:'Paseo de las Aves',m2:1952.95,propietario:'Mariano Gerardo Morales González',cuota:1350},
-  {mza:34,lote:12,paseo:'Paseo Silvestra',m2:2696.54,propietario:'Guadalupe Janneth García Rivera / Luis Alfonso Flores Vázquez',cuota:1500},
-  {mza:34,lote:13,paseo:'Paseo Silvestra',m2:2195.14,propietario:'Heriberto Ojeda Yuste',cuota:1350},
-  {mza:34,lote:14,paseo:'Paseo Silvestra',m2:2275.39,propietario:'Saul Sifuentes Vázquez',cuota:1350},
-  {mza:34,lote:15,paseo:'Paseo de las Garzas',m2:2181.96,propietario:'Saul Sifuentes Vázquez',cuota:1350},
-  {mza:34,lote:22,paseo:'Paseo Silvestra',m2:1619.51,propietario:'Armando Silva Leal',cuota:1350},
-  {mza:34,lote:24,paseo:'Paseo de las Garzas',m2:2143.41,propietario:'José Alfredo Muñiz Manrique / Griselda Tejada Vielma',cuota:1350},
-  {mza:34,lote:25,paseo:'Paseo de las Garzas',m2:1960.34,propietario:'Héctor Melende / Alejandra Vázquez',cuota:1350},
-  {mza:35,lote:2,paseo:'Rincón de las Palomas',m2:1566.26,propietario:'Adolfo Salazar Herrera',cuota:1350},
-  {mza:37,lote:1,paseo:'Rincón de las Palomas',m2:2284.82,propietario:'Enrique Alberto Lozano Cavazos',cuota:1350},
-  {mza:37,lote:10,paseo:'Paseo de las Aves',m2:2127.2,propietario:'José Ignacio Rodríguez Rodríguez',cuota:1350},
-  {mza:37,lote:11,paseo:'Paseo de las Aves',m2:2075.45,propietario:'Esteban Quintanilla López',cuota:1350},
-  {mza:37,lote:12,paseo:'Paseo de las Aves',m2:1934.55,propietario:'Wesley Alexander Rios Grant',cuota:1350},
-  {mza:37,lote:13,paseo:'Paseo de las Aves',m2:2005.9,propietario:'César Humberto García Martínez',cuota:1350},
-  {mza:37,lote:14,paseo:'Paseo de las Aves',m2:2487.66,propietario:'Enrique Alberto Lozano Cavazos',cuota:1400},
-  {mza:37,lote:16,paseo:'Paseo de las Aves',m2:2008.57,propietario:'Víctor Rafael Vega Martínez',cuota:1350},
-  {mza:38,lote:1,paseo:'Paseo de las Aves',m2:2392.11,propietario:'David Efrén Ortiz Quintero',cuota:1400},
-  {mza:38,lote:8,paseo:'Paseo de las Aves',m2:1934.34,propietario:'Juan Francisco Camacho Cortes / Azucena Galindo',cuota:1350},
-  {mza:38,lote:10,paseo:'Paseo de las Aves',m2:1934.51,propietario:'Héctor Eden Ramos Ramos / Bertha Patricia Espinosa Villarreal',cuota:1350},
-  {mza:38,lote:14,paseo:'Paseo de las Aves',m2:1931.94,propietario:'David Díaz Aedo',cuota:1350},
-  {mza:38,lote:17,paseo:'Paseo de las Aves',m2:2131.34,propietario:'Juan Gabriel Macias Villarreal',cuota:1350},
-  {mza:38,lote:18,paseo:'Paseo Silvestra',m2:1810.69,propietario:'Oscar Alberto García Rodríguez',cuota:1350},
-  {mza:38,lote:19,paseo:'Paseo Silvestra',m2:2393.18,propietario:'Patricia Santacruz González / Erika Moncayo Santacruz',cuota:1400},
-];
+let LOTES_DATA = [];
 
-// Simular saldos de morosos / corriente / abonando
 const SALDO_ESTADO = {};
 const COV_DATA = {};
-LOTES_DATA.forEach((l,i)=>{
-  const r = i%5;
-  if(l.propietario==='') return;
-  if(r===0||r===1) SALDO_ESTADO[`${l.mza}-${l.lote}`]={estado:'moroso',saldo:l.cuota*(1+(i%3)),pagado:0};
-  else if(r===2) SALDO_ESTADO[`${l.mza}-${l.lote}`]={estado:'abonando',saldo:l.cuota*0.6,pagado:l.cuota*0.4};
-  else SALDO_ESTADO[`${l.mza}-${l.lote}`]={estado:'corriente',saldo:0,pagado:l.cuota};
-});
 
-const GASTOS_DATA=[
-  {fecha:'2026-05-03',concepto:'Sueldo vigilante turno A',proveedor:'Jorge Ramos García',tipo:'Seguridad',importe:8500,factura:'REC-001'},
-  {fecha:'2026-05-03',concepto:'Sueldo vigilante turno B',proveedor:'Luis M. Torres',tipo:'Seguridad',importe:7200,factura:'REC-002'},
-  {fecha:'2026-05-05',concepto:'Poda y jardinería áreas comunes',proveedor:'Viveros San Ángel',tipo:'Mantenimiento',importe:6800,factura:'A-0211'},
-  {fecha:'2026-05-08',concepto:'Mantenimiento portón electrónico',proveedor:'Automatizaciones Reyes',tipo:'Mantenimiento',importe:2400,factura:'B-0045'},
-  {fecha:'2026-05-10',concepto:'Electricidad área común',proveedor:'CFE',tipo:'Servicios',importe:1850,factura:'CFE-MAY'},
-  {fecha:'2026-05-12',concepto:'Fumigación general',proveedor:'Control de Plagas NL',tipo:'Mantenimiento',importe:3200,factura:'A-0098'},
-  {fecha:'2026-05-15',concepto:'Honorarios administradora',proveedor:'Administradora Silvestra',tipo:'Administración',importe:5000,factura:'A-001'},
-  {fecha:'2026-05-15',concepto:'Agua cisternas',proveedor:'Pipas El Oasis',tipo:'Servicios',importe:2100,factura:'PIP-012'},
-  {fecha:'2026-05-18',concepto:'Reparación barda perimetral',proveedor:'Const. Ramírez',tipo:'Mantenimiento',importe:4800,factura:'A-0230'},
-  {fecha:'2026-05-20',concepto:'Material limpieza',proveedor:'Walmart',tipo:'Administración',importe:980,factura:'TKT-445'},
-  {fecha:'2026-05-22',concepto:'Internet caseta vigilancia',proveedor:'Telmex',tipo:'Servicios',importe:470,factura:'TEL-MAY'},
-  {fecha:'2026-05-25',concepto:'Señalización vialidad',proveedor:'Señales y Más',tipo:'Mantenimiento',importe:1300,factura:'A-0319'},
-];
+let GASTOS_DATA=[];
 
-const INGRESOS_DATA=[
-  {fecha:'2026-05-02',lote:'Mza 24 L7',propietario:'Alfonso Vazquez Limón',concepto:'COF Mayo',importe:1350,ref:'OXXO-0012',estado:'aprobado'},
-  {fecha:'2026-05-03',lote:'Mza 24 L12',propietario:'Marlon A. Bustillo',concepto:'COF Mayo',importe:1350,ref:'SPEI-3341',estado:'aprobado'},
-  {fecha:'2026-05-05',lote:'Mza 29 L14',propietario:'Fco. Javier Coronado',concepto:'COF Mayo',importe:1350,ref:'SPEI-3388',estado:'aprobado'},
-  {fecha:'2026-05-06',lote:'Mza 34 L5',propietario:'Fernando Tellez Meza',concepto:'COF Mayo + Abono',importe:2700,ref:'BBVA-9901',estado:'aprobado'},
-  {fecha:'2026-05-08',lote:'Mza 37 L13',propietario:'César H. García',concepto:'COF Mayo',importe:1350,ref:'SPEI-4401',estado:'aprobado'},
-  {fecha:'2026-05-10',lote:'Mza 38 L17',propietario:'Juan G. Macias',concepto:'COF Mayo',importe:1350,ref:'DEP-0023',estado:'aprobado'},
-  {fecha:'2026-05-12',lote:'Mza 30 L9',propietario:'Martín S. Escobedo',concepto:'COF Abr + May',importe:2700,ref:'SPEI-5512',estado:'aprobado'},
-  {fecha:'2026-05-20',lote:'Mza 34 L1',propietario:'Fco. Javier González N.',concepto:'COF Mayo',importe:1450,ref:'SPEI-6600',estado:'por_aprobar'},
-  {fecha:'2026-05-21',lote:'Mza 24 L2',propietario:'José H. Valdez',concepto:'COF Mayo',importe:1450,ref:'SPEI-6611',estado:'por_aprobar'},
-  {fecha:'2026-05-22',lote:'Mza 37 L14',propietario:'Enrique A. Lozano',concepto:'COF Mayo',importe:1400,ref:'OXXO-7701',estado:'por_aprobar'},
-];
+let INGRESOS_DATA=[];
 
 const MESES=['Ene','Feb','Mar','Abr','May','Jun'];
 const RECAUDACION=[62820,59400,64080,61200,28350,0];
@@ -2130,8 +2028,35 @@ const RECAUDACION=[62820,59400,64080,61200,28350,0];
 // ============================================================
 let currentRole='admin';
 let currentResidente=null;
-let filteredLotes=[...LOTES_DATA];
-let filteredCargos=[...LOTES_DATA.filter(l=>l.propietario&&l.propietario!='CASA MUESTRA')];
+let filteredLotes=[];
+let filteredCargos=[];
+
+// ============================================================
+// LOAD LOTES FROM DB
+// ============================================================
+function _loadLotes(){
+  const tok=localStorage.getItem('auth_token');
+  if(!tok) return Promise.resolve();
+  return fetch('/api/lotes',{headers:{Authorization:'Bearer '+tok}})
+    .then(r=>r.json())
+    .then(list=>{
+      LOTES_DATA.length=0;
+      (list||[]).forEach(l=>{
+        LOTES_DATA.push({
+          id:l.id,
+          mza:l.manzana,
+          lote:l.numero,
+          paseo:l.paseo||'',
+          m2:l.m2||0,
+          propietario:l.propietario||'',
+          cuota:l.cuota_cof||0,
+          fecha_escrituracion:l.fecha_escrituracion
+        });
+      });
+      filteredLotes=[...LOTES_DATA];
+      filteredCargos=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
+    }).catch(()=>{});
+}
 
 // ============================================================
 // LOGIN
@@ -2226,16 +2151,16 @@ function doLogin(){
     } else if(data.rol==='visor'){
       initVisor(user);
     } else {
-      // Encontrar lote en LOTES_DATA por lote_id o por user_key
-      const m=user.toUpperCase().match(/^M(\d+)L(\d+)$/);
-      if(m){
-        const mza=parseInt(m[1]),lote=parseInt(m[2]);
-        currentResidente=LOTES_DATA.find(l=>l.mza===mza&&l.lote===lote);
-      }
-      initResidente();
-      if(data.debe_cambiar_password){
-        document.getElementById('modalCambiarPass').classList.add('open');
-      }
+      const _dcp=data.debe_cambiar_password;
+      _loadLotes().then(()=>{
+        const m=user.toUpperCase().match(/^M(\d+)L(\d+)$/);
+        if(m){
+          const mza=parseInt(m[1]),lote=parseInt(m[2]);
+          currentResidente=LOTES_DATA.find(l=>l.mza===mza&&l.lote===lote);
+        }
+        initResidente();
+        if(_dcp) document.getElementById('modalCambiarPass').classList.add('open');
+      });
     }
   }).catch(err=>{
     showLoginError(err.message||'Usuario o contraseña incorrectos');
@@ -2412,7 +2337,7 @@ function initAdmin(){
   _syncTopbarProfile();
   renderDashboard();
   _rendered.add('dashboard');
-  populateSelects();
+  _loadLotes().then(()=>populateSelects());
   loadCOVData();
 }
 
@@ -2427,7 +2352,7 @@ function initVisor(email){
   _syncTopbarProfile();
   renderDashboard();
   _rendered.add('dashboard');
-  populateSelects();
+  _loadLotes().then(()=>populateSelects());
   loadCOVData();
 }
 
@@ -3065,6 +2990,11 @@ async function renderDashboard(){
 function renderLotes(data){
   const list=data||LOTES_DATA;
   const tbody=document.getElementById('lotesBody');
+  if(!list.length&&!data){
+    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted)">Cargando lotes…</td></tr>';
+    _loadLotes().then(()=>renderLotes());
+    return;
+  }
   tbody.innerHTML=list.map(l=>{
     const vendido=l.propietario&&l.propietario!=='CASA MUESTRA';
     const key=`${l.mza}-${l.lote}`;
@@ -3119,6 +3049,12 @@ function filterEstado(est){
 // CARGOS
 // ============================================================
 function renderCargos(search){
+  if(!LOTES_DATA.length){
+    const tbody=document.getElementById('cargosBody');
+    if(tbody) tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Cargando lotes…</td></tr>';
+    _loadLotes().then(()=>renderCargos(search));
+    return;
+  }
   const s=(search||'').toLowerCase();
   let list=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA');
   if(s) list=list.filter(l=>l.propietario.toLowerCase().includes(s)||String(l.lote).includes(s));
@@ -3161,14 +3097,12 @@ async function loadGastos(){
       fetch('/api/gastos',{headers:{Authorization:'Bearer '+token}}).then(r=>r.json()),
       fetch('/api/archivos',{headers:{Authorization:'Bearer '+token}}).then(r=>r.json()).catch(()=>[])
     ]);
-    if(gastos&&gastos.length){
-      const byGasto={};
-      (archivos||[]).forEach(a=>{
-        if(!byGasto[a.gasto_id]) byGasto[a.gasto_id]=[];
-        byGasto[a.gasto_id].push(a);
-      });
-      GASTOS_DATA.splice(0,GASTOS_DATA.length,...gastos.map(g=>({...g,_archivos:byGasto[g.id]||[]})));
-    }
+    const byGasto={};
+    (archivos||[]).forEach(a=>{
+      if(!byGasto[a.gasto_id]) byGasto[a.gasto_id]=[];
+      byGasto[a.gasto_id].push(a);
+    });
+    GASTOS_DATA.splice(0,GASTOS_DATA.length,...(gastos||[]).map(g=>({...g,_archivos:byGasto[g.id]||[]})));
   }catch(e){}
   renderGastos();
 }
@@ -3326,22 +3260,19 @@ async function loadIngresos(){
   if(!token){renderIngresosByTab('aprobar');return;}
   try{
     const data=await fetch('/api/pagos/lista',{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
-    // Solo reemplazar si la API tiene datos reales; si está vacío conservar datos existentes
-    if(data&&data.length>0){
-      INGRESOS_DATA.length=0;
-      data.forEach(p=>{
-        INGRESOS_DATA.push({
-          id:p.id,
-          fecha:p.fecha_pago,
-          lote:`Mza ${p.manzana} L${p.lote_num}`,
-          propietario:p.propietario,
-          concepto:p.concepto,
-          importe:p.importe,
-          ref:p.referencia||`ID-${p.id}`,
-          estado:p.estado,
-        });
+    INGRESOS_DATA.length=0;
+    (data||[]).forEach(p=>{
+      INGRESOS_DATA.push({
+        id:p.id,
+        fecha:p.fecha_pago,
+        lote:`Mza ${p.manzana} L${p.lote_num}`,
+        propietario:p.propietario,
+        concepto:p.concepto,
+        importe:p.importe,
+        ref:p.referencia||`ID-${p.id}`,
+        estado:p.estado,
       });
-    }
+    });
   }catch(e){}
   renderIngresosByTab('aprobar');
 }
@@ -5810,6 +5741,10 @@ async function _limpiarTodo(){
     const r=await fetch('/api/admin/limpiar_todo',{method:'POST',headers:{Authorization:`Bearer ${token}`}}).then(x=>x.json());
     if(r.ok){
       _SD=null; _chequeraData=[];
+      LOTES_DATA.length=0; GASTOS_DATA.length=0; INGRESOS_DATA.length=0;
+      filteredLotes=[]; filteredCargos=[];
+      if(document.getElementById('lotesBody')) document.getElementById('lotesBody').innerHTML='';
+      if(document.getElementById('cargosBody')) document.getElementById('cargosBody').innerHTML='';
       st.textContent='✅ Todo borrado. Ahora importa el Excel para cargar los datos.';
       st.style.color='var(--green)';
       showToast('✅ Todos los datos borrados');
@@ -5830,7 +5765,9 @@ async function _importarExcelCompleto(input){
     }).then(x=>x.json());
     if(r.ok){
       _SD=null; // forzar recarga de silvestra_data.json
-      st.textContent=`✅ ${r.lotes_actualizados} lotes · ${r.meses_total} meses históricos · ${r.chequera_importados} registros en Chequera`;
+      await _loadLotes();
+      populateSelects();
+      st.textContent=`✅ ${r.lotes_actualizados} lotes en BD · ${r.meses_total} meses históricos · ${r.chequera_importados} registros en Chequera`;
       st.style.color='var(--green)';
       showToast('✅ Excel importado correctamente');
     } else {
@@ -5989,10 +5926,12 @@ function _restoreSession(tok,rol,usr){
   } else if(rol==='visor'){
     initVisor(usr);
   } else if(usr){
-    const m=usr.toUpperCase().match(/^M(\d+)L(\d+)$/);
-    if(m) currentResidente=LOTES_DATA.find(l=>l.mza===parseInt(m[1])&&l.lote===parseInt(m[2]));
-    if(currentResidente) initResidente();
-    else doLogout();
+    _loadLotes().then(()=>{
+      const m=usr.toUpperCase().match(/^M(\d+)L(\d+)$/);
+      if(m) currentResidente=LOTES_DATA.find(l=>l.mza===parseInt(m[1])&&l.lote===parseInt(m[2]));
+      if(currentResidente) initResidente();
+      else doLogout();
+    });
   }
 }
 

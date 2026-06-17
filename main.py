@@ -1051,20 +1051,46 @@ async def limpiar_chequera(admin: Usuario = Depends(_admin_only)):
 
 @app.post("/api/admin/limpiar_todo")
 async def limpiar_todo(admin: Usuario = Depends(_admin_only)):
-    """Borra todos los datos operativos. Conserva usuarios, config y lotes."""
+    """Borra TODOS los datos: lotes, gastos, pagos, chequera, usuarios residente/visor."""
     import json as _json, os as _os
     from sqlalchemy import text as _text2
-    tables = [
-        "movimientobancario", "pago", "gasto", "gastoarchivo",
-        "descuento", "lecturaagua", "gastoreal", "prorrateoporldote",
+
+    # Orden correcto: hijos antes que padres para evitar FK violations
+    # Cada tabla usa su propia conexión/transacción para que un fallo no aborte las demás
+    ordered_tables = [
+        "gastoarchivo",       # hijo de gasto
+        "prorrateoporldote",  # hijo de lote
+        "lecturaagua",        # hijo de lote
+        "descuento",          # hijo de lote
+        "pago",               # hijo de lote
+        "movimientobancario", # hijo de lote y proveedor
+        "gastoreal",
+        "gasto",
     ]
-    with engine.connect() as conn:
-        for t in tables:
-            try:
+    for t in ordered_tables:
+        try:
+            with engine.connect() as conn:
                 conn.execute(_text2(f"DELETE FROM {t}"))
-            except Exception:
-                pass
-        conn.commit()
+                conn.commit()
+        except Exception:
+            pass
+
+    # Borrar residentes y visores
+    try:
+        with engine.connect() as conn:
+            conn.execute(_text2("DELETE FROM usuario WHERE rol IN ('residente','visor')"))
+            conn.commit()
+    except Exception:
+        pass
+
+    # Borrar lotes (se recargarán desde el Excel)
+    try:
+        with engine.connect() as conn:
+            conn.execute(_text2("DELETE FROM lote"))
+            conn.commit()
+    except Exception:
+        pass
+
     # Vaciar silvestra_data.json
     json_path = _os.path.join(_os.path.dirname(__file__), "static", "silvestra_data.json")
     with open(json_path, "w") as f:

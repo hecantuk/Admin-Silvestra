@@ -2042,7 +2042,6 @@ function _loadLotes(){
     .then(list=>{
       LOTES_DATA.length=0;
       (list||[]).forEach(l=>{
-        if(!l.m2) return; // omitir lotes blanqueados por "Borrar todo"
         LOTES_DATA.push({
           id:l.id,
           mza:l.manzana,
@@ -5739,19 +5738,10 @@ async function _limpiarTodo(){
   try{
     const r=await fetch('/api/admin/limpiar_todo',{method:'POST',headers:{Authorization:`Bearer ${token}`}}).then(x=>x.json());
     if(r.ok){
-      _SD=null; _chequeraData=[];
-      LOTES_DATA.length=0; GASTOS_DATA.length=0; INGRESOS_DATA.length=0;
-      filteredLotes=[]; filteredCargos=[];
-      // Limpiar tablas visibles
-      ['lotesBody','cargosBody','gastosBody','ingresosBody','ingresosAprobarBody'].forEach(id=>{
-        const el=document.getElementById(id);
-        if(el) el.innerHTML='';
-      });
-      // Quitar de _rendered para que recarguen al volver
-      ['lotes','cargos','gastos','ingresos','chequera','estadoCuenta','concentradoCOF','concentradoCOV','saldos','reporte'].forEach(p=>_rendered.delete(p));
-      st.textContent='✅ Todo borrado. Ahora importa el Excel para cargar los datos.';
+      st.textContent='✅ Todo borrado. Recargando…';
       st.style.color='var(--green)';
       showToast('✅ Todos los datos borrados');
+      setTimeout(()=>{ location.reload(); }, 1500);
     } else { st.textContent='❌ '+JSON.stringify(r); st.style.color='var(--red)'; }
   }catch(e){ st.textContent='❌ Error: '+e.message; st.style.color='var(--red)'; }
 }

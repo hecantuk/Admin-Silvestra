@@ -117,30 +117,8 @@ def init():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
 
-        # ── Lotes: insertar solo si la tabla está vacía ──────────
-        existing_lotes = session.exec(select(Lote)).all()
-        if not existing_lotes:
-            lote_objs = []
-            for row in LOTES:
-                mza, num, paseo, m2, propietario, cuota = row
-                l = Lote(manzana=mza, numero=num, paseo=paseo,
-                         m2=m2, propietario=propietario, cuota_cof=cuota)
-                session.add(l)
-                lote_objs.append((mza, num, propietario, l))
-
-            # Gastos de mayo
-            for row in GASTOS_MAYO:
-                fecha_s, concepto, proveedor, tipo, importe, factura = row
-                y, m, d = fecha_s.split("-")
-                session.add(Gasto(
-                    fecha=date(int(y), int(m), int(d)),
-                    concepto=concepto, proveedor=proveedor,
-                    tipo=tipo, importe=importe, factura=factura,
-                ))
-            session.commit()
-            print(f"✅ {len(LOTES)} lotes y {len(GASTOS_MAYO)} gastos insertados")
-        else:
-            print(f"ℹ️  Lotes ya existen ({len(existing_lotes)}), se omite seed")
+        # ── Lotes y Gastos: solo se cargan desde el Excel (no seed hardcodeado) ──
+        # El admin usa Configuración > Importar Excel para cargar los datos reales.
 
         # ── Admins: upsert (no sobreescribir si ya existe) ───────
         ADMINS_SEED = [
@@ -161,32 +139,6 @@ def init():
                 ))
                 print(f"✅ Admin creado: {email_admin}")
         session.commit()
-
-        # ── Residentes: crear usuario por lote si no existe ──────
-        lotes_con_prop = session.exec(
-            select(Lote).where(Lote.propietario != None, Lote.propietario != "CASA MUESTRA")
-        ).all()
-        creados = 0
-        for lote in lotes_con_prop:
-            user_key = f"M{lote.manzana}L{lote.numero}"
-            existe = session.exec(
-                select(Usuario).where(Usuario.email == user_key)
-            ).first()
-            if not existe:
-                default_pwd = f"silv{lote.manzana}{lote.numero}"
-                session.add(Usuario(
-                    email=user_key,
-                    hashed_password=hash_password(default_pwd),
-                    rol="residente",
-                    lote_id=lote.id,
-                    debe_cambiar_password=True,
-                ))
-                creados += 1
-        if creados:
-            session.commit()
-            print(f"✅ {creados} usuarios de residentes creados")
-        else:
-            print("ℹ️  Usuarios de residentes ya existen")
 
         # ── Cuotas anuales 2026: rangos por m² ───────────────
         hay_cuotas = session.exec(select(CuotaAnual).where(CuotaAnual.anio == 2026)).first()

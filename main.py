@@ -2426,10 +2426,18 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
             if hasattr(fecha_raw, 'date'):
                 fecha = fecha_raw.date()
             else:
-                try: fecha = date.fromisoformat(str(fecha_raw)[:10])
+                s_fecha = str(fecha_raw).strip()
+                try: fecha = date.fromisoformat(s_fecha[:10])
                 except:
-                    try: fecha = date(1899, 12, 30) + timedelta(days=int(float(str(fecha_raw))))
-                    except: continue
+                    try: fecha = date(1899, 12, 30) + timedelta(days=int(float(s_fecha)))
+                    except:
+                        try:
+                            parts = s_fecha.replace('-', '/').split('/')
+                            if len(parts) == 3:
+                                d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
+                                fecha = date(y if y > 100 else 2000+y, m, d)
+                            else: continue
+                        except: continue
 
             def _sv(r, c): return str(r[c] or '').strip() if len(r) > c and r[c] else ''
             def _nv(r, c): return float(r[c] or 0) if len(r) > c and r[c] else 0.0

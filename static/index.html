@@ -5803,7 +5803,11 @@ async function _importarExcelCompleto(input){
       method:'POST', headers:{Authorization:`Bearer ${token}`}, body:fd
     }).then(x=>x.json());
     if(r.ok){
-      _SD=null; // forzar recarga de silvestra_data.json
+      _SD=null;           // forzar recarga del concentrado
+      _chequeraData=[];   // forzar recarga de chequera
+      _rendered.delete('chequera');
+      const _cSel=document.getElementById('chequeraAnio');
+      if(_cSel) while(_cSel.options.length>1) _cSel.remove(1);
       await _loadLotes();
       populateSelects();
       st.textContent=`✅ ${r.lotes_actualizados} lotes · ${r.pagos_importados} pagos · ${r.lecturas_importadas} lecturas agua · ${r.chequera_importados} en Chequera`;

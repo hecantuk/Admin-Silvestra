@@ -935,6 +935,7 @@ tr:last-child td{border-bottom:none}
           <select id="ecLoteSelect" class="search-box" style="max-width:340px" onchange="_ecOpenLote()">
             <option value="">— Selecciona un lote —</option>
           </select>
+          <input id="ecBuscar" class="search-box" style="max-width:240px" placeholder="Buscar por residente…" oninput="_ecFilterLotes()">
           <div style="margin-left:auto;display:flex;gap:8px" id="ecExportBtns" style="display:none">
             <button class="btn-secondary" onclick="ecExportPDF()">📄 PDF</button>
             <button class="btn-secondary" onclick="ecExportExcel()">⬇ Excel</button>
@@ -1478,11 +1479,13 @@ tr:last-child td{border-bottom:none}
         <div id="cfgPanelHistorial" style="display:none">
           <div class="config-block">
             <div class="config-block-header">
-              <span class="config-block-title">Importar historial (2017–2026)</span>
+              <span class="config-block-title">Importar estados de cuenta (Excel maestro)</span>
             </div>
             <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
-              Carga el Excel de estados de cuenta para importar todos los pagos históricos y descuentos.
-              Los registros ya existentes no se duplican. Se actualiza también la fecha de escrituración de cada lote.
+              Carga el archivo <strong>.xlsm</strong> con las hojas <code>Edo.Cta.M&lt;manzana&gt; L&lt;lote&gt;</code>.
+              Se cargan todos los lotes, pagos, cuotas mensuales, agua, descuentos y la Chequera, y se actualizan
+              automáticamente los menús de Concentrado, Concentrado COF/COV, Estado de cuenta y Saldos.
+              Al reimportar el mismo archivo el resultado es idéntico (no se duplica).
             </p>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
               <label class="btn-primary" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px">
@@ -2459,17 +2462,25 @@ function loadEstadoCuenta(){
 
 async function _ecFilterLotes(){
   const mza=parseInt(document.getElementById('ecLoteMza').value)||0;
+  const q=(document.getElementById('ecBuscar')?.value||'').trim().toLowerCase();
   await _loadSD();
   const sel=document.getElementById('ecLoteSelect');
   sel.innerHTML='<option value="">— Selecciona un lote —</option>';
-  const lotes=(_SD||[]).filter(l=>l.nombre&&!l.nombre.toUpperCase().includes('CASA MUESTRA')&&(!mza||l.mza===mza));
+  const lotes=(_SD||[]).filter(l=>l.nombre
+      &&!l.nombre.toUpperCase().includes('CASA MUESTRA')
+      &&(!mza||l.mza===mza)
+      &&(!q||l.nombre.toLowerCase().includes(q)
+            ||String(l.lote).includes(q)
+            ||`mza ${l.mza} l${l.lote}`.includes(q)));
   lotes.forEach((l,i)=>{
     const opt=document.createElement('option');
     opt.value=l.sheet||`${l.mza}-${l.lote}`;
     opt.textContent=`Mza ${l.mza} · L${l.lote} — ${l.nombre}`;
     sel.appendChild(opt);
   });
-  _ecClear();
+  // Si el filtro deja exactamente un lote, ábrelo automáticamente
+  if(lotes.length===1){ sel.value=lotes[0].sheet||`${lotes[0].mza}-${lotes[0].lote}`; _ecOpenLote(); }
+  else { _ecClear(); }
 }
 
 function _ecOpenLote(){
@@ -3420,10 +3431,9 @@ async function renderDashboardCOV(){
 async function calcularSaldos(){
   const token=localStorage.getItem('auth_token');
   if(!token){renderSaldos();return;}
-  const mes=new Date().toISOString().slice(0,7);
   showToast('Calculando saldos…');
   try{
-    const data=await fetch(`/api/reporte/saldos?mes=${mes}`,{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
+    const data=await fetch(`/api/reporte/saldos`,{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
     (data.detalle||[]).forEach(d=>{
       const key=`${d.manzana}-${d.numero}`;
       SALDO_ESTADO[key]={
@@ -5739,22 +5749,43 @@ function switchCfgTab(panel, el){
 
 async function importarHistorial(input){
   const file=input.files[0]; if(!file) return;
-  const token=localStorage.getItem('auth_token');
-  const status=document.getElementById('historialStatus');
-  status.textContent='Importando… esto puede tardar unos minutos.';
   input.value='';
-  const fd=new FormData(); fd.append('file',file);
+  if(!confirm('Se cargará el historial completo desde este Excel.\n\nEsto reemplaza el historial de saldos y los movimientos de Chequera con los datos del archivo (los lotes, pagos, cuotas, agua y descuentos se regeneran tal cual vienen en las hojas Edo.Cta).\n\n¿Continuar?')) return;
+  await _runImportCompleto(file, 'historialStatus');
+}
+
+async function _importarExcelCompleto(input){
+  const file=input.files[0]; if(!file) return;
+  input.value='';
+  await _runImportCompleto(file, 'excelCompletoStatus');
+}
+
+async function _runImportCompleto(file, statusId){
+  const token=localStorage.getItem('auth_token');
+  const st=document.getElementById(statusId);
+  if(st){ st.textContent='Cargando y procesando… puede tardar 1-2 minutos.'; st.style.color='var(--muted)'; }
   try{
-    const r=await fetch('/api/historial/importar',{
-      method:'POST',
-      headers:{Authorization:`Bearer ${token}`},
-      body:fd
+    const fd=new FormData(); fd.append('file',file);
+    const r=await fetch('/api/admin/regenerar_desde_excel',{
+      method:'POST', headers:{Authorization:`Bearer ${token}`}, body:fd
     }).then(x=>x.json());
-    status.textContent=`✅ ${r.pagos_creados} pagos · ${r.descuentos_creados} descuentos · ${r.lotes_actualizados} lotes actualizados`;
-    if(r.errores&&r.errores.length) console.warn('Errores en importación:', r.errores);
-  }catch(e){
-    status.textContent='❌ Error al importar. Verifica el archivo.';
-  }
+    if(r.ok){
+      _SD=null;           // forzar recarga del concentrado
+      _chequeraData=[];   // forzar recarga de chequera
+      _rendered.delete('chequera');
+      const _cSel=document.getElementById('chequeraAnio');
+      if(_cSel) while(_cSel.options.length>1) _cSel.remove(1);
+      await _loadLotes();
+      populateSelects();
+      if(st){
+        st.textContent=`✅ ${r.lotes_actualizados} lotes · ${r.pagos_importados} pagos · ${r.lecturas_importadas} lecturas agua · ${r.chequera_importados} en Chequera`;
+        st.style.color='var(--green)';
+      }
+      showToast('✅ Excel importado correctamente');
+    } else {
+      if(st){ st.textContent='❌ '+(r.error||JSON.stringify(r)); st.style.color='var(--red)'; }
+    }
+  }catch(e){ if(st){ st.textContent='❌ Error: '+e.message; st.style.color='var(--red)'; } }
 }
 
 async function _migrarSilvestraJson(){
@@ -5789,36 +5820,6 @@ async function _limpiarTodo(){
       setTimeout(()=>{ location.reload(); }, 1500);
     } else { st.textContent='❌ '+JSON.stringify(r); st.style.color='var(--red)'; }
   }catch(e){ st.textContent='❌ Error: '+e.message; st.style.color='var(--red)'; }
-}
-
-async function _importarExcelCompleto(input){
-  const file=input.files[0]; if(!file) return;
-  const token=localStorage.getItem('auth_token');
-  const st=document.getElementById('excelCompletoStatus');
-  st.textContent='Cargando y procesando… puede tardar 1-2 minutos.';
-  st.style.color='var(--muted)';
-  try{
-    const fd=new FormData(); fd.append('file',file);
-    const r=await fetch('/api/admin/regenerar_desde_excel',{
-      method:'POST', headers:{Authorization:`Bearer ${token}`}, body:fd
-    }).then(x=>x.json());
-    if(r.ok){
-      _SD=null;           // forzar recarga del concentrado
-      _chequeraData=[];   // forzar recarga de chequera
-      _rendered.delete('chequera');
-      const _cSel=document.getElementById('chequeraAnio');
-      if(_cSel) while(_cSel.options.length>1) _cSel.remove(1);
-      await _loadLotes();
-      populateSelects();
-      st.textContent=`✅ ${r.lotes_actualizados} lotes · ${r.pagos_importados} pagos · ${r.lecturas_importadas} lecturas agua · ${r.chequera_importados} en Chequera`;
-      st.style.color='var(--green)';
-      showToast('✅ Excel importado correctamente');
-    } else {
-      st.textContent='❌ '+JSON.stringify(r);
-      st.style.color='var(--red)';
-    }
-  }catch(e){ st.textContent='❌ Error: '+e.message; st.style.color='var(--red)'; }
-  input.value='';
 }
 
 // Cuota mensual fija (COF) por año

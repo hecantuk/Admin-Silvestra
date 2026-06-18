@@ -568,8 +568,8 @@ def _construir_historial(lote, pagos, descuentos, lecturas, cargos, hoy=None):
         k = p.mes_aplicado or ""
         if p.concepto == "COF":
             pago_cof[k] = pago_cof.get(k, 0) + p.importe
-            if p.fecha:
-                fpago_map[k] = str(p.fecha)
+            if p.fecha_pago:
+                fpago_map[k] = str(p.fecha_pago)
         elif p.concepto == "COV":
             pago_cov[k] = pago_cov.get(k, 0) + p.importe
 
@@ -893,53 +893,43 @@ def eliminar_archivo(aid: int, admin: Usuario = Depends(_admin_only)):
 
 # ─── REPORTE / SALDOS ────────────────────────────────────────
 @app.get("/api/reporte/saldos")
-def reporte_saldos(mes: str = "2026-05"):
-    """Concentrado de cobranza acumulado: saldo real de cada lote al mes dado."""
+def reporte_saldos(mes: str = "9999-12"):
+    """Concentrado de cobranza: saldo real de cada lote al mes dado.
+    Usa EXACTAMENTE el mismo motor que el Concentrado y el Estado de cuenta
+    (_construir_historial), filtrando movimientos hasta el mes pedido, para que
+    los saldos cuadren al centavo con el Excel y entre todos los menús."""
+    anio_hasta = int(mes.split("-")[0])
     with Session(engine) as s:
         lotes = s.exec(select(Lote).where(Lote.propietario != None)).all()
         resultado = []
         for lote in lotes:
-            # Pagos acumulados aprobados hasta el mes dado (COF y COV por separado)
-            pagos = s.exec(
-                select(Pago).where(
-                    Pago.lote_id == lote.id,
-                    Pago.estado == "aprobado",
-                    Pago.mes_aplicado <= mes,
-                )
-            ).all()
-            pagado_cof = sum(p.importe for p in pagos if p.concepto == "COF")
-            pagado_cov = sum(p.importe for p in pagos if p.concepto == "COV")
+            if lote.propietario and lote.propietario.upper() == "CASA MUESTRA":
+                continue
 
-            # Descuentos acumulados
-            descuentos = s.exec(
-                select(Descuento).where(Descuento.lote_id == lote.id)
-            ).all()
-            desc_cof = sum(d.importe for d in descuentos if d.concepto == "COF")
-            desc_cov = sum(d.importe for d in descuentos if d.concepto == "COV")
-            desc_total = desc_cof + desc_cov
+            # Traer movimientos y recortarlos "al mes dado"
+            pagos = [p for p in s.exec(select(Pago).where(
+                        Pago.lote_id == lote.id, Pago.estado == "aprobado")).all()
+                     if p.mes_aplicado <= mes]
+            descuentos = [d for d in s.exec(select(Descuento).where(
+                        Descuento.lote_id == lote.id)).all()
+                     if (d.anio is None or d.anio <= anio_hasta)]
+            lecturas = [l for l in s.exec(select(LecturaAgua).where(
+                        LecturaAgua.lote_id == lote.id)).all()
+                     if l.mes <= mes]
+            cargos = [c for c in s.exec(select(Cargo).where(
+                        Cargo.lote_id == lote.id)).all()
+                     if c.mes <= mes]
 
-            # COF acumulado: cuota × meses desde escrituración hasta mes dado
-            anio_mes = mes.split("-")
-            mes_hasta = date(int(anio_mes[0]), int(anio_mes[1]), 1)
-            if lote.fecha_escrituracion:
-                mes_inicio = date(lote.fecha_escrituracion.year, lote.fecha_escrituracion.month, 1)
-            else:
-                mes_inicio = date(2020, 9, 1)  # fallback: primer registro en el sistema
-            meses_transcurridos = max(0, (mes_hasta.year - mes_inicio.year) * 12 + (mes_hasta.month - mes_inicio.month) + 1)
-            cargado_cof = lote.cuota_cof * meses_transcurridos
-
-            # COV cargado: suma de lecturas de agua aprobadas
-            cov_cargado = s.exec(
-                select(LecturaAgua).where(LecturaAgua.lote_id == lote.id, LecturaAgua.mes <= mes)
-            ).all()
-            cargado_cov = sum(l.importe for l in cov_cargado)
-
-            saldo_cof = cargado_cof - pagado_cof - desc_cof
-            saldo_cov = cargado_cov - pagado_cov - desc_cov
-            saldo_total = saldo_cof + saldo_cov
+            _meses, tot = _construir_historial(lote, pagos, descuentos, lecturas, cargos)
 
             pagado_mes = sum(p.importe for p in pagos if p.mes_aplicado == mes)
-            meses_vencidos = max(0, round(saldo_cof / lote.cuota_cof)) if saldo_cof > 0 else 0
+            saldo_total = round(tot["saldo_cof"] + tot["saldo_cov"], 2)
+            if saldo_total <= 0.01:
+                estado = "corriente"
+            elif pagado_mes > 0:
+                estado = "abonando"
+            else:
+                estado = "moroso"
 
             resultado.append({
                 "lote_id": lote.id,
@@ -947,19 +937,19 @@ def reporte_saldos(mes: str = "2026-05"):
                 "numero": lote.numero,
                 "propietario": lote.propietario,
                 "cuota": lote.cuota_cof,
-                "cargado_cof": round(cargado_cof, 2),
-                "pagado_cof": round(pagado_cof, 2),
-                "pagado_cov": round(pagado_cov, 2),
-                "descuentos": round(desc_total, 2),
-                "desc_cof": round(desc_cof, 2),
-                "desc_cov": round(desc_cov, 2),
-                "saldo_cof": round(saldo_cof, 2),
-                "saldo_cov": round(saldo_cov, 2),
-                "saldo": round(saldo_total, 2),
-                "pagado": round(pagado_cof + pagado_cov, 2),
-                "meses_transcurridos": meses_transcurridos,
-                "meses_vencidos": meses_vencidos,
-                "estado": "corriente" if saldo_total <= 0 else ("abonando" if pagado_mes > 0 else "moroso"),
+                "cargado_cof": tot["cargado_cof"],
+                "pagado_cof": tot["pago_cof"],
+                "pagado_cov": tot["pago_cov"],
+                "descuentos": tot["desc"],
+                "desc_cof": tot["desc"],
+                "desc_cov": 0.0,
+                "saldo_cof": tot["saldo_cof"],
+                "saldo_cov": tot["saldo_cov"],
+                "saldo": saldo_total,
+                "pagado": round(tot["pago_cof"] + tot["pago_cov"], 2),
+                "meses_transcurridos": tot["n_meses"],
+                "meses_vencidos": tot["venc"],
+                "estado": estado,
             })
         total = len(resultado)
         corriente = sum(1 for r in resultado if r["estado"] == "corriente")
@@ -2172,121 +2162,145 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
     from sqlalchemy import text as _text2, delete as _sa_delete
     from fastapi.responses import JSONResponse as _JSONResponse
 
-    content = await file.read()
-    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    try:
+        content = await file.read()
+        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    except Exception as e:
+        return _JSONResponse(status_code=400, content={
+            "ok": False,
+            "error": f"No se pudo abrir el archivo Excel: {type(e).__name__}: {e}",
+            "traceback": _tb.format_exc()[-1500:],
+        })
 
     import re as _re
 
-    lotes_data = []
+    def _fv(r, col, default=0.0):
+        v = r[col] if len(r) > col else None
+        if v is None: return default
+        try: return float(v)
+        except: return default
 
-    for sheet_name in wb.sheetnames:
-        m_sheet = _re.match(r'^Edo\.Cta\.M(\d+) L(\d+)$', sheet_name)
-        if not m_sheet:
-            continue
-        mza = int(m_sheet.group(1))
-        lote_num = int(m_sheet.group(2))
-
-        ws = wb[sheet_name]
-        rows = list(ws.iter_rows(values_only=True))
-        if len(rows) < 14:
-            continue
-
-        nombre = str(rows[5][2] or '').strip() if len(rows[5]) > 2 and rows[5][2] else ''
-        if not nombre:
-            continue
-
-        def _fv(r, col, default=0.0):
-            v = r[col] if len(r) > col else None
-            if v is None: return default
-            try: return float(v)
-            except: return default
-
-        m2 = _fv(rows[6], 9, 0.0)
-        cuota_fija = _fv(rows[5], 13, 0.0)
-        tarifa_cov = _fv(rows[6], 13, 5.0)
-        saldo_cof = _fv(rows[13], 6, 0.0)
-
-        escrit_raw = rows[5][9] if len(rows[5]) > 9 else None
-        escrituracion = escrit_raw.date().isoformat() if hasattr(escrit_raw, 'date') else ''
-
-        meses = []
-        for row in rows[18:]:
-            if not row or len(row) < 1 or not row[0] or not hasattr(row[0], 'year'):
+    try:
+        lotes_data = []
+        vistos = set()
+        for sheet_name in wb.sheetnames:
+            m_sheet = _re.match(r'^Edo\.Cta\.M(\d+)\s+L(\d+)\s*$', sheet_name)
+            if not m_sheet:
                 continue
-            meses.append({
-                'mes': row[0].date().isoformat(),
-                'extra': _fv(row, 1),
-                'cof': _fv(row, 2),
-                'pagoCof': _fv(row, 3),
-                'desc': _fv(row, 4),
-                'fpago': row[5].date().isoformat() if len(row) > 5 and hasattr(row[5], 'date') else '',
-                'saldoMes': _fv(row, 6),
-                'vIni': _fv(row, 7),
-                'vFin': _fv(row, 8),
-                'consumo': _fv(row, 9),
-                'cov': _fv(row, 10),
-                'instal': _fv(row, 11),
-                'pagoCov': _fv(row, 12),
+            mza = int(m_sheet.group(1))
+            lote_num = int(m_sheet.group(2))
+            if (mza, lote_num) in vistos:
+                continue
+            vistos.add((mza, lote_num))
+
+            ws = wb[sheet_name]
+            rows = list(ws.iter_rows(values_only=True))
+            if len(rows) < 14:
+                continue
+
+            nombre = str(rows[5][2] or '').strip() if len(rows[5]) > 2 and rows[5][2] else ''
+            if not nombre:
+                continue
+
+            m2 = _fv(rows[6], 9, 0.0)
+            cuota_fija = _fv(rows[5], 13, 0.0)
+            tarifa_cov = _fv(rows[6], 13, 5.0)
+            saldo_cof = _fv(rows[13], 6, 0.0)
+
+            escrit_raw = rows[5][9] if len(rows[5]) > 9 else None
+            escrituracion = escrit_raw.date().isoformat() if hasattr(escrit_raw, 'date') else ''
+
+            meses = []
+            for row in rows[18:]:
+                if not row or len(row) < 1 or not row[0] or not hasattr(row[0], 'year'):
+                    continue
+                meses.append({
+                    'mes': row[0].date().isoformat(),
+                    'extra': _fv(row, 1),
+                    'cof': _fv(row, 2),
+                    'pagoCof': _fv(row, 3),
+                    'desc': _fv(row, 4),
+                    'fpago': row[5].date().isoformat() if len(row) > 5 and hasattr(row[5], 'date') else '',
+                    'saldoMes': _fv(row, 6),
+                    'vIni': _fv(row, 7),
+                    'vFin': _fv(row, 8),
+                    'consumo': _fv(row, 9),
+                    'cov': _fv(row, 10),
+                    'instal': _fv(row, 11),
+                    'pagoCov': _fv(row, 12),
+                })
+
+            lotes_data.append({
+                'sheet': sheet_name,
+                'mza': mza, 'lote': lote_num, 'nombre': nombre,
+                'm2': m2, 'escrituracion': escrituracion,
+                'cuotaFija': cuota_fija, 'tarifaCOV': tarifa_cov,
+                'totales': {
+                    'extra': round(sum(m['extra'] for m in meses), 2),
+                    'cof': round(sum(m['cof'] for m in meses), 2),
+                    'pagoCof': round(sum(m['pagoCof'] for m in meses), 2),
+                    'desc': round(sum(m['desc'] for m in meses), 2),
+                    'saldoCof': round(saldo_cof, 2),
+                    'cov': round(sum(m['cov'] for m in meses), 2),
+                    'instal': round(sum(m['instal'] for m in meses), 2),
+                    'pagoCov': round(sum(m['pagoCov'] for m in meses), 2),
+                },
+                'meses': meses
             })
 
-        lotes_data.append({
-            'sheet': sheet_name,
-            'mza': mza, 'lote': lote_num, 'nombre': nombre,
-            'm2': m2, 'escrituracion': escrituracion,
-            'cuotaFija': cuota_fija, 'tarifaCOV': tarifa_cov,
-            'totales': {
-                'extra': round(sum(m['extra'] for m in meses), 2),
-                'cof': round(sum(m['cof'] for m in meses), 2),
-                'pagoCof': round(sum(m['pagoCof'] for m in meses), 2),
-                'desc': round(sum(m['desc'] for m in meses), 2),
-                'saldoCof': round(saldo_cof, 2),
-                'cov': round(sum(m['cov'] for m in meses), 2),
-                'instal': round(sum(m['instal'] for m in meses), 2),
-                'pagoCov': round(sum(m['pagoCov'] for m in meses), 2),
-            },
-            'meses': meses
-        })
+        lotes_data.sort(key=lambda x: (x['mza'], x['lote']))
 
-    lotes_data.sort(key=lambda x: (x['mza'], x['lote']))
-    json_path = os.path.join(os.path.dirname(__file__), 'static', 'silvestra_data.json')
-    with open(json_path, 'w', encoding='utf-8') as f:
-        _json.dump(lotes_data, f, ensure_ascii=False, separators=(',', ':'))
+        if not lotes_data:
+            hojas = ", ".join(wb.sheetnames[:8])
+            return _JSONResponse(status_code=400, content={
+                "ok": False,
+                "error": (
+                    "No se encontró ninguna hoja de estado de cuenta válida. "
+                    "Las pestañas deben llamarse exactamente 'Edo.Cta.M<manzana> L<lote>' "
+                    "(por ejemplo 'Edo.Cta.M24 L01') y tener el nombre del asociado en la celda C6. "
+                    f"Hojas detectadas en el archivo: {hojas}…"
+                ),
+            })
 
-    pagos_importados = 0
-    lecturas_importadas = 0
-    importados = 0
-    anio_actual = date.today().year
-    try:
+        # Guardar copia JSON en disco (ignorar si el sistema de archivos es read-only)
+        try:
+            json_path = os.path.join(os.path.dirname(__file__), 'static', 'silvestra_data.json')
+            with open(json_path, 'w', encoding='utf-8') as f:
+                _json.dump(lotes_data, f, ensure_ascii=False, separators=(',', ':'))
+        except Exception:
+            pass
+
+        anio_actual = date.today().year
         importados = _regenerar_escribir_bd(wb, lotes_data, anio_actual)
+
+        pagos_importados = sum(
+            1 for ld in lotes_data for m in ld['meses']
+            if int(m['mes'][:4]) <= anio_actual and (m['pagoCof'] > 0)
+        ) + sum(
+            1 for ld in lotes_data for m in ld['meses']
+            if int(m['mes'][:4]) <= anio_actual and (m['pagoCov'] > 0)
+        )
+        lecturas_importadas = sum(
+            1 for ld in lotes_data for m in ld['meses']
+            if int(m['mes'][:4]) <= anio_actual and ((m['cov'] or 0) != 0)
+        )
+
+        return {
+            "ok": True,
+            "lotes_actualizados": len(lotes_data),
+            "meses_total": sum(len(l['meses']) for l in lotes_data),
+            "chequera_importados": importados,
+            "lotes_en_bd": len(lotes_data),
+            "pagos_importados": pagos_importados,
+            "lecturas_importadas": lecturas_importadas,
+        }
+
     except Exception as e:
         return _JSONResponse(status_code=500, content={
             "ok": False,
             "error": f"{type(e).__name__}: {e}",
-            "traceback": _tb.format_exc()[-1500:],
+            "traceback": _tb.format_exc()[-2000:],
         })
-
-    # Recalcular contadores para la respuesta
-    pagos_importados = sum(
-        1 for ld in lotes_data for m in ld['meses']
-        if int(m['mes'][:4]) <= anio_actual and (m['pagoCof'] > 0)
-    ) + sum(
-        1 for ld in lotes_data for m in ld['meses']
-        if int(m['mes'][:4]) <= anio_actual and (m['pagoCov'] > 0)
-    )
-    lecturas_importadas = sum(
-        1 for ld in lotes_data for m in ld['meses']
-        if int(m['mes'][:4]) <= anio_actual and ((m['cov'] or 0) != 0)
-    )
-
-    return {
-        "ok": True,
-        "lotes_actualizados": len(lotes_data),
-        "meses_total": sum(len(l['meses']) for l in lotes_data),
-        "chequera_importados": importados,
-        "lotes_en_bd": len(lotes_data),
-        "pagos_importados": pagos_importados,
-        "lecturas_importadas": lecturas_importadas,
-    }
 
 
 def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
@@ -2435,7 +2449,9 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
             # Commit por lote: transacciones acotadas (evita una sola de ~40k filas)
             s.commit()
 
-    # Limpiar y reimportar Chequera
+    # Limpiar y reimportar Chequera (solo si la hoja existe)
+    if 'Chequera' not in wb.sheetnames:
+        return 0
     with engine.connect() as conn:
         conn.execute(_text2("DELETE FROM movimientobancario"))
         conn.commit()

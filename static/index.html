@@ -943,7 +943,7 @@ tr:last-child td{border-bottom:none}
         </div>
         <div id="ecPlaceholder" style="text-align:center;padding:60px 20px;color:var(--muted)">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="opacity:.3;margin-bottom:12px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <p style="font-size:14px">Selecciona una manzana y un lote para ver su estado de cuenta completo</p>
+          <p id="ecPlaceholderMsg" style="font-size:14px">Selecciona una manzana y un lote para ver su estado de cuenta completo</p>
         </div>
         <div id="ecContent" style="display:none">
           <span class="backlink" onclick="_ecClear()">← Volver</span>
@@ -960,6 +960,13 @@ tr:last-child td{border-bottom:none}
             </div>
             <div class="ec-info-grid" id="ecInfoGrid"></div>
             <div class="ec-sumbox" id="ecSumbox"></div>
+            <div id="ecNotasBox" style="margin:0 24px 8px;padding:14px;border:1px solid var(--border);border-radius:8px;background:#FFFDF5">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <span style="font-weight:600;font-size:13px">📝 Notas del lote</span>
+                <button id="ecNotasBtn" onclick="_ecGuardarNotas()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer">Guardar</button>
+              </div>
+              <textarea id="ecNotasInput" rows="3" placeholder="Anotaciones libres: tarjetas de acceso, condonaciones, acuerdos especiales…" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+            </div>
             <div style="padding:16px 24px 0">
               <div class="tabs">
                 <div class="tab active" id="ecTabMensual" onclick="switchEcTab('mensual',this)">Detalle mensual</div>
@@ -970,9 +977,9 @@ tr:last-child td{border-bottom:none}
               <div class="ec-scroll">
                 <table id="ecTableMensual">
                   <thead><tr>
-                    <th>Mes</th><th style="text-align:right">Extraord.</th><th style="text-align:right">COF</th>
+                    <th id="ecThMes" onclick="_ecToggleSort()" style="cursor:pointer;user-select:none;white-space:nowrap">Mes <span id="ecSortArrow">▲</span></th><th style="text-align:right">Extraord.</th><th style="text-align:right">COF</th>
                     <th style="text-align:right">Pago</th><th style="text-align:right">Descuento</th>
-                    <th>Fecha pago</th><th style="text-align:right">Saldo mes</th>
+                    <th>Fecha pago</th><th style="text-align:right">Saldo acum.</th>
                     <th style="text-align:right">Lect. ini</th><th style="text-align:right">Lect. fin</th>
                     <th style="text-align:right">Consumo m³</th><th style="text-align:right">COV</th>
                     <th style="text-align:right">Instal.</th><th style="text-align:right">Pago COV</th>
@@ -1092,6 +1099,16 @@ tr:last-child td{border-bottom:none}
               </select>
               <button class="btn-primary" onclick="exportGeneralPDF()">📄 PDF general</button>
               <button class="btn-secondary" onclick="exportGeneralExcel()">📊 Excel general</button>
+            </div>
+            <div style="margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:8px;background:#F0FAF4">
+              <div style="font-weight:600;margin-bottom:4px">📘 Libro completo (formato Silvestra, con fórmulas)</div>
+              <p style="font-size:13px;color:var(--muted);margin-bottom:10px">
+                Descarga el archivo Excel con una hoja de estado de cuenta por lote
+                (con fórmulas vivas de saldo, consumo y COV), más Concentrado COF/COV
+                y Chequera. Es el mismo estilo que el Excel maestro; refleja todo lo que
+                hayas capturado en la plataforma.
+              </p>
+              <button class="btn-primary" id="btnLibroCompleto" onclick="descargarLibroCompleto()">⬇ Descargar libro completo (.xlsx)</button>
             </div>
             <div style="background:var(--bg);border-radius:8px;padding:14px;font-size:13px;color:var(--muted)">
               Incluye: Manzana, Lote, Propietario, m², Cuota COF, Total cargado, Total pagado, Saldo, Estado y porcentajes de morosidad.
@@ -2426,12 +2443,17 @@ function _fmtMoney(n,dec=0){ if(n===null||n===undefined||n===0) return '<span cl
   const cls=n>0?'money-red':'money-ok'; return `<span class="${cls}">${n<0?'-':''}$${Math.abs(n).toLocaleString('es-MX',{minimumFractionDigits:dec,maximumFractionDigits:dec})}</span>`; }
 function _fmtPos(n,dec=0){ if(!n) return '—'; return '$'+n.toLocaleString('es-MX',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
 
+let _ecLoadError = null;   // último error al cargar el concentrado (para mostrarlo)
 async function _loadSD(){
   if(_SD) return _SD;
+  _ecLoadError = null;
   const token=localStorage.getItem('auth_token');
   try{
     const r=await fetch('/api/concentrado',{headers:{Authorization:'Bearer '+token}});
-    if(!r.ok) throw new Error('HTTP '+r.status);
+    if(!r.ok){
+      let detalle=''; try{ detalle=(await r.json()).detail||''; }catch(_){}
+      throw new Error('HTTP '+r.status+(detalle?' — '+detalle:''));
+    }
     const data=await r.json();
     _SD=(data||[]).map(l=>{
       const totalCof=l.meses.reduce((a,m)=>a+(m.cof||0),0);
@@ -2452,7 +2474,7 @@ async function _loadSD(){
         totales:{cof:totalCof,extra:totalExtra,pagoCof:totalPagoCof,desc:totalDesc,
                  saldoCof,cov:totalCov,instal:totalInstal,pagoCov:totalPagoCov}};
     });
-  }catch(e){ console.error('No se pudo cargar concentrado desde BD',e); _SD=[]; }
+  }catch(e){ console.error('No se pudo cargar concentrado desde BD',e); _SD=[]; _ecLoadError=e.message; }
   return _SD;
 }
 
@@ -2466,6 +2488,17 @@ async function _ecFilterLotes(){
   await _loadSD();
   const sel=document.getElementById('ecLoteSelect');
   sel.innerHTML='<option value="">— Selecciona un lote —</option>';
+  const msg=document.getElementById('ecPlaceholderMsg');
+  // Diagnóstico visible: distinguir error de servidor vs. sin datos importados
+  if(msg){
+    if(_ecLoadError){
+      msg.innerHTML='⚠️ No se pudo cargar la información desde el servidor.<br><span style="font-size:12px;color:var(--red)">'+_ecLoadError+'</span><br><span style="font-size:12px">Revisa <b>Configuración → Importar Excel</b> o reporta este error a soporte.</span>';
+    } else if(!_SD || _SD.length===0){
+      msg.innerHTML='No hay lotes cargados todavía.<br><span style="font-size:12px">Ve a <b>Configuración → Importar Excel</b> y sube el archivo de estados de cuenta.</span>';
+    } else {
+      msg.textContent='Selecciona una manzana y un lote para ver su estado de cuenta completo';
+    }
+  }
   const lotes=(_SD||[]).filter(l=>l.nombre
       &&!l.nombre.toUpperCase().includes('CASA MUESTRA')
       &&(!mza||l.mza===mza)
@@ -2531,6 +2564,29 @@ function _ecRender(l){
       <div class="row tot"><span>Saldo pendiente</span><b class="${saldoCovCls}">$${Math.abs(l.saldoCov||0).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</b></div>
     </div>`;
   switchEcTab('mensual', document.getElementById('ecTabMensual'));
+  const ta=document.getElementById('ecNotasInput');
+  if(ta) ta.value = l.notas || '';
+}
+
+async function _ecGuardarNotas(){
+  if(!_ecLote){ return; }
+  const btn=document.getElementById('ecNotasBtn');
+  const ta=document.getElementById('ecNotasInput');
+  if(!_ecLote.lote_id){ showToast('No se puede guardar: falta el id del lote'); return; }
+  const prev=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Guardando…'; }
+  try{
+    const token=localStorage.getItem('auth_token');
+    const r=await fetch(`/api/lotes/${_ecLote.lote_id}/notas`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+      body:JSON.stringify({notas:ta.value})
+    }).then(x=>x.json());
+    _ecLote.notas = r.notas || '';
+    // reflejar en la caché del concentrado
+    if(_SD){ const f=_SD.find(x=>x.lote_id===_ecLote.lote_id); if(f) f.notas=_ecLote.notas; }
+    showToast('✅ Notas guardadas');
+  }catch(e){ showToast('❌ No se pudieron guardar las notas'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=prev; } }
 }
 
 function switchEcTab(tab, el){
@@ -2543,10 +2599,33 @@ function switchEcTab(tab, el){
   else _ecRenderAnual(_ecLote);
 }
 
+let _ecSortDesc = false;  // false = más antiguo primero (default), true = más reciente primero
+
+function _ecToggleSort(){
+  _ecSortDesc = !_ecSortDesc;
+  const arrow = document.getElementById('ecSortArrow');
+  if(arrow) arrow.textContent = _ecSortDesc ? '▼' : '▲';
+  if(_ecLote) _ecRenderMensual(_ecLote);
+}
+
 function _ecRenderMensual(l){
   const meses=l.meses.filter(m=>m.cof>0||m.cov>0||m.pagoCof>0||m.extra>0||m.pagoCov>0||m.instal>0);
-  document.getElementById('ecBodyMensual').innerHTML=meses.map(m=>{
-    const saldoCls=m.saldoMes>0?'money-red':m.saldoMes<0?'money-ok':'money-zero';
+
+  // 1. Calcular saldo acumulado en orden cronológico (siempre de más antiguo a más reciente)
+  let acum=0;
+  let tE=0,tC=0,tP=0,tD=0,tCv=0,tI=0,tPv=0;
+  const mesesConAcum=meses.map(m=>{
+    acum += (m.cof||0)+(m.extra||0)-(m.pagoCof||0)-(m.desc||0);
+    tE+=m.extra||0; tC+=m.cof||0; tP+=m.pagoCof||0; tD+=m.desc||0;
+    tCv+=m.cov||0; tI+=m.instal||0; tPv+=m.pagoCov||0;
+    return {...m, _acum: acum};
+  });
+
+  // 2. Ordenar para la vista (sin alterar el acumulado ya calculado)
+  const vista = _ecSortDesc ? [...mesesConAcum].reverse() : mesesConAcum;
+
+  const filas=vista.map(m=>{
+    const saldoCls=m._acum>0.5?'money-red':m._acum<-0.5?'money-ok':'money-zero';
     return `<tr>
       <td style="font-weight:500">${_mlabel(m.mes)}</td>
       <td style="text-align:right;color:var(--muted)">${m.extra?'$'+m.extra.toLocaleString():'—'}</td>
@@ -2554,7 +2633,7 @@ function _ecRenderMensual(l){
       <td style="text-align:right;color:var(--green)">${m.pagoCof?'$'+m.pagoCof.toLocaleString():'—'}</td>
       <td style="text-align:right;color:var(--muted)">${m.desc?'$'+m.desc.toLocaleString():'—'}</td>
       <td style="color:var(--muted);font-size:11px">${m.fpago||'—'}</td>
-      <td style="text-align:right"><span class="${saldoCls}">$${m.saldoMes.toLocaleString()}</span></td>
+      <td style="text-align:right"><span class="${saldoCls}">$${m._acum.toLocaleString()}</span></td>
       <td style="text-align:right;color:var(--muted)">${m.vFin?m.vIni:'—'}</td>
       <td style="text-align:right;color:var(--muted)">${m.vFin||'—'}</td>
       <td style="text-align:right">${m.consumo||'—'}</td>
@@ -2563,6 +2642,23 @@ function _ecRenderMensual(l){
       <td style="text-align:right;color:var(--green)">${m.pagoCov?'$'+m.pagoCov.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
     </tr>`;
   }).join('');
+  // Fila de acumulado/totales al final (lo que pediste: "por mes y luego el acumulado")
+  const totCls=acum>0.5?'money-red':'money-ok';
+  const pie=`<tr style="border-top:2px solid var(--border);font-weight:600;background:var(--bg)">
+      <td>ACUMULADO</td>
+      <td style="text-align:right;color:var(--muted)">${tE?'$'+tE.toLocaleString():'—'}</td>
+      <td style="text-align:right">$${tC.toLocaleString()}</td>
+      <td style="text-align:right;color:var(--green)">$${tP.toLocaleString()}</td>
+      <td style="text-align:right;color:var(--muted)">${tD?'$'+tD.toLocaleString():'—'}</td>
+      <td></td>
+      <td style="text-align:right"><span class="${totCls}">$${acum.toLocaleString()}</span></td>
+      <td colspan="2"></td>
+      <td></td>
+      <td style="text-align:right">${tCv?'$'+tCv.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+      <td style="text-align:right;color:var(--muted)">${tI?'$'+tI.toLocaleString():'—'}</td>
+      <td style="text-align:right;color:var(--green)">${tPv?'$'+tPv.toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</td>
+    </tr>`;
+  document.getElementById('ecBodyMensual').innerHTML=filas+(meses.length?pie:'');
 }
 
 function _ecRenderAnual(l){
@@ -3075,7 +3171,7 @@ function renderLotes(data){
     return `<tr>
       <td><span style="font-weight:600;color:var(--teal)">${l.mza}</span></td>
       <td><span style="font-weight:600">${l.lote}</span></td>
-      <td style="color:var(--muted);font-size:12px">${l.paseo}</td>
+      <td style="color:var(--muted);font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default" title="${(l.paseo||'').replace(/"/g,'&quot;')}">${l.paseo||'—'}</td>
       <td style="font-family:'DM Mono',monospace;font-size:12px">${l.m2.toFixed(0)}</td>
       <td class="td-name">${l.propietario||'—'}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:500">$${l.cuota.toLocaleString()}</td>
@@ -4024,6 +4120,25 @@ function exportGeneralPDF(){
 // ============================================================
 function exportGeneralExcel(){
   _loadXLSX(()=>_exportGeneralExcelDo());
+}
+async function descargarLibroCompleto(){
+  const btn=document.getElementById('btnLibroCompleto');
+  const txt=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent='Generando… (puede tardar)'; }
+  try{
+    const token=localStorage.getItem('auth_token');
+    const r=await fetch('/api/export/libro_completo',{headers:{Authorization:'Bearer '+token}});
+    if(!r.ok){ let d=''; try{ d=(await r.json()).detail||''; }catch(_){}
+      throw new Error('HTTP '+r.status+(d?' — '+d:'')); }
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`EstadosDeCuenta_Silvestra_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    showToast('✅ Libro descargado');
+  }catch(e){ showToast('❌ '+e.message); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=txt; } }
 }
 function _exportGeneralExcelDo(){
   const mes=document.getElementById('exportMes').value;

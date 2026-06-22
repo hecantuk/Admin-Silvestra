@@ -292,6 +292,7 @@ def on_startup():
         "ALTER TABLE movimientobancario ADD COLUMN nombre TEXT",
         "ALTER TABLE movimientobancario ADD COLUMN concepto TEXT",
         "ALTER TABLE movimientobancario ADD COLUMN importe DOUBLE PRECISION",
+        "ALTER TABLE lote ADD COLUMN notas TEXT",
     ]:
         try:
             with engine.connect() as _c:
@@ -605,7 +606,7 @@ def _construir_historial(lote, pagos, descuentos, lecturas, cargos, hoy=None):
 
     keys = (set(cof_mes_map) | set(pago_cof) | set(pago_cov) | set(cov_map)
             | set(extra_cof) | set(extra_cov) | set(instal_map) | set(desc_mes))
-    keys = {k for k in keys if len(k) >= 7 and k[:4].isdigit()}
+    keys = {k for k in keys if k and len(k) >= 7 and k[:4].isdigit()}
 
     if importado and keys:
         parsed = sorted(_fd(int(k[:4]), int(k[5:7])) for k in keys)
@@ -618,7 +619,7 @@ def _construir_historial(lote, pagos, descuentos, lecturas, cargos, hoy=None):
     cur = ini
     while cur <= fin:
         key = cur.strftime("%Y-%m")
-        cof = cof_mes_map.get(key, 0) if importado else lote.cuota_cof
+        cof = cof_mes_map.get(key, 0) if importado else (lote.cuota_cof or 0)
         extra = extra_cof.get(key, 0)
         pcof = pago_cof.get(key, 0)
         desc = desc_mes.get(key, 0)
@@ -645,7 +646,7 @@ def _construir_historial(lote, pagos, descuentos, lecturas, cargos, hoy=None):
         })
         cur = date(cur.year + (cur.month // 12), cur.month % 12 + 1, 1)
 
-    tot_cuota_cof = sum(cof_mes_map.values()) if importado else lote.cuota_cof * len(meses_rows)
+    tot_cuota_cof = sum(cof_mes_map.values()) if importado else (lote.cuota_cof or 0) * len(meses_rows)
     tot_extra = sum(extra_cof.values())
     tot_cargado_cof = tot_cuota_cof + tot_extra
     tot_pago_cof = sum(pago_cof.values())
@@ -828,13 +829,71 @@ def lista_pagos(estado: Optional[str] = None, mes: Optional[str] = None,
 
 
 # ─── GASTOS ──────────────────────────────────────────────────
+def _clasificar_egreso(texto: str) -> str:
+    """Clasifica un egreso de Chequera en un tipo, para las tarjetas de resumen.
+    Ajusta las palabras clave si tu catálogo de conceptos cambia."""
+    t = (texto or "").lower()
+    def has(*ws): return any(w in t for w in ws)
+    if has("inversión", "inversion", "apertura"):           return "Inversión"
+    if has("comisión", "comision", "token", "banca electr", "cheques exped"):
+        return "Banca"
+    if has("segurid", "vigilan", "caseta", "guardia"):       return "Seguridad"
+    if has("manten", "jardin", "jardín", "poda", "reparac", "rep de", "rep ", "fumig",
+           "pintura", "barda", "portón", "porton", "limpieza", "obra", "luminar",
+           "pavi", "asfalt", "plomer", "albañil", "herrer"):
+        return "Mantenimiento"
+    if has("cfe", "electric", "agua", "internet", "telmex", "teléfon",
+           "telefon", "residentfy", "aplicaci", "pipa", "gas"):
+        return "Servicios"
+    if has("isr", "iva", "sat", "provisional", "impuesto", "retenido"):
+        return "Impuestos"
+    return "Administración"
+
+
 @app.get("/api/gastos")
 def get_gastos(mes: Optional[str] = None):
+    """Gastos = capturas manuales (tabla Gasto) + egresos reales de la Chequera
+    (MovimientoBancario con cargo>0). Los de Chequera vienen con fuente='chequera'
+    y sin id (no editables/sin archivos), clasificados por tipo."""
     with Session(engine) as s:
         q = select(Gasto)
         if mes:
             q = q.where(Gasto.fecha.like(f"{mes}%"))
-        return s.exec(q).all()
+        manuales = []
+        for g in s.exec(q).all():
+            d = g.model_dump()
+            d["fuente"] = "manual"
+            manuales.append(d)
+
+        # Egresos de la Chequera
+        qm = select(MovimientoBancario).where(MovimientoBancario.cargo > 0)
+        egresos = []
+        for m in s.exec(qm).all():
+            mes_key = str(m.fecha)[:7]
+            if mes and mes_key != mes:
+                continue
+            concepto = (m.concepto or m.descripcion or "Egreso").strip()
+            tipo = _clasificar_egreso(concepto + " " + (m.nombre or ""))
+            # "Inversión" (Apertura de Inversión, ISR sobre inversión) es movimiento
+            # de tesorería, NO un gasto: se omite para no inflar el total.
+            # Si quieres verlos, quita este filtro.
+            if tipo == "Inversión":
+                continue
+            egresos.append({
+                "id": None,                       # sin id → no editable / sin archivos
+                "fecha": str(m.fecha),
+                "concepto": concepto,
+                "proveedor": (m.nombre or "—"),
+                "tipo": tipo,
+                "importe": round(m.cargo or 0, 2),
+                "factura": m.referencia or None,
+                "notas": None,
+                "fuente": "chequera",
+            })
+        # Orden cronológico (más reciente primero)
+        todos = manuales + egresos
+        todos.sort(key=lambda x: x.get("fecha") or "", reverse=True)
+        return todos
 
 @app.post("/api/gastos")
 def create_gasto(gasto: Gasto):
@@ -979,28 +1038,109 @@ def get_concentrado(admin: Usuario = Depends(_admin_only)):
             if lote.propietario and lote.propietario.upper() == "CASA MUESTRA":
                 continue
 
-            pagos = s.exec(select(Pago).where(Pago.lote_id == lote.id, Pago.estado == "aprobado")).all()
-            descuentos = s.exec(select(Descuento).where(Descuento.lote_id == lote.id)).all()
-            lecturas = s.exec(select(LecturaAgua).where(LecturaAgua.lote_id == lote.id)).all()
-            cargos = s.exec(select(Cargo).where(Cargo.lote_id == lote.id)).all()
+            try:
+                pagos = s.exec(select(Pago).where(Pago.lote_id == lote.id, Pago.estado == "aprobado")).all()
+                descuentos = s.exec(select(Descuento).where(Descuento.lote_id == lote.id)).all()
+                lecturas = s.exec(select(LecturaAgua).where(LecturaAgua.lote_id == lote.id)).all()
+                cargos = s.exec(select(Cargo).where(Cargo.lote_id == lote.id)).all()
 
-            meses_rows, tot = _construir_historial(lote, pagos, descuentos, lecturas, cargos)
+                meses_rows, tot = _construir_historial(lote, pagos, descuentos, lecturas, cargos)
 
-            resultado.append({
-                "mza": lote.manzana,
-                "lote": lote.numero,
-                "nombre": lote.propietario,
-                "m2": lote.m2,
-                "cuotaFija": lote.cuota_cof,
-                "escrituracion": str(lote.fecha_escrituracion) if lote.fecha_escrituracion else None,
-                "estado": tot["estado"],
-                "venc": tot["venc"],
-                "saldoCof": tot["saldo_cof"],
-                "saldoCov": tot["saldo_cov"],
-                "meses": meses_rows,
-            })
+                resultado.append({
+                    "lote_id": lote.id,
+                    "mza": lote.manzana,
+                    "lote": lote.numero,
+                    "nombre": lote.propietario,
+                    "m2": lote.m2,
+                    "cuotaFija": lote.cuota_cof,
+                    "escrituracion": str(lote.fecha_escrituracion) if lote.fecha_escrituracion else None,
+                    "estado": tot["estado"],
+                    "venc": tot["venc"],
+                    "saldoCof": tot["saldo_cof"],
+                    "saldoCov": tot["saldo_cov"],
+                    "notas": lote.notas,
+                    "meses": meses_rows,
+                })
+            except Exception as _e:
+                # Un lote con datos corruptos NO debe tumbar todo el concentrado
+                # (eso dejaba el Estado de Cuenta en blanco). Lo registramos y lo
+                # incluimos con datos mínimos para que el admin lo vea y lo revise.
+                import traceback as _tbc
+                print(f"[concentrado] Error en lote M{lote.manzana} L{lote.numero}: {_e}")
+                print(_tbc.format_exc()[-800:])
+                resultado.append({
+                    "mza": lote.manzana, "lote": lote.numero,
+                    "nombre": lote.propietario, "m2": lote.m2,
+                    "cuotaFija": lote.cuota_cof or 0,
+                    "escrituracion": str(lote.fecha_escrituracion) if lote.fecha_escrituracion else None,
+                    "estado": "moroso", "venc": 0,
+                    "saldoCof": 0, "saldoCov": 0, "meses": [],
+                    "_error": f"{type(_e).__name__}: {_e}",
+                })
 
         return resultado
+
+
+class NotasReq(SQLModel):
+    notas: Optional[str] = None
+
+
+@app.put("/api/lotes/{lote_id}/notas")
+def actualizar_notas_lote(lote_id: int, req: NotasReq, admin: Usuario = Depends(_admin_only)):
+    """Edita las notas libres de un lote (tarjetas de acceso, condonaciones, etc.)."""
+    with Session(engine) as s:
+        lote = s.get(Lote, lote_id)
+        if not lote:
+            raise HTTPException(404, "Lote no encontrado")
+        lote.notas = (req.notas or "").strip() or None
+        s.add(lote); s.commit()
+        return {"ok": True, "notas": lote.notas}
+
+
+@app.get("/api/export/libro_completo")
+def export_libro_completo(admin: Usuario = Depends(_admin_only)):
+    """Genera el libro Excel completo (formato Silvestra, con fórmulas vivas):
+    una hoja Edo.Cta por lote + Concentrado COF/COV + Chequera. Se arma desde la BD,
+    así que refleja lo que el admin haya capturado en la plataforma."""
+    import silvestra_export as _sx
+    from fastapi.responses import StreamingResponse as _SR
+    with Session(engine) as s:
+        lotes = s.exec(select(Lote).where(Lote.propietario != None, Lote.activo == True)).all()
+        lotes_full = []
+        for lote in lotes:
+            if lote.propietario and lote.propietario.upper() == "CASA MUESTRA":
+                continue
+            try:
+                pagos = s.exec(select(Pago).where(Pago.lote_id == lote.id, Pago.estado == "aprobado")).all()
+                descuentos = s.exec(select(Descuento).where(Descuento.lote_id == lote.id)).all()
+                lecturas = s.exec(select(LecturaAgua).where(LecturaAgua.lote_id == lote.id)).all()
+                cargos = s.exec(select(Cargo).where(Cargo.lote_id == lote.id)).all()
+                meses_rows, tot = _construir_historial(lote, pagos, descuentos, lecturas, cargos)
+                tarifa = lecturas[0].tarifa_por_m3 if lecturas else 5
+                lotes_full.append({
+                    "mza": lote.manzana, "lote": lote.numero, "nombre": lote.propietario,
+                    "m2": lote.m2, "cuotaFija": lote.cuota_cof,
+                    "escrituracion": str(lote.fecha_escrituracion) if lote.fecha_escrituracion else None,
+                    "saldoCof": tot["saldo_cof"], "saldoCov": tot["saldo_cov"],
+                    "tarifaCOV": tarifa, "notas": lote.notas, "meses": meses_rows,
+                })
+            except Exception as _e:
+                print(f"[export] Lote M{lote.manzana} L{lote.numero} omitido: {_e}")
+
+        movs = s.exec(select(MovimientoBancario).order_by(MovimientoBancario.fecha)).all()
+        movimientos = [{
+            "fecha": m.fecha, "referencia": m.referencia, "nombre": m.nombre,
+            "concepto": m.concepto, "descripcion": m.descripcion, "importe": m.importe,
+            "iva_ret": m.iva_ret, "isr_ret": m.isr_ret, "cargo": m.cargo, "abono": m.abono,
+        } for m in movs]
+
+    data = _sx.construir_libro(lotes_full, movimientos)
+    fname = f"EstadosDeCuenta_Silvestra_{date.today().isoformat()}.xlsx"
+    return _SR(
+        io.BytesIO(data),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
 
 
 # ─── CARGOS EXTRAORDINARIOS ───────────────────────────────────
@@ -2210,6 +2350,25 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
             escrit_raw = rows[5][9] if len(rows[5]) > 9 else None
             escrituracion = escrit_raw.date().isoformat() if hasattr(escrit_raw, 'date') else ''
 
+            # Notas: cualquier anotación en columnas Q+ (índice >= 16), fuera de la
+            # tabla A-O (tarjetas de acceso, condonaciones, mini-tablas, etc.).
+            _notas_lineas = []
+            for row in rows:
+                if len(row) <= 16:
+                    continue
+                celdas = []
+                for v in row[16:]:
+                    if v is None:
+                        continue
+                    sv = v.date().isoformat() if hasattr(v, 'date') else str(v).strip()
+                    if sv:
+                        celdas.append(sv)
+                if celdas:
+                    linea = ' | '.join(celdas)
+                    if len(linea) > 1:   # ignora celdas sueltas de 1 carácter
+                        _notas_lineas.append(linea)
+            notas = '\n'.join(_notas_lineas) or None
+
             meses = []
             for row in rows[18:]:
                 if not row or len(row) < 1 or not row[0] or not hasattr(row[0], 'year'):
@@ -2235,6 +2394,7 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
                 'mza': mza, 'lote': lote_num, 'nombre': nombre,
                 'm2': m2, 'escrituracion': escrituracion,
                 'cuotaFija': cuota_fija, 'tarifaCOV': tarifa_cov,
+                'notas': notas,
                 'totales': {
                     'extra': round(sum(m['extra'] for m in meses), 2),
                     'cof': round(sum(m['cof'] for m in meses), 2),
@@ -2303,6 +2463,10 @@ async def regenerar_desde_excel(file: UploadFile = File(...), admin: Usuario = D
         })
 
 
+# Paseo/Calle por lote (no viene en el Excel; se toma del catálogo interno).
+_PASEO_MAP = {(24,1):"Paseo de los Nogales", (24,2):"Paseo de los Nogales", (24,3):"Paseo de los Nogales", (24,4):"Paseo de los Sabinos", (24,5):"Paseo de los Sabinos", (24,6):"Paseo Silvestra", (24,7):"Paseo Silvestra", (24,8):"Paseo Silvestra", (24,9):"Paseo Silvestra", (24,10):"Paseo Silvestra", (24,11):"Paseo Silvestra", (24,12):"Paseo Silvestra", (24,13):"Paseo del Encino", (24,14):"Paseo del Encino", (24,15):"Paseo de los Robles", (24,16):"Paseo de los Robles", (24,17):"Paseo de los Nogales", (24,18):"Paseo de los Robles", (24,19):"Paseo de los Nogales", (24,20):"Paseo de los Sabinos", (24,21):"Paseo de los Sabinos", (24,22):"Paseo de los Sabinos", (24,31):"Paseo de los Olmos", (24,32):"Paseo de los Sabinos", (29,2):"Paseo de las Aves", (29,10):"Paseo de las Aves", (29,12):"Paseo de las Aves", (29,13):"Paseo de las Golondrinas", (29,14):"Paseo de las Aves", (29,15):"Paseo de las Golondrinas", (29,20):"Paseo de las Golondrinas", (29,21):"Paseo de las Aves", (29,22):"Paseo de las Aves", (30,2):"Paseo Silvestra", (30,3):"Paseo Silvestra", (30,4):"Paseo de los Colibríes", (30,8):"Paseo de los Colibríes", (30,9):"Paseo Silvestra", (30,10):"Paseo de los Codornices", (30,17):"Paseo de los Codornices", (34,1):"Paseo Silvestra", (34,4):"Paseo de las Aves", (34,5):"Paseo de las Aves", (34,6):"Paseo de las Aves", (34,7):"Paseo de las Aves", (34,8):"Paseo de las Aves", (34,9):"Paseo de las Aves", (34,12):"Paseo Silvestra", (34,13):"Paseo Silvestra", (34,14):"Paseo Silvestra", (34,15):"Paseo de las Garzas", (34,22):"Paseo Silvestra", (34,24):"Paseo de las Garzas", (34,25):"Paseo de las Garzas", (35,2):"Rincón de las Palomas", (37,1):"Rincón de las Palomas", (37,10):"Paseo de las Aves", (37,11):"Paseo de las Aves", (37,12):"Paseo de las Aves", (37,13):"Paseo de las Aves", (37,14):"Paseo de las Aves", (37,16):"Paseo de las Aves", (38,1):"Paseo de las Aves", (38,8):"Paseo de las Aves", (38,10):"Paseo de las Aves", (38,14):"Paseo de las Aves", (38,17):"Paseo de las Aves", (38,18):"Paseo Silvestra", (38,19):"Paseo Silvestra"}
+
+
 def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
     """Escribe a BD el historial completo y la Chequera. Aislado para poder
     capturar y reportar errores en JSON (Postgres no es tan permisivo como SQLite).
@@ -2325,13 +2489,20 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
                 lote_row.cuota_cof = ld['cuotaFija']
                 lote_row.fecha_escrituracion = escrit
                 lote_row.activo = True
+                if ld.get('notas'):
+                    lote_row.notas = ld['notas']
+                # Rellenar Paseo/Calle si está vacío (el Excel no lo trae)
+                if not (lote_row.paseo or '').strip():
+                    lote_row.paseo = _PASEO_MAP.get((ld['mza'], ld['lote']), '')
                 s.add(lote_row)
             else:
                 s.add(Lote(
                     manzana=ld['mza'], numero=ld['lote'],
                     propietario=ld['nombre'], m2=ld['m2'],
-                    cuota_cof=ld['cuotaFija'], paseo='',
-                    fecha_escrituracion=escrit, activo=True
+                    cuota_cof=ld['cuotaFija'],
+                    paseo=_PASEO_MAP.get((ld['mza'], ld['lote']), ''),
+                    fecha_escrituracion=escrit, activo=True,
+                    notas=ld.get('notas'),
                 ))
         s.commit()
 

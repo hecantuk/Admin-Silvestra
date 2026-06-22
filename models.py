@@ -29,6 +29,7 @@ class Lote(SQLModel, table=True):
     telefono: Optional[str] = None
     fecha_escrituracion: Optional[date] = None
     activo: bool = True
+    notas: Optional[str] = None   # anotaciones libres (tarjetas de acceso, condonaciones, etc.)
 
 
 class Pago(SQLModel, table=True):

@@ -977,7 +977,7 @@ tr:last-child td{border-bottom:none}
               <div class="ec-scroll">
                 <table id="ecTableMensual">
                   <thead><tr>
-                    <th>Mes</th><th style="text-align:right">Extraord.</th><th style="text-align:right">COF</th>
+                    <th id="ecThMes" onclick="_ecToggleSort()" style="cursor:pointer;user-select:none;white-space:nowrap">Mes <span id="ecSortArrow">▲</span></th><th style="text-align:right">Extraord.</th><th style="text-align:right">COF</th>
                     <th style="text-align:right">Pago</th><th style="text-align:right">Descuento</th>
                     <th>Fecha pago</th><th style="text-align:right">Saldo acum.</th>
                     <th style="text-align:right">Lect. ini</th><th style="text-align:right">Lect. fin</th>
@@ -2599,15 +2599,33 @@ function switchEcTab(tab, el){
   else _ecRenderAnual(_ecLote);
 }
 
+let _ecSortDesc = false;  // false = más antiguo primero (default), true = más reciente primero
+
+function _ecToggleSort(){
+  _ecSortDesc = !_ecSortDesc;
+  const arrow = document.getElementById('ecSortArrow');
+  if(arrow) arrow.textContent = _ecSortDesc ? '▼' : '▲';
+  if(_ecLote) _ecRenderMensual(_ecLote);
+}
+
 function _ecRenderMensual(l){
   const meses=l.meses.filter(m=>m.cof>0||m.cov>0||m.pagoCof>0||m.extra>0||m.pagoCov>0||m.instal>0);
-  let acum=0;                       // saldo COF acumulado corrido
-  let tE=0,tC=0,tP=0,tD=0,tCv=0,tI=0,tPv=0;   // totales de pie
-  const filas=meses.map(m=>{
+
+  // 1. Calcular saldo acumulado en orden cronológico (siempre de más antiguo a más reciente)
+  let acum=0;
+  let tE=0,tC=0,tP=0,tD=0,tCv=0,tI=0,tPv=0;
+  const mesesConAcum=meses.map(m=>{
     acum += (m.cof||0)+(m.extra||0)-(m.pagoCof||0)-(m.desc||0);
     tE+=m.extra||0; tC+=m.cof||0; tP+=m.pagoCof||0; tD+=m.desc||0;
     tCv+=m.cov||0; tI+=m.instal||0; tPv+=m.pagoCov||0;
-    const saldoCls=acum>0.5?'money-red':acum<-0.5?'money-ok':'money-zero';
+    return {...m, _acum: acum};
+  });
+
+  // 2. Ordenar para la vista (sin alterar el acumulado ya calculado)
+  const vista = _ecSortDesc ? [...mesesConAcum].reverse() : mesesConAcum;
+
+  const filas=vista.map(m=>{
+    const saldoCls=m._acum>0.5?'money-red':m._acum<-0.5?'money-ok':'money-zero';
     return `<tr>
       <td style="font-weight:500">${_mlabel(m.mes)}</td>
       <td style="text-align:right;color:var(--muted)">${m.extra?'$'+m.extra.toLocaleString():'—'}</td>
@@ -2615,7 +2633,7 @@ function _ecRenderMensual(l){
       <td style="text-align:right;color:var(--green)">${m.pagoCof?'$'+m.pagoCof.toLocaleString():'—'}</td>
       <td style="text-align:right;color:var(--muted)">${m.desc?'$'+m.desc.toLocaleString():'—'}</td>
       <td style="color:var(--muted);font-size:11px">${m.fpago||'—'}</td>
-      <td style="text-align:right"><span class="${saldoCls}">$${acum.toLocaleString()}</span></td>
+      <td style="text-align:right"><span class="${saldoCls}">$${m._acum.toLocaleString()}</span></td>
       <td style="text-align:right;color:var(--muted)">${m.vFin?m.vIni:'—'}</td>
       <td style="text-align:right;color:var(--muted)">${m.vFin||'—'}</td>
       <td style="text-align:right">${m.consumo||'—'}</td>

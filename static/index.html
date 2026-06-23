@@ -228,6 +228,10 @@ tr:last-child td{border-bottom:none}
 .btn-close{background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;line-height:1;padding:4px}
 .modal-body{padding:24px}
 .form-grid{display:grid;gap:16px}
+.form-grid.cols2{grid-template-columns:1fr 1fr}
+.form-grid.cols3{grid-template-columns:1fr 1fr 1fr}
+.form-field.fg-full{grid-column:1/-1}
+@media(max-width:560px){.form-grid.cols2,.form-grid.cols3{grid-template-columns:1fr}}
 .form-field label{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px}
 .form-field input,.form-field select,.form-field textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--navy);background:var(--bg);transition:.2s}
 .form-field input:focus,.form-field select:focus{border-color:var(--teal);background:white}
@@ -1790,50 +1794,59 @@ tr:last-child td{border-bottom:none}
 
 <!-- MODALES -->
 <div class="modal-overlay" id="modalAplicarPago">
-  <div class="modal">
+  <div class="modal" style="width:640px">
     <div class="modal-head">
-      <h3>Registrar pago de residente</h3>
+      <h3>Registrar cargo</h3>
       <button class="btn-close" onclick="closeModal('modalAplicarPago')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-field"><label>Lote</label><select id="pagoLote"><option>— Selecciona lote —</option></select></div>
-        <div class="form-field"><label>Monto recibido</label><input type="number" id="pagoMonto" placeholder="1350.00"></div>
-        <div class="form-field"><label>Fecha de pago</label><input type="date" id="pagoFecha"></div>
-        <div class="form-field"><label>Referencia bancaria</label><input type="text" id="pagoRef" placeholder="REF-0001"></div>
-        <div class="form-field"><label>Mes a aplicar</label>
-          <select id="pagoMes">
-            <option>Mayo 2026</option><option>Abril 2026</option><option>Marzo 2026</option>
+      <div class="form-grid cols2">
+        <div class="form-field fg-full"><label>Lote — Manzana / Lote / Propietario</label><select id="pagoLote"><option value="">— Selecciona lote —</option></select></div>
+        <div class="form-field"><label>Tipo de cargo</label>
+          <select id="pagoTipoCargo">
+            <option value="COF_MES">COF · Cuota mensual</option>
+            <option value="COF">COF · Extraordinaria</option>
+            <option value="Multa">COF · Multa</option>
+            <option value="Derrama">COF · Derrama</option>
+            <option value="COV">COV · Agua / Cuota variable</option>
+            <option value="COV_INSTAL">COV · Instalación de medidor</option>
+            <option value="Otro">Otro</option>
           </select>
         </div>
-        <div class="form-field"><label>Notas</label><textarea rows="2" placeholder="Observaciones opcionales…"></textarea></div>
+        <div class="form-field"><label>Monto a cobrar</label><input type="number" id="pagoMonto" min="0" step="0.01" placeholder="1350.00"></div>
+        <div class="form-field"><label>Mes a aplicar</label><input type="month" id="pagoMesAplicar"></div>
+        <div class="form-field"><label>Fecha de cobro</label><input type="date" id="pagoFecha"></div>
+        <div class="form-field fg-full"><label>Descripción</label><input type="text" id="pagoDesc" placeholder="Ej: Cuota mensual, multa por…"></div>
+        <div class="form-field fg-full"><label>Notas</label><textarea id="pagoNotas" rows="2" placeholder="Observaciones opcionales…"></textarea></div>
       </div>
     </div>
     <div class="modal-foot">
       <button class="btn-secondary" onclick="closeModal('modalAplicarPago')">Cancelar</button>
-      <button class="btn-primary" onclick="aplicarPago()">Aplicar pago</button>
+      <button class="btn-primary" onclick="aplicarCargo()">Aplicar cobro</button>
     </div>
   </div>
 </div>
 
 <div class="modal-overlay" id="modalNuevoIngreso">
-  <div class="modal">
+  <div class="modal" style="width:640px">
     <div class="modal-head">
-      <h3>Nuevo ingreso</h3>
+      <h3>Registrar pago del residente</h3>
       <button class="btn-close" onclick="closeModal('modalNuevoIngreso')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-field"><label>Concepto</label><select id="ingConcepto"><option value="COF">COF — Cuota Fija</option><option value="COV">COV — Cuota Variable</option><option value="Amenidad">Amenidad</option><option value="Otro">Otro</option></select></div>
-        <div class="form-field"><label>Lote</label><select id="ingLote"><option value="">— Selecciona —</option></select></div>
-        <div class="form-field"><label>Importe</label><input id="ingImporte" type="number" min="0" step="0.01" placeholder="0.00"></div>
-        <div class="form-field"><label>Fecha</label><input id="ingFecha" type="date"></div>
-        <div class="form-field"><label>Referencia</label><input id="ingRef" type="text" placeholder="REF-XXXX"></div>
+      <div class="form-grid cols2">
+        <div class="form-field fg-full"><label>Lote — Manzana / Lote / Propietario</label><select id="ingLote"><option value="">— Selecciona —</option></select></div>
+        <div class="form-field"><label>Concepto del pago</label><select id="ingConcepto"><option value="COF">COF — Cuota Fija</option><option value="COV">COV — Cuota Variable (agua)</option><option value="Amenidad">Amenidad</option><option value="Otro">Otro</option></select></div>
+        <div class="form-field"><label>Monto del pago</label><input id="ingImporte" type="number" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="form-field"><label>Fecha de pago</label><input id="ingFecha" type="date"></div>
+        <div class="form-field"><label>Mes que cubre</label><input id="ingMes" type="month"></div>
+        <div class="form-field fg-full"><label>Referencia bancaria</label><input id="ingRef" type="text" placeholder="REF-XXXX"></div>
+        <div class="form-field fg-full"><label>Notas</label><textarea id="ingNotas" rows="2" placeholder="Observaciones opcionales…"></textarea></div>
       </div>
     </div>
     <div class="modal-foot">
       <button class="btn-secondary" onclick="closeModal('modalNuevoIngreso')">Cancelar</button>
-      <button class="btn-primary" onclick="guardarIngreso()">Guardar</button>
+      <button class="btn-primary" onclick="guardarIngreso()">Registrar pago</button>
     </div>
   </div>
 </div>
@@ -3232,11 +3245,16 @@ function renderCargos(search){
 function filterCargos(s){renderCargos(s)}
 
 function openModalPago(mza,lote,nombre,cuota){
-  document.getElementById('pagoLote').value='';
-  document.getElementById('pagoMonto').value=cuota;
-  const h=document.getElementById('pagoLote');
-  h.innerHTML=`<option>Mza ${mza} L${lote} — ${nombre}</option>`;
-  document.getElementById('pagoFecha').value=new Date().toISOString().split('T')[0];
+  populateSelects();                                   // asegura el listado completo de lotes
+  const sel=document.getElementById('pagoLote');
+  if(sel) sel.value=`${mza}-${lote}`;                  // preselecciona el lote de la fila
+  document.getElementById('pagoTipoCargo').value='COF_MES';
+  document.getElementById('pagoMonto').value=cuota||'';
+  document.getElementById('pagoDesc').value='Cuota mensual';
+  document.getElementById('pagoNotas').value='';
+  const hoy=new Date().toISOString().split('T')[0];
+  document.getElementById('pagoFecha').value=hoy;
+  document.getElementById('pagoMesAplicar').value=hoy.slice(0,7);
   openModal('modalAplicarPago');
 }
 
@@ -3451,7 +3469,9 @@ async function guardarIngreso(){
   const concepto=document.getElementById('ingConcepto').value;
   const importe=parseFloat(document.getElementById('ingImporte').value);
   const fecha=document.getElementById('ingFecha').value;
+  const mesMonth=document.getElementById('ingMes').value;   // "YYYY-MM"
   const ref=document.getElementById('ingRef').value.trim();
+  const notas=document.getElementById('ingNotas').value.trim();
   if(!loteVal){showToast('⚠ Selecciona un lote');return;}
   if(!importe||importe<=0){showToast('⚠ Ingresa un importe válido');return;}
   if(!fecha){showToast('⚠ Ingresa la fecha');return;}
@@ -3462,7 +3482,7 @@ async function guardarIngreso(){
     const res=await fetch('/api/pagos/nuevo',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
-      body:JSON.stringify({manzana:mza,lote_num:loteNum,fecha_pago:fecha,importe,concepto,referencia:ref})
+      body:JSON.stringify({manzana:mza,lote_num:loteNum,fecha_pago:fecha,importe,concepto,referencia:ref,notas,mes_aplicado:mesMonth})
     });
     if(!res.ok){showToast('❌ Error al registrar ingreso');return;}
     const pago=await res.json();
@@ -3899,9 +3919,44 @@ function showToast(msg){
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3000);
 }
-function aplicarPago(){
-  closeModal('modalAplicarPago');
-  showToast('Pago aplicado correctamente');
+async function aplicarCargo(){
+  const loteVal=document.getElementById('pagoLote').value;
+  const concepto=document.getElementById('pagoTipoCargo').value;
+  const importe=parseFloat(document.getElementById('pagoMonto').value);
+  const mesMonth=document.getElementById('pagoMesAplicar').value;   // "YYYY-MM"
+  const fecha=document.getElementById('pagoFecha').value;            // "YYYY-MM-DD"
+  const desc=document.getElementById('pagoDesc').value.trim();
+  const notas=document.getElementById('pagoNotas').value.trim();
+  if(!loteVal){showToast('⚠ Selecciona un lote');return;}
+  if(!importe||importe<=0){showToast('⚠ Ingresa un monto válido');return;}
+  if(!mesMonth){showToast('⚠ Selecciona el mes a aplicar');return;}
+  const [mza,loteNum]=loteVal.split('-').map(Number);
+  const loteData=LOTES_DATA.find(l=>l.mza===mza&&l.lote===loteNum);
+  if(!loteData||!loteData.id){showToast('⚠ No se encontró el lote');return;}
+  const token=localStorage.getItem('auth_token');
+  try{
+    const res=await fetch('/api/cargos',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body:JSON.stringify({
+        lote_id:loteData.id,
+        mes:mesMonth,
+        concepto,
+        descripcion:desc,
+        importe,
+        fecha:fecha||null,
+        notas:notas||null,
+      })
+    });
+    if(!res.ok){showToast('❌ Error al registrar el cargo');return;}
+    closeModal('modalAplicarPago');
+    // limpiar campos para el siguiente cargo
+    document.getElementById('pagoMonto').value='';
+    document.getElementById('pagoDesc').value='';
+    document.getElementById('pagoNotas').value='';
+    _SD=null;   // forzar recálculo del concentrado / estado de cuenta
+    showToast(`✅ Cargo aplicado a Mza ${mza} L${loteNum}`);
+  }catch(e){showToast('❌ Error de conexión');}
 }
 function populateSelects(){
   const ingSel=document.getElementById('ingLote');
@@ -3913,12 +3968,16 @@ function populateSelects(){
   }
   const pagoSel=document.getElementById('pagoLote');
   if(pagoSel){
-    pagoSel.innerHTML='<option>— Selecciona —</option>';
+    pagoSel.innerHTML='<option value="">— Selecciona —</option>';
     LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA').forEach(l=>{
-      pagoSel.innerHTML+=`<option>Mza ${l.mza} L${l.lote} — ${l.propietario.split(' ').slice(0,3).join(' ')}</option>`;
+      pagoSel.innerHTML+=`<option value="${l.mza}-${l.lote}">Mza ${l.mza} L${l.lote} — ${l.propietario}</option>`;
     });
   }
-  document.getElementById('pagoFecha').value=new Date().toISOString().split('T')[0];
+  const _hoy=new Date().toISOString().split('T')[0];
+  const _mesAct=_hoy.slice(0,7);
+  const _set=(id,v)=>{const e=document.getElementById(id);if(e&&!e.value)e.value=v;};
+  _set('pagoFecha',_hoy); _set('pagoMesAplicar',_mesAct);
+  _set('ingFecha',_hoy);  _set('ingMes',_mesAct);
   // populate export selects
   const exportSel=document.getElementById('exportLoteSelect');
   if(exportSel){

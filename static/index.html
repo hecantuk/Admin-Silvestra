@@ -695,7 +695,7 @@ tr:last-child td{border-bottom:none}
         </div>
         <div class="search-row">
           <input class="search-box" type="search" placeholder="Buscar gasto o proveedor…">
-          <button class="btn-primary admin-only" onclick="openModal('modalNuevoGasto')">+ Nuevo gasto</button>
+          <button class="btn-primary admin-only" onclick="openModalGasto()">+ Nuevo gasto</button>
         </div>
         <div class="stat-grid" style="margin-bottom:20px">
           <div class="stat-card"><div class="stat-label">Total gastos mes</div><div class="stat-value" id="gastosStatTotal">$0</div><div class="stat-sub" id="gastosStatTotalSub">0 conceptos</div></div>
@@ -1858,18 +1858,19 @@ tr:last-child td{border-bottom:none}
       <button class="btn-close" onclick="closeModal('modalNuevoGasto')">✕</button>
     </div>
     <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-field"><label>Concepto</label><input type="text" placeholder="Ej: Sueldo vigilante mayo"></div>
-        <div class="form-field"><label>Proveedor</label><input type="text" placeholder="Nombre o empresa"></div>
-        <div class="form-field"><label>Tipo</label><select><option>Mantenimiento</option><option>Seguridad</option><option>Administración</option><option>Servicios</option><option>Otro</option></select></div>
-        <div class="form-field"><label>Importe</label><input type="number" placeholder="0.00"></div>
-        <div class="form-field"><label>Fecha de pago</label><input type="date"></div>
-        <div class="form-field"><label>Factura / Recibo</label><input type="text" placeholder="A-0001"></div>
+      <div class="form-grid cols2">
+        <div class="form-field fg-full"><label>Concepto</label><input type="text" id="gastoConcepto" placeholder="Ej: Sueldo vigilante mayo"></div>
+        <div class="form-field fg-full"><label>Proveedor</label><input type="text" id="gastoProveedor" placeholder="Nombre o empresa"></div>
+        <div class="form-field"><label>Tipo</label><select id="gastoTipo"><option value="Mantenimiento">Mantenimiento</option><option value="Seguridad">Seguridad</option><option value="Administración">Administración</option><option value="Servicios">Servicios</option><option value="Otro">Otro</option></select></div>
+        <div class="form-field"><label>Importe</label><input type="number" id="gastoImporte" placeholder="0.00" min="0" step="0.01"></div>
+        <div class="form-field"><label>Fecha de pago</label><input type="date" id="gastoFecha"></div>
+        <div class="form-field"><label>Factura / Recibo</label><input type="text" id="gastoFactura" placeholder="A-0001"></div>
+        <div class="form-field fg-full"><label>Notas</label><textarea id="gastoNotas" rows="2" placeholder="Observaciones adicionales…" style="width:100%;box-sizing:border-box;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:14px;resize:vertical"></textarea></div>
       </div>
     </div>
     <div class="modal-foot">
       <button class="btn-secondary" onclick="closeModal('modalNuevoGasto')">Cancelar</button>
-      <button class="btn-primary" onclick="closeModal('modalNuevoGasto');showToast('Gasto registrado')">Guardar</button>
+      <button class="btn-primary" onclick="guardarGasto()">Guardar gasto</button>
     </div>
   </div>
 </div>
@@ -3502,6 +3503,44 @@ async function guardarIngreso(){
     if(tabAprobar) switchTab('ingresos','aprobar',tabAprobar);
     else renderIngresosByTab('aprobar');
     showToast('✅ Ingreso registrado — pendiente de aprobar');
+  }catch(e){showToast('❌ Error de conexión');}
+}
+
+function openModalGasto(){
+  const hoy=new Date().toISOString().split('T')[0];
+  const f=document.getElementById('gastoFecha');
+  if(f&&!f.value)f.value=hoy;
+  openModal('modalNuevoGasto');
+}
+
+async function guardarGasto(){
+  const concepto=document.getElementById('gastoConcepto').value.trim();
+  const proveedor=document.getElementById('gastoProveedor').value.trim();
+  const tipo=document.getElementById('gastoTipo').value;
+  const importe=parseFloat(document.getElementById('gastoImporte').value);
+  const fecha=document.getElementById('gastoFecha').value;
+  const factura=document.getElementById('gastoFactura').value.trim();
+  const notas=document.getElementById('gastoNotas').value.trim();
+  if(!concepto){showToast('⚠ Ingresa el concepto');return;}
+  if(!proveedor){showToast('⚠ Ingresa el proveedor');return;}
+  if(!importe||importe<=0){showToast('⚠ Ingresa un importe válido');return;}
+  if(!fecha){showToast('⚠ Ingresa la fecha');return;}
+  const token=localStorage.getItem('auth_token');
+  try{
+    const res=await fetch('/api/gastos',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body:JSON.stringify({fecha,concepto,proveedor,tipo,importe,factura:factura||null,notas:notas||null})
+    });
+    if(!res.ok){const e=await res.json().catch(()=>({}));showToast('❌ '+(e.detail||'Error al guardar gasto'));return;}
+    closeModal('modalNuevoGasto');
+    document.getElementById('gastoConcepto').value='';
+    document.getElementById('gastoProveedor').value='';
+    document.getElementById('gastoImporte').value='';
+    document.getElementById('gastoFecha').value='';
+    document.getElementById('gastoFactura').value='';
+    document.getElementById('gastoNotas').value='';
+    showToast('✅ Gasto guardado');
   }catch(e){showToast('❌ Error de conexión');}
 }
 

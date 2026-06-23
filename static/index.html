@@ -156,6 +156,7 @@ input,select,textarea{font-family:inherit;outline:none}
 .backlink{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;cursor:pointer;margin-bottom:16px;padding:6px 12px;border-radius:8px;background:white;border:1px solid var(--border)}
 .backlink:hover{background:var(--bg)}
 .tag-period{display:inline-block;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:10.5px;padding:1px 6px;margin:1px;color:var(--muted)}
+.tag-period-hl{background:var(--navy)!important;border-color:var(--navy)!important;color:#fff!important;font-weight:600}
 .more-periods-btn{display:inline-block;cursor:pointer;color:var(--green);font-weight:600;font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 7px;margin:1px;transition:background .15s}
 .more-periods-btn:hover{background:#e8f5ee}
 .desc-pop{position:fixed;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.18);z-index:9999;max-width:340px;display:flex;flex-wrap:wrap;gap:4px}
@@ -1012,12 +1013,16 @@ tr:last-child td{border-bottom:none}
       <!-- DESCUENTOS -->
       <div class="page" id="pageDescuentos">
         <div class="kpi-grid" id="descKpis">
-          <div class="kpi"><div class="lab">Total descuentos otorgados</div><div class="val" id="descTotVal">—</div></div>
+          <div class="kpi"><div class="lab" id="descTotLab">Total descuentos otorgados</div><div class="val" id="descTotVal">—</div></div>
           <div class="kpi"><div class="lab">Lotes con descuento</div><div class="val" id="descCountVal">—</div><div class="sub" id="descCountSub"></div></div>
           <div class="kpi"><div class="lab">Descuento promedio</div><div class="val" id="descAvgVal">—</div></div>
         </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-          <p style="color:var(--muted);font-size:13px">Descuentos aplicados sobre la cuota COF (condonaciones, convenios y ajustes).</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <label style="font-size:13px;color:var(--muted);white-space:nowrap">Filtrar por mes:</label>
+            <input type="month" id="descMesFiltro" style="border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:13px;color:var(--navy)" onchange="loadDescuentos()">
+            <button class="btn-secondary" style="font-size:12px;padding:5px 12px" onclick="document.getElementById('descMesFiltro').value='';loadDescuentos()">Ver todos</button>
+          </div>
           <button class="btn-primary" onclick="openModal('modalDescuento')">+ Registrar descuento</button>
         </div>
         <div class="card">
@@ -1025,7 +1030,7 @@ tr:last-child td{border-bottom:none}
             <table>
               <thead><tr>
                 <th>Mza.</th><th>Lote</th><th>Propietario</th>
-                <th style="text-align:right">Saldo COF</th><th style="text-align:right">Descuento total</th>
+                <th style="text-align:right">Saldo COF</th><th style="text-align:right" id="descColLabel">Descuento total</th>
                 <th style="text-align:center"># meses</th><th>Periodos con descuento</th>
               </tr></thead>
               <tbody id="descBody"></tbody>
@@ -2905,17 +2910,36 @@ function _ecExportExcelDo(l){
 // ============================================================
 async function loadDescuentos(){
   await _loadSD();
-  const descLots=(_SD||[]).filter(l=>l.descCof>0&&l.nombre&&!l.nombre.toUpperCase().includes('CASA MUESTRA'));
-  const totalDesc=descLots.reduce((a,l)=>a+l.descCof,0);
+  const mesFil=(document.getElementById('descMesFiltro')?.value||'').trim(); // "YYYY-MM" o ""
+  const todos=(_SD||[]).filter(l=>l.nombre&&!l.nombre.toUpperCase().includes('CASA MUESTRA'));
+
+  // Por mes: mostrar solo lotes con descuento en ese mes, con el importe de ese mes
+  // Sin filtro: mostrar acumulado histórico de todos los lotes con algún descuento
+  const descLots = mesFil
+    ? todos.map(l=>{
+        const mesData=l.meses.find(m=>m.mes&&m.mes.startsWith(mesFil));
+        return {...l, _descFil: mesData?.desc||0};
+      }).filter(l=>l._descFil>0)
+    : todos.filter(l=>l.descCof>0).map(l=>({...l, _descFil:l.descCof}));
+
+  const totalDesc=descLots.reduce((a,l)=>a+l._descFil,0);
   const avgDesc=descLots.length?totalDesc/descLots.length:0;
+
+  // KPIs
+  const totLab=document.getElementById('descTotLab');
+  if(totLab) totLab.textContent=mesFil?'Descuentos del mes':'Total descuentos otorgados';
+  const colLab=document.getElementById('descColLabel');
+  if(colLab) colLab.textContent=mesFil?'Descuento del mes':'Descuento total';
   document.getElementById('descTotVal').textContent='$'+totalDesc.toLocaleString('es-MX',{minimumFractionDigits:0});
   document.getElementById('descCountVal').textContent=descLots.length;
-  document.getElementById('descCountSub').textContent=`de ${(_SD||[]).filter(l=>l.nombre).length} lotes`;
+  document.getElementById('descCountSub').textContent=`de ${todos.length} lotes`;
   document.getElementById('descAvgVal').textContent='$'+Math.round(avgDesc).toLocaleString('es-MX');
+
+  // Tabla
   document.getElementById('descBody').innerHTML=descLots.map(l=>{
     const saldoCls=l.saldoCof>0?'style="color:var(--red);font-weight:600"':'style="color:var(--green);font-weight:600"';
     const mesesConDesc=l.meses.filter(m=>m.desc>0);
-    const periodos=mesesConDesc.slice(0,6).map(m=>`<span class="tag-period">${_mlabel(m.mes)}</span>`).join('');
+    const periodos=mesesConDesc.slice(0,6).map(m=>`<span class="tag-period${mesFil&&m.mes&&m.mes.startsWith(mesFil)?' tag-period-hl':''}">${_mlabel(m.mes)}</span>`).join('');
     const allMesesJson=JSON.stringify(mesesConDesc.map(m=>m.mes)).replace(/'/g,'&#39;');
     const more=mesesConDesc.length>6?`<span class="more-periods-btn" onclick="_toggleDescPop(this)" data-meses='${allMesesJson}'>+${mesesConDesc.length-6} más</span>`:'';
     return `<tr>
@@ -2923,7 +2947,7 @@ async function loadDescuentos(){
       <td>${l.lote}</td>
       <td class="td-name">${l.nombre}</td>
       <td style="text-align:right;font-variant-numeric:tabular-nums" ${saldoCls}>$${Math.abs(l.saldoCof).toLocaleString()}</td>
-      <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:700">$${l.descCof.toLocaleString()}</td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:700">$${l._descFil.toLocaleString()}</td>
       <td style="text-align:center">${mesesConDesc.length}</td>
       <td style="font-size:12px">${periodos}${more}</td>
     </tr>`;
@@ -3003,6 +3027,7 @@ function showPage(id,navEl){
     else if(id==='prorrateo') loadProrrateo();
     else if(id==='financiero') loadFinanciero();
     else if(id==='configuracion') _initConfiguracion();
+    else if(id==='descuentos') loadDescuentos();
   }
 }
 

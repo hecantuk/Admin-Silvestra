@@ -420,6 +420,7 @@ class NuevoPagoReq(BaseModel):
     concepto: str = "COF"
     referencia: str = ""
     notas: str = ""
+    mes_aplicado: str = ""   # "YYYY-MM" — mes que cubre el pago; si vacío, se toma de fecha_pago
 
 @app.get("/api/auth/admins")
 def get_admins(admin: Usuario = Depends(_admin_only),
@@ -778,7 +779,7 @@ def nuevo_pago(req: NuevoPagoReq, admin: Usuario = Depends(_admin_only)):
         if not lote:
             raise HTTPException(404, "Lote no encontrado")
         fecha = date.fromisoformat(req.fecha_pago)
-        mes_aplicado = req.fecha_pago[:7]
+        mes_aplicado = (req.mes_aplicado or req.fecha_pago[:7])[:7]
         pago = Pago(
             lote_id=lote.id,
             fecha_pago=fecha,
@@ -800,6 +801,7 @@ def nuevo_pago(req: NuevoPagoReq, admin: Usuario = Depends(_admin_only)):
             "fecha_pago": str(pago.fecha_pago),
             "importe": pago.importe,
             "concepto": pago.concepto,
+            "mes_aplicado": pago.mes_aplicado,
             "referencia": pago.referencia or "",
             "estado": pago.estado,
         }
@@ -823,6 +825,7 @@ def lista_pagos(estado: Optional[str] = None, mes: Optional[str] = None,
             "fecha_pago": str(pago.fecha_pago),
             "importe": pago.importe,
             "concepto": pago.concepto,
+            "mes_aplicado": pago.mes_aplicado,
             "referencia": pago.referencia or "",
             "estado": pago.estado,
         } for pago, lote in rows]

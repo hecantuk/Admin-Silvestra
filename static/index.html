@@ -5985,11 +5985,18 @@ async function _runImportCompleto(file, statusId){
     if(r.ok){
       _SD=null;           // forzar recarga del concentrado
       _chequeraData=[];   // forzar recarga de chequera
-      _rendered.delete('chequera');
+      // Limpiar caché de TODAS las vistas que dependen del concentrado,
+      // para que se recarguen con datos frescos la próxima vez que el usuario las abra.
+      ['dashboard','lotes','cargos','reporte','estadoCuenta','descuentos',
+       'concentradoCOF','concentradoCOV','agua','prorrateo','financiero','ingresos','gastos']
+        .forEach(p=>_rendered.delete(p));
       const _cSel=document.getElementById('chequeraAnio');
       if(_cSel) while(_cSel.options.length>1) _cSel.remove(1);
       await _loadLotes();
       populateSelects();
+      // Refrescar dashboard inmediatamente con los nuevos datos
+      renderDashboard();
+      _rendered.add('dashboard');
       if(st){
         st.textContent=`✅ ${r.lotes_actualizados} lotes · ${r.pagos_importados} pagos · ${r.lecturas_importadas} lecturas agua · ${r.chequera_importados} en Chequera`;
         st.style.color='var(--green)';

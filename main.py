@@ -293,6 +293,16 @@ def on_startup():
         "ALTER TABLE movimientobancario ADD COLUMN concepto TEXT",
         "ALTER TABLE movimientobancario ADD COLUMN importe DOUBLE PRECISION",
         "ALTER TABLE lote ADD COLUMN notas TEXT",
+        # Columna 'origen' para distinguir registros del Excel de los capturados a mano.
+        # Los registros que YA existen se marcan como 'excel' (DEFAULT) porque hasta
+        # ahora todo el historial venía de la importación; así, al re-importar se
+        # reemplazan sin duplicar. Los nuevos registros manuales se marcan 'manual'
+        # explícitamente desde el modelo y quedan PROTEGIDOS de la importación.
+        "ALTER TABLE pago ADD COLUMN origen TEXT DEFAULT 'excel'",
+        "ALTER TABLE cargo ADD COLUMN origen TEXT DEFAULT 'excel'",
+        "ALTER TABLE descuento ADD COLUMN origen TEXT DEFAULT 'excel'",
+        "ALTER TABLE lecturaagua ADD COLUMN origen TEXT DEFAULT 'excel'",
+        "ALTER TABLE movimientobancario ADD COLUMN origen TEXT DEFAULT 'excel'",
     ]:
         try:
             with engine.connect() as _c:
@@ -2515,13 +2525,21 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
         lote_id_map = {}
         for lote_row in s.exec(select(Lote)).all():
             lote_id_map[(lote_row.manzana, lote_row.numero)] = lote_row.id
+        # Solo consideramos lotes cuya hoja SÍ trajo movimientos mensuales. Así, si una
+        # hoja no se pudo leer (formato cambiado, filas movidas) NO borramos su historial
+        # existente para dejarlo vacío.
         lote_ids = [lote_id_map[(ld['mza'], ld['lote'])]
-                    for ld in lotes_data if (ld['mza'], ld['lote']) in lote_id_map]
+                    for ld in lotes_data
+                    if ld.get('meses') and (ld['mza'], ld['lote']) in lote_id_map]
 
-        # Borrar historial previo de esos lotes (una sola transacción, sin abrir 300+ conexiones)
+        # Borrar SOLO el historial que vino de una importación previa (origen='excel').
+        # Los registros capturados a mano en la app (origen='manual') se PRESERVAN.
         if lote_ids:
             for Model in (Pago, LecturaAgua, Cargo, Descuento):
-                s.execute(_sa_delete(Model).where(Model.lote_id.in_(lote_ids)))
+                s.execute(_sa_delete(Model).where(
+                    Model.lote_id.in_(lote_ids),
+                    Model.origen == 'excel',
+                ))
         s.commit()
 
         for ld in lotes_data:
@@ -2547,6 +2565,7 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
                         descripcion='Cuota mensual',
                         importe=m['cof'],
                         fecha=mes_d1,
+                        origen='excel',
                     ))
 
                 if m['pagoCof'] > 0:
@@ -2565,6 +2584,7 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
                         mes_aplicado=mes_key,
                         concepto='COF',
                         estado='aprobado',
+                        origen='excel',
                     ))
 
                 if m['pagoCov'] > 0:
@@ -2575,6 +2595,7 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
                         mes_aplicado=mes_key,
                         concepto='COV',
                         estado='aprobado',
+                        origen='excel',
                     ))
 
                 if (m['extra'] or 0) != 0:
@@ -2585,6 +2606,7 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
                         descripcion='Cuota extraordinaria única',
                         importe=m['extra'],
                         fecha=mes_d1,
+                        origen='excel',
                     ))
 
                 # COV (agua) y la instalación del medidor se guardan por separado
@@ -2597,6 +2619,7 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
                         consumo_m3=m['consumo'] or 0,
                         tarifa_por_m3=ld.get('tarifaCOV', 5.0),
                         importe=m['cov'],
+                        origen='excel',
                     ))
 
                 if (m['instal'] or 0) != 0:
@@ -2607,6 +2630,7 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
                         descripcion='Instalación de medidor volumétrico',
                         importe=m['instal'],
                         fecha=mes_d1,
+                        origen='excel',
                     ))
 
                 if m['desc'] > 0:
@@ -2618,6 +2642,7 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
                         anio=anio_key,
                         fecha=mes_d1,
                         notas='Importado desde Excel',
+                        origen='excel',
                     ))
 
             # Commit por lote: transacciones acotadas (evita una sola de ~40k filas)
@@ -2626,8 +2651,9 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
     # Limpiar y reimportar Chequera (solo si la hoja existe)
     if 'Chequera' not in wb.sheetnames:
         return 0
+    # Borrar SOLO los movimientos que vinieron del Excel; preservar los capturados a mano.
     with engine.connect() as conn:
-        conn.execute(_text2("DELETE FROM movimientobancario"))
+        conn.execute(_text2("DELETE FROM movimientobancario WHERE origen = 'excel'"))
         conn.commit()
 
     ws_cheq = wb['Chequera']
@@ -2669,6 +2695,7 @@ def _regenerar_escribir_bd(wb, lotes_data, anio_actual):
                 isr_ret=_nv(row, 7),
                 tiene_iva_ret=bool(_nv(row, 6) or _nv(row, 8)),
                 tiene_isr_ret=bool(_nv(row, 7)),
+                origen='excel',
             ))
             importados += 1
         s.commit()

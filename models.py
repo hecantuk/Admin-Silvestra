@@ -42,6 +42,7 @@ class Pago(SQLModel, table=True):
     referencia: Optional[str] = None
     estado: str = "por_aprobar"   # por_aprobar | aprobado | rechazado
     notas: Optional[str] = None
+    origen: str = "manual"        # "excel" = importado del Excel | "manual" = capturado en la app
     creado_en: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -92,6 +93,7 @@ class MovimientoBancario(SQLModel, table=True):
     nombre: Optional[str] = None     # D/NOMBRE column
     concepto: Optional[str] = None   # E/CONCEPTO column
     importe: Optional[float] = None  # F/IMPORTE column (gross before retentions)
+    origen: str = "manual"           # "excel" = importado del Excel | "manual" = capturado en la app
 
 
 
@@ -104,6 +106,7 @@ class LecturaAgua(SQLModel, table=True):
     consumo_m3: float = 0.0
     tarifa_por_m3: float = 15.0
     importe: float = 0.0
+    origen: str = "manual"    # "excel" = importado del Excel | "manual" = capturado en la app
 
 
 class GastoReal(SQLModel, table=True):
@@ -138,6 +141,7 @@ class Descuento(SQLModel, table=True):
     anio: Optional[int] = None
     notas: Optional[str] = None
     fecha: date = Field(default_factory=date.today)
+    origen: str = "manual"    # "excel" = importado del Excel | "manual" = capturado en la app
     creado_en: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -169,4 +173,5 @@ class Cargo(SQLModel, table=True):
     importe: float
     fecha: date = Field(default_factory=date.today)
     notas: Optional[str] = None
+    origen: str = "manual"      # "excel" = importado del Excel | "manual" = capturado en la app
     creado_en: datetime = Field(default_factory=datetime.utcnow)

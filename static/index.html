@@ -3504,7 +3504,8 @@ async function loadIngresos(){
         estado:p.estado,
       });
     });
-  }catch(e){}
+    _setGlobalErrorBanner(null);
+  }catch(e){ _setGlobalErrorBanner('Ingresos: '+e.message); }
   renderIngresosByTab('aprobar');
 }
 
@@ -3601,7 +3602,7 @@ function switchDashTab(tab,el){
 async function renderDashboardCOV(){
   const token=localStorage.getItem('auth_token');
   const mes=new Date().toISOString().slice(0,7);
-  const lecturas=await fetch(`/api/agua/lecturas?mes=${mes}`).then(r=>r.json()).catch(()=>[]);
+  const lecturas=await fetch(`/api/agua/lecturas?mes=${mes}`).then(r=>r.json()).then(x=>{_setGlobalErrorBanner(null);return x;}).catch(e=>{_setGlobalErrorBanner('Dashboard COV: '+e.message);return [];});
   const vendidos=LOTES_DATA.filter(l=>l.propietario&&l.propietario!=='CASA MUESTRA').length;
   const totalConsumo=lecturas.reduce((a,l)=>a+(l.consumo_m3||0),0);
   const totalImporte=lecturas.reduce((a,l)=>a+(l.importe||0),0);
@@ -4507,7 +4508,7 @@ let _chequeraPage=0;
 async function loadChequera(){
   if(!_chequeraData.length){
     showToast('Cargando movimientos…');
-    const r=await fetch('/api/banco/movimientos').then(x=>x.json()).catch(()=>({movimientos:[]}));
+    const r=await fetch('/api/banco/movimientos').then(x=>x.json()).then(x=>{_setGlobalErrorBanner(null);return x;}).catch(e=>{_setGlobalErrorBanner('Chequera: '+e.message);return {movimientos:[]};});
     // sort oldest→newest for running balance
     _chequeraData=(r.movimientos||[]).slice().sort((a,b)=>b.fecha.localeCompare(a.fecha));
     // populate year selector from available data
@@ -4930,7 +4931,7 @@ function _ccovExportExcel(){
 // ============================================================
 async function loadBanco(){
   const mes=document.getElementById('bancoMes').value;
-  const r=await fetch(`/api/banco/movimientos?mes=${mes}`).then(x=>x.json()).catch(()=>({movimientos:[],total_abonos:0,total_cargos:0}));
+  const r=await fetch(`/api/banco/movimientos?mes=${mes}`).then(x=>x.json()).then(x=>{_setGlobalErrorBanner(null);return x;}).catch(e=>{_setGlobalErrorBanner('Banco: '+e.message);return {movimientos:[],total_abonos:0,total_cargos:0};});
   const movs=r.movimientos||[];
   document.getElementById('bancoTotales').textContent=`Abonos: $${(r.total_abonos||0).toLocaleString('es-MX',{minimumFractionDigits:2})}  |  Cargos: $${(r.total_cargos||0).toLocaleString('es-MX',{minimumFractionDigits:2})}`;
   document.getElementById('bancoStats').innerHTML=`
@@ -5069,8 +5070,8 @@ function _exportDiotExcelDo(){
 // ============================================================
 async function loadAgua(){
   const mes=document.getElementById('aguaMes').value;
-  const lotes=await fetch('/api/lotes').then(x=>x.json()).catch(()=>[]);
-  const lecturas=await fetch(`/api/agua/lecturas?mes=${mes}`).then(x=>x.json()).catch(()=>[]);
+  const lotes=await fetch('/api/lotes').then(x=>x.json()).catch(e=>{_setGlobalErrorBanner('Agua: '+e.message);return [];});
+  const lecturas=await fetch(`/api/agua/lecturas?mes=${mes}`).then(x=>x.json()).then(x=>{_setGlobalErrorBanner(null);return x;}).catch(e=>{_setGlobalErrorBanner('Agua: '+e.message);return [];});
   // populate modal select
   const sel=document.getElementById('lectLote');
   sel.innerHTML='<option value="">— Selecciona lote —</option>';
@@ -5308,7 +5309,7 @@ function _exportProrrateoExcelDo(){
 let _finChart=null;
 async function loadFinanciero(){
   const mes=document.getElementById('financieroMes').value;
-  const data=await fetch(`/api/financiero/resumen/${mes}`).then(x=>x.json()).catch(()=>null);
+  const data=await fetch(`/api/financiero/resumen/${mes}`).then(x=>x.json()).then(x=>{_setGlobalErrorBanner(null);return x;}).catch(e=>{_setGlobalErrorBanner('Financiero: '+e.message);return null;});
   if(!data){document.getElementById('financieroStats').innerHTML='<div style="color:var(--muted);padding:16px">Sin datos para este mes.</div>';return;}
   document.getElementById('financieroStats').innerHTML=`
     <div class="stat-card"><div class="stat-label">Ingresos cobrados</div><div class="stat-value" style="color:var(--green)">$${Math.round(data.ingresos.total).toLocaleString()}</div><div class="stat-sub">${data.ingresos.pct_cobrado}% de la cuota esperada</div></div>

@@ -17,12 +17,24 @@ from models import Lote, Gasto, Usuario, CuotaAnual
 from datetime import date
 import bcrypt, os
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./silvestra.db")
+_DATABASE_URL_RAW = os.environ.get("DATABASE_URL", "")
+DATABASE_URL = _DATABASE_URL_RAW or "sqlite:///./silvestra.db"
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# Ver main.py para la explicación: nunca arrancar en silencio con SQLite efímero
+# dentro de Railway si DATABASE_URL no llegó.
+if not _DATABASE_URL_RAW and os.environ.get("RAILWAY_ENVIRONMENT"):
+    raise RuntimeError(
+        "DATABASE_URL no está definida pero la app corre en Railway. "
+        "Revisa Admin-Silvestra → Variables y confirma que DATABASE_URL "
+        "está enlazada al servicio Postgres (no se debe usar SQLite en producción)."
+    )
+
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, echo=True, connect_args=connect_args)
+print(f"[init_db] Dialecto conectado: {engine.dialect.name}"
+      + (" — ⚠️ SQLite LOCAL, no persistente" if DATABASE_URL.startswith("sqlite") else " (Postgres)"))
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 

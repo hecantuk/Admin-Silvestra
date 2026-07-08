@@ -103,13 +103,29 @@ def _admin_only(user: Usuario = Depends(_current_user)):
         raise HTTPException(status_code=403, detail="Solo administrador")
     return user
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./silvestra.db")
+_DATABASE_URL_RAW = os.environ.get("DATABASE_URL", "")
+DATABASE_URL = _DATABASE_URL_RAW or "sqlite:///./silvestra.db"
 # Railway usa postgres://, SQLAlchemy necesita postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# Si corremos dentro de Railway pero DATABASE_URL no llegó, NO arrancar en silencio
+# con un SQLite local: ese archivo vive en el filesystem efímero del contenedor y
+# desaparece en el próximo redeploy/reinicio, dando la falsa impresión de que "se
+# borró la base de datos" cuando en realidad Postgres sigue intacto y solo se perdió
+# la conexión a él. Preferimos un crash ruidoso (visible en Deploy Logs) a una
+# pérdida de datos silenciosa.
+if not _DATABASE_URL_RAW and os.environ.get("RAILWAY_ENVIRONMENT"):
+    raise RuntimeError(
+        "DATABASE_URL no está definida pero la app corre en Railway. "
+        "Revisa Admin-Silvestra → Variables y confirma que DATABASE_URL "
+        "está enlazada al servicio Postgres (no se debe usar SQLite en producción)."
+    )
+
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
+print(f"[DB] Dialecto conectado: {engine.dialect.name}"
+      + (" — ⚠️ SQLite LOCAL, no persistente" if DATABASE_URL.startswith("sqlite") else " (Postgres)"))
 
 # "El principio de la sabiduría es el temor del Señor." — Salmos 111:10
 

@@ -2515,6 +2515,25 @@ async function _loadSD(){
   return _SD;
 }
 
+// Invalida la caché del concentrado y marca para recargar TODAS las vistas que
+// dependen de los saldos, para que un registro nuevo (cargo, pago, descuento) se
+// refleje de inmediato en Dashboard, Concentrado COF/COV, Estado de Cuenta y
+// Descuentos, sin tener que recargar el navegador. Antes cada función invalidaba
+// solo una parte (p.ej. _SD pero no _rendered), dejando números viejos en pantalla.
+function _invalidarConcentrado(){
+  _SD=null;
+  ['dashboard','lotes','cargos','reporte','estadoCuenta','descuentos',
+   'concentradoCOF','concentradoCOV','ingresos'].forEach(p=>_rendered.delete(p));
+  // Si el usuario está viendo alguna de estas páginas AHORA, refrescarla en el acto.
+  const act=document.querySelector('.page.active');
+  if(!act) return;
+  if(act.id==='pageDashboard'){ _rendered.add('dashboard'); renderDashboard(); }
+  else if(act.id==='pageConcentradoCOF'){ _rendered.add('concentradoCOF'); loadConcentradoCOF(); }
+  else if(act.id==='pageConcentradoCOV'){ _rendered.add('concentradoCOV'); loadConcentradoCOV(); }
+  else if(act.id==='pageDescuentos'){ _rendered.add('descuentos'); loadDescuentos(); }
+  else if(act.id==='pageReporte'){ _rendered.add('reporte'); renderReporte(); }
+}
+
 function loadEstadoCuenta(){
   _ecFilterLotes();
 }
@@ -3016,7 +3035,8 @@ function showPage(id,navEl){
   // Renderizar bajo demanda la primera vez que se visita cada sección
   if(!_rendered.has(id)){
     _rendered.add(id);
-    if(id==='lotes') renderLotes();
+    if(id==='dashboard') renderDashboard();
+    else if(id==='lotes') renderLotes();
     else if(id==='cargos') renderCargos();
     else if(id==='gastos') loadGastos();
     else if(id==='ingresos') loadIngresos();
@@ -3465,8 +3485,10 @@ function renderIngresosByTab(tab){
       if(tabAprobados) switchTab('ingresos','aprobados',tabAprobados);
       else renderIngresosByTab('aprobados');
       showToast('✅ Ingreso aprobado');
-      _SD=null; // el concentrado debe reflejar el nuevo pago
-      if(id) fetch(`/api/pagos/${id}/aprobar`,{method:'PUT'}).catch(()=>{});
+      // Aplicar en el servidor y SÓLO DESPUÉS invalidar, para que el concentrado
+      // se recalcule con el pago ya aprobado (evita recachear el saldo viejo).
+      if(id) fetch(`/api/pagos/${id}/aprobar`,{method:'PUT'}).then(()=>_invalidarConcentrado()).catch(()=>_invalidarConcentrado());
+      else _invalidarConcentrado();
     });
   });
   el.querySelectorAll('.btn-revertir-ing').forEach(btn=>{
@@ -3478,7 +3500,8 @@ function renderIngresosByTab(tab){
       INGRESOS_DATA[idx].estado='por_aprobar';
       renderIngresosByTab('aprobados');
       showToast('Ingreso regresado a pendiente');
-      if(id) fetch(`/api/pagos/${id}/revertir`,{method:'PUT'}).catch(()=>{});
+      // Revertir baja el pago del saldo → recalcular el concentrado tras aplicarlo.
+      if(id) fetch(`/api/pagos/${id}/revertir`,{method:'PUT'}).then(()=>_invalidarConcentrado()).catch(()=>_invalidarConcentrado());
     });
   });
 }
@@ -4037,7 +4060,7 @@ async function aplicarCargo(){
     document.getElementById('pagoMonto').value='';
     document.getElementById('pagoDesc').value='';
     document.getElementById('pagoNotas').value='';
-    _SD=null;   // forzar recálculo del concentrado / estado de cuenta
+    _invalidarConcentrado();   // refrescar concentrado / estado de cuenta / dashboard
     showToast(`✅ Cargo aplicado a Mza ${mza} L${loteNum}`);
   }catch(e){showToast('❌ Error de conexión');}
 }
@@ -5119,13 +5142,13 @@ async function saveLectura(){
   const method=id?'PUT':'POST';
   await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   document.getElementById('lectId').value='';
-  closeModal('modalLectura'); showToast('Lectura guardada'); loadAgua();
+  closeModal('modalLectura'); showToast('Lectura guardada'); loadAgua(); _invalidarConcentrado();
 }
 
 async function deleteLectura(id){
   if(!confirm('¿Eliminar lectura?')) return;
   await fetch(`/api/agua/lecturas/${id}`,{method:'DELETE'});
-  loadAgua(); showToast('Lectura eliminada');
+  loadAgua(); _invalidarConcentrado(); showToast('Lectura eliminada');
 }
 
 async function importarAgua(input){
@@ -5773,7 +5796,8 @@ async function guardarDescuento(){
   if(!res.ok){showToast('❌ Error al guardar descuento');return;}
   closeModal('modalDescuento');
   showToast('✅ Descuento registrado');
-  calcularSaldos();
+  _invalidarConcentrado(); // el descuento afecta el saldo → refrescar vistas
+  if(typeof calcularSaldos==='function') calcularSaldos();
 }
 
 function _abrirNuevoCargo(){
@@ -5809,9 +5833,7 @@ async function guardarCargo(){
   if(!res.ok){showToast('❌ Error al guardar cargo');return;}
   closeModal('modalNuevoCargo');
   showToast('✅ Cargo registrado');
-  _SD=null; // invalidar caché del concentrado
-  if(document.getElementById('pageConcentradoCOF').classList.contains('active')) loadConcentradoCOF();
-  else if(document.getElementById('pageConcentradoCOV').classList.contains('active')) loadConcentradoCOV();
+  _invalidarConcentrado(); // invalidar y refrescar todas las vistas de saldos
 }
 
 function _cfgCargarVisores(){

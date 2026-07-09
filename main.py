@@ -594,12 +594,16 @@ def _construir_historial(lote, pagos, descuentos, lecturas, cargos, hoy=None):
         if p.estado and p.estado != "aprobado":
             continue
         k = p.mes_aplicado or ""
-        if p.concepto == "COF":
+        if p.concepto == "COV":
+            pago_cov[k] = pago_cov.get(k, 0) + p.importe
+        else:
+            # COF y CUALQUIER otro concepto (Amenidad, Otro, ...) se acreditan al
+            # saldo COF (cuenta principal). Antes solo contaba "COF" exacto, así que
+            # un pago registrado como "Amenidad" u "Otro" se guardaba pero NO bajaba
+            # ningún saldo — el dinero quedaba invisible en los balances.
             pago_cof[k] = pago_cof.get(k, 0) + p.importe
             if p.fecha_pago:
                 fpago_map[k] = str(p.fecha_pago)
-        elif p.concepto == "COV":
-            pago_cov[k] = pago_cov.get(k, 0) + p.importe
 
     cof_mes_map, extra_cof, extra_cov, instal_map = {}, {}, {}, {}
     for c in cargos:

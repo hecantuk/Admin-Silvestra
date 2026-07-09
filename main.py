@@ -614,8 +614,12 @@ def _construir_historial(lote, pagos, descuentos, lecturas, cargos, hoy=None):
 
     cov_map = {lec.mes: lec for lec in lecturas}
 
-    # Descuentos por mes (usa la fecha del descuento; si solo hay año, lo aplica a diciembre)
-    desc_mes = {}
+    # Descuentos por mes (usa la fecha del descuento; si solo hay año, lo aplica a diciembre).
+    # Se separan por concepto: un descuento COF reduce el saldo COF y un descuento COV
+    # reduce el saldo COV. Antes se restaban TODOS al saldo COF, así que un descuento de
+    # agua (COV) bajaba mal la deuda de cuota fija y nunca tocaba la deuda de agua.
+    desc_mes = {}       # descuentos COF
+    desc_cov_mes = {}   # descuentos COV (agua)
     for d in descuentos:
         if d.fecha:
             k = d.fecha.strftime("%Y-%m")
@@ -623,7 +627,10 @@ def _construir_historial(lote, pagos, descuentos, lecturas, cargos, hoy=None):
             k = f"{d.anio}-12"
         else:
             k = hoy.strftime("%Y-%m")
-        desc_mes[k] = desc_mes.get(k, 0) + d.importe
+        if (d.concepto or "COF").upper() == "COV":
+            desc_cov_mes[k] = desc_cov_mes.get(k, 0) + d.importe
+        else:
+            desc_mes[k] = desc_mes.get(k, 0) + d.importe
 
     importado = len(cof_mes_map) > 0
 
@@ -632,7 +639,7 @@ def _construir_historial(lote, pagos, descuentos, lecturas, cargos, hoy=None):
     hoy_k = _fd(hoy.year, hoy.month)
 
     keys = (set(cof_mes_map) | set(pago_cof) | set(pago_cov) | set(cov_map)
-            | set(extra_cof) | set(extra_cov) | set(instal_map) | set(desc_mes))
+            | set(extra_cof) | set(extra_cov) | set(instal_map) | set(desc_mes) | set(desc_cov_mes))
     keys = {k for k in keys if k and len(k) >= 7 and k[:4].isdigit()}
 
     if importado and keys:
@@ -677,12 +684,13 @@ def _construir_historial(lote, pagos, descuentos, lecturas, cargos, hoy=None):
     tot_extra = sum(extra_cof.values())
     tot_cargado_cof = tot_cuota_cof + tot_extra
     tot_pago_cof = sum(pago_cof.values())
-    tot_desc = sum(d.importe for d in descuentos)
+    tot_desc = sum(desc_mes.values())            # descuentos COF
+    tot_desc_cov = sum(desc_cov_mes.values())    # descuentos COV (agua)
     tot_instal = sum(instal_map.values())
     tot_cov = sum(lec.importe for lec in lecturas) + sum(extra_cov.values()) + tot_instal
     tot_pago_cov = sum(pago_cov.values())
     saldo_cof = round(tot_cargado_cof - tot_pago_cof - tot_desc, 2)
-    saldo_cov = round(tot_cov - tot_pago_cov, 2)
+    saldo_cov = round(tot_cov - tot_pago_cov - tot_desc_cov, 2)
     venc = max(0, round(saldo_cof / lote.cuota_cof)) if lote.cuota_cof and saldo_cof > 0 else 0
     estado = "corriente" if (saldo_cof + saldo_cov) <= 0.01 else "moroso"
 
